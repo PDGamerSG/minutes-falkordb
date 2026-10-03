@@ -60,7 +60,9 @@ class _EmptyExtractor:
 def _fake_strategy(llm: Any, data_dir: Path, container_id: str, slug: str | None) -> tuple[Any, Any]:
     """(extractor, judge) overrides: gold replay when the LLM is the fake, else the model path."""
     if getattr(llm, "backend", "") != "fake":
-        return None, None
+        from ingest.extract import make_extractor
+
+        return make_extractor(llm), None  # current prompt version (v5); judge stays the pipeline default
     gold = find_gold(data_dir / "gold", container_id=container_id, slug=slug)
     if gold is None:
         log.warning("fake LLM and no gold labels for %s; nothing will be extracted", container_id)

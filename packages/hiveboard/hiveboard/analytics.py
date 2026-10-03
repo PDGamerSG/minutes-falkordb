@@ -22,13 +22,14 @@ def who_knows(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
 
 
 def open_commitments(db: HiveDB, tenant: str, person_id: str | None = None) -> CypherRows:
-    """ACTIVE commitments (optionally one owner), soonest due first, with `owner` and `entities`."""
+    """ACTIVE commitments (optionally one owner), soonest due first, with `owner`, `speaker` and `entities`."""
     query = load_cypher("open_commitments")
     res = db.ro(tenant).ro_query(query, {"person": person_id}, timeout=RO_TIMEOUT_MS)
     rows = []
-    for c, owner, entities in res.result_set:
+    for c, owner, speaker, entities in res.result_set:
         rec = props(c) or {}
         rec["owner"] = brief(owner)
+        rec["speaker"] = brief(speaker)
         rec["entities"] = [brief(e, "id", "name", "type") for e in entities]
         rows.append(rec)
     return CypherRows(rows, query)
