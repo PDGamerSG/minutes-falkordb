@@ -1,5 +1,5 @@
 // 50_who_knows: people who talked or wrote about an entity, ranked by episode mentions (SPOKEN_BY, SENT_BY, SENT_TO). Params: $name.
-// The WITH barriers are deliberate: FalkorDB 6.0.1 reorders chained MATCHes with a multi-type relationship and drops the entity filter.
+// The WITH barriers are deliberate: FalkorDB 6.0.1 drops the WHERE of a MATCH that is followed directly by another MATCH (see docs/falkordb-issues.md, issue 3).
 MATCH (en:Entity) WHERE toLower(en.name) = toLower($name)
 WITH en
 MATCH (ep:Episode)-[:MENTIONS]->(en)

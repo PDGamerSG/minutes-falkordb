@@ -101,7 +101,7 @@ flowchart LR
 
 Indexes per tenant graph: range indexes on ids, timestamps and status; full-text on Episode, Fact and Decision text; HNSW vector indexes (768-d cosine, EmbeddingGemma) on Episode, Fact, Skill and Entity. See `cypher/00_schema.cypher`.
 
-Tenancy is enforced with Redis ACL users per graph. On FalkorDB 6.0.1 the documented `%R~`/`%RW~` key selectors reject even `GRAPH.RO_QUERY` (both commands declare their key with read-write flags), so Minutes uses command-level permissions plus key patterns:
+Tenancy is enforced with Redis ACL users per graph. On FalkorDB 6.0.1 (and 4.22.0) the read-only key selector `%R~graph` that the docs show for read-only users rejects even `GRAPH.RO_QUERY`, because both graph commands declare their key with read-write flags (`%RW~` and `~` work). Minutes therefore enforces read-only access at the command level and isolation with key patterns:
 
 ```
 ACL SETUSER team_<slug>_rw reset on ><pw> +INFO +PING +CLIENT|SETINFO +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.QUERY +GRAPH.PROFILE ~team_<slug> ~commons
@@ -137,15 +137,27 @@ The retrieval policy is a JavaScript UDF stored in the database (`packages/hiveb
 
 ## Benchmarks
 
-Harness: `packages/hiveboard/bench/harness.py` (N simulated agents across M tenant graphs, 80 percent reads via recall, active facts and task listing, 20 percent writes via facts, claims and completions; plus a compare-and-set race). Results in `docs/bench/`.
+Harness: `packages/hiveboard/bench/harness.py`. N simulated agents across M tenant graphs, 80 percent reads (hybrid recall, active facts, task listing) and 20 percent writes (facts with supersession, claims, completions), plus a compare-and-set race on one task per tenant. `--procs` splits the client across processes so Python's GIL does not cap the load. Full method, machine and interpretation: [`docs/bench/README.md`](docs/bench/README.md); raw JSON in `docs/bench/`.
 
-| Engine | Target | Agents x tenants | Duration | Read p50 / p95 / p99 (ms) | Write p50 / p95 / p99 (ms) | Ops/s | Errors | CAS (attempts, winners, losers) |
+Machine: one laptop (i9-13900HX, 48 GB RAM, Docker Desktop on WSL2), client and server on the same host, FalkorDB image defaults (THREAD_COUNT 32). These are not server-capacity numbers.
+
+| Engine | Agents x tenants | Client procs | Duration | Read p50 / p95 / p99 (ms) | Write p50 / p95 / p99 (ms) | Ops/s | Errors | CAS winners / attempts |
 |---|---|---|---|---|---|---|---|---|
-| FalkorDB 6.0.1 | local Docker, THREAD_COUNT 32 | 20 x 4 | 20 s | 31.7 / 75.9 / 110.9 | 36.0 / 95.0 / 129.2 | 533 | 0 | 100, 4, 96 |
+| 4.22.0 | 20 x 4 | 4 | 60 s | 11.0 / 29.0 / 36.9 | 15.1 / 51.1 / 67.7 | 1,379 | 0 | 4 / 100 |
+| 6.0.1 | 20 x 4 | 4 | 60 s | 8.5 / 20.3 / 25.2 | 11.9 / 39.4 / 51.6 | 1,794 | 0 | 4 / 100 |
+| 4.22.0 | 100 x 1 | 4 | 60 s | 21.4 / 52.7 / 73.9 | 321.9 / 767.8 / 871.5 | 1,092 | 0 | 1 / 25 |
+| 6.0.1 | 100 x 1 | 4 | 60 s | 7.1 / 28.1 / 50.3 | 272.3 / 640.2 / 743.6 | 1,560 | 0 | 1 / 25 |
+| 6.0.1 (MAX_QUEUED_QUERIES 1000) | 200 x 20 | 8 | 120 s | 52.0 / 135.1 / 168.2 | 88.6 / 262.8 / 329.3 | 2,608 | 0 | 20 / 500 |
 
-Single-request latencies on the same instance: recall 4 ms, why 1 ms, claim 2 ms, remember plus supersede 3.5 ms. One lesson worth sharing: returning whole nodes that carry 768-float embeddings cost about 0.5 ms per node on the wire and made the first run ten times slower; every user-facing read now projects nodes without the embedding.
+What the numbers say:
+- With the load spread over 4 tenant graphs, 6.0.1 does about 30 percent more operations per second than 4.22.0 at lower latency (repeat runs within 1 percent).
+- Putting 100 agents on one graph shows per-graph write serialization on both engines: write p50 rises from about 12 ms to 260 to 360 ms while reads stay fast. Graph-per-tenant is what keeps writes cheap.
+- At 200 agents over 20 graphs, every compare-and-set race had exactly one winner. With the image default MAX_QUEUED_QUERIES of 25, 18 percent of requests were rejected with "Max pending queries exceeded"; raising it to 1000 removed every error. Our compose file sets 500.
+- With a single client process the two engines tie, because the Python client, not FalkorDB, is the bottleneck.
 
-Runs on FalkorDB 4.22.0 and on the deployed instance are added as they are collected.
+Single-request latencies on 6.0.1: recall 4 ms, why 1 ms, claim 2 ms, remember plus supersede 3.5 ms. Returning whole nodes that carry 768-float embeddings cost about 0.5 ms per node on the wire, so every user-facing read projects nodes without the embedding.
+
+FalkorDB findings from this work, drafted as issues in [`docs/falkordb-issues.md`](docs/falkordb-issues.md): `GRAPH.MEMORY USAGE` truncates to whole MB and never counts index memory; the `%R~` ACL selector rejects `GRAPH.RO_QUERY`; and on 6.0.1 only, `MATCH ... WHERE ...` followed directly by another `MATCH` drops the first filter (4.22.0 is correct). Every query in `cypher/` avoids that shape.
 
 ## Deployment
 
