@@ -1,0 +1,2243 @@
+{
+  "backend": "gemini",
+  "model": "gemma-4-26b-a4b-it",
+  "prompt_version": "v5",
+  "results": [
+    {
+      "slug": "nimbus_001",
+      "tp": 5,
+      "fp": 5,
+      "fn": 3,
+      "precision": 0.5,
+      "recall": 0.625,
+      "f1": 0.556,
+      "proposed": 10,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "decision",
+          "subject": "warehouse",
+          "predicate": "uses_vendor",
+          "object": "BigQuery",
+          "speaker_id": "spk_meera",
+          "text": "Meera decided the warehouse moves to BigQuery.",
+          "episode_id": "ep_mtg_nimbus_001_006"
+        },
+        {
+          "kind": "commitment",
+          "subject": "events pipeline",
+          "predicate": "due",
+          "object": "2026-09-18",
+          "speaker_id": "spk_dev",
+          "text": "Dev will have the events pipeline done by September 18th.",
+          "episode_id": "ep_mtg_nimbus_001_013"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Lumen dashboard",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_anika",
+          "text": "Anika committed to rebuilding the Lumen dashboard on BigQuery by September 25th.",
+          "episode_id": "ep_mtg_nimbus_001_015"
+        },
+        {
+          "kind": "commitment",
+          "subject": "migration plan",
+          "predicate": "due",
+          "object": "2026-09-11",
+          "speaker_id": "spk_meera",
+          "text": "Meera will send the migration plan to finance by Friday the 11th.",
+          "episode_id": "ep_mtg_nimbus_001_016"
+        },
+        {
+          "kind": "decision",
+          "subject": "Nimbus sync",
+          "predicate": "decided",
+          "object": "Tuesdays 10:00",
+          "speaker_id": "spk_meera",
+          "text": "Meera set the weekly sync for Tuesdays at 10:00.",
+          "episode_id": "ep_mtg_nimbus_001_024"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "transformations",
+          "predicate": "uses_pattern",
+          "object": "dbt models",
+          "speaker_id": "spk_meera",
+          "segment_index": 11,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "nightly events job",
+          "predicate": "decided",
+          "object": "02:00 IST",
+          "speaker_id": "spk_meera",
+          "segment_index": 14,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "raw events retention",
+          "predicate": "decided",
+          "object": "13 months",
+          "speaker_id": "spk_meera",
+          "segment_index": 21,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "fact",
+          "subject": "warehouse",
+          "predicate": "uses_vendor",
+          "object": "BigQuery",
+          "speaker_id": "spk_dev",
+          "text": "Dev suggests using BigQuery for the warehouse because they are already on GCP.",
+          "episode_id": "ep_mtg_nimbus_001_003"
+        },
+        {
+          "kind": "fact",
+          "subject": "transformations",
+          "predicate": "uses_pattern",
+          "object": "dbt",
+          "speaker_id": "spk_dev",
+          "text": "Dev decided to use dbt for all transformation models.",
+          "episode_id": "ep_mtg_nimbus_001_007"
+        },
+        {
+          "kind": "fact",
+          "subject": "nightly events job",
+          "predicate": "decided",
+          "object": "02:00 IST",
+          "speaker_id": "spk_dev",
+          "text": "Dev stated the nightly events job runs at 02:00 IST.",
+          "episode_id": "ep_mtg_nimbus_001_011"
+        },
+        {
+          "kind": "fact",
+          "subject": "raw events retention",
+          "predicate": "status",
+          "object": "13 months",
+          "speaker_id": "spk_meera",
+          "text": "Meera stated that raw events retention remains at 13 months.",
+          "episode_id": "ep_mtg_nimbus_001_018"
+        },
+        {
+          "kind": "decision",
+          "subject": "warehouse",
+          "predicate": "status",
+          "object": "cut over 2026-09-25",
+          "speaker_id": "spk_meera",
+          "text": "Meera decided to run both systems until the 25th before cutting over.",
+          "episode_id": "ep_mtg_nimbus_001_020"
+        }
+      ]
+    },
+    {
+      "slug": "nimbus_002",
+      "tp": 4,
+      "fp": 7,
+      "fn": 1,
+      "precision": 0.364,
+      "recall": 0.8,
+      "f1": 0.5,
+      "proposed": 13,
+      "dropped": 2,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "events pipeline",
+          "predicate": "due",
+          "object": "2026-09-23",
+          "speaker_id": "spk_dev",
+          "text": "Dev will move the events pipeline to September 23rd.",
+          "episode_id": "ep_mtg_nimbus_002_003"
+        },
+        {
+          "kind": "decision",
+          "subject": "nightly events job",
+          "predicate": "decided",
+          "object": "03:00 IST",
+          "speaker_id": "spk_meera",
+          "text": "Meera decided the nightly events job will run at 03:00 IST.",
+          "episode_id": "ep_mtg_nimbus_002_012"
+        },
+        {
+          "kind": "commitment",
+          "subject": "migration plan",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_meera",
+          "text": "Meera reported the migration plan went to finance on September 11th.",
+          "episode_id": "ep_mtg_nimbus_002_014"
+        },
+        {
+          "kind": "commitment",
+          "subject": "cost estimate",
+          "predicate": "due",
+          "object": "2026-09-18",
+          "speaker_id": "spk_meera",
+          "text": "Meera will provide the cost estimate to finance by September 18th.",
+          "episode_id": "ep_mtg_nimbus_002_014"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "events pipeline",
+          "predicate": "requires",
+          "object": "schema registry",
+          "speaker_id": "spk_meera",
+          "segment_index": 8,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "fact",
+          "subject": "events pipeline",
+          "predicate": "status",
+          "object": "deferred",
+          "speaker_id": "spk_dev",
+          "text": "Dev reported that the events pipeline is going to slip due to schema changes from the source team.",
+          "episode_id": "ep_mtg_nimbus_002_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "Lumen dashboard",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_meera",
+          "text": "Meera noted the Lumen dashboard is currently set for the 25th.",
+          "episode_id": "ep_mtg_nimbus_002_006"
+        },
+        {
+          "kind": "fact",
+          "subject": "schema",
+          "predicate": "uses_pattern",
+          "object": "registry",
+          "speaker_id": "spk_dev",
+          "text": "Dev proposed using a registry for the schema.",
+          "episode_id": "ep_mtg_nimbus_002_007"
+        },
+        {
+          "kind": "fact",
+          "subject": "BigQuery",
+          "predicate": "requires",
+          "object": "registered schema",
+          "speaker_id": "spk_dev",
+          "text": "Dev stated that nothing lands in BigQuery unless it matches a registered schema.",
+          "episode_id": "ep_mtg_nimbus_002_007"
+        },
+        {
+          "kind": "decision",
+          "subject": "events load",
+          "predicate": "uses_pattern",
+          "object": "schema registry",
+          "speaker_id": "spk_meera",
+          "text": "Meera decided to add a schema registry in front of the events load due to recent schema breaks.",
+          "episode_id": "ep_mtg_nimbus_002_008"
+        },
+        {
+          "kind": "fact",
+          "subject": "nightly backup window",
+          "predicate": "status",
+          "object": "01:30 to 02:30 from 2026-09-21",
+          "speaker_id": "spk_meera",
+          "text": "Meera reported the platform's nightly backup window moves to 01:30 to 02:30 starting next week.",
+          "episode_id": "ep_mtg_nimbus_002_010"
+        },
+        {
+          "kind": "fact",
+          "subject": "cost estimate",
+          "predicate": "requires",
+          "object": "BigQuery numbers",
+          "speaker_id": "spk_meera",
+          "text": "Finance requires the cost estimate to include BigQuery numbers.",
+          "episode_id": "ep_mtg_nimbus_002_014"
+        }
+      ]
+    },
+    {
+      "slug": "nimbus_thread_001",
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "proposed": 2,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "events pipeline",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_dev",
+          "text": "Dev is moving the events pipeline to Friday the 25th.",
+          "episode_id": "ep_thr_nimbus_001_000"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Lumen dashboard",
+          "predicate": "due",
+          "object": "2026-09-29",
+          "speaker_id": "spk_anika",
+          "text": "Anika moved the Lumen dashboard to September 29th.",
+          "episode_id": "ep_thr_nimbus_001_002"
+        }
+      ],
+      "missed": [],
+      "spurious": []
+    },
+    {
+      "slug": "orbit_002",
+      "tp": 6,
+      "fp": 6,
+      "fn": 4,
+      "precision": 0.5,
+      "recall": 0.6,
+      "f1": 0.545,
+      "proposed": 14,
+      "dropped": 2,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "payments service API spec",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported that the payments service API spec was completed on Thursday the 10th.",
+          "episode_id": "ep_mtg_orbit_002_001"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_priya",
+          "text": "Priya moved the UPI flow due date to September 25th.",
+          "episode_id": "ep_mtg_orbit_002_005"
+        },
+        {
+          "kind": "commitment",
+          "subject": "offline mode spike",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported that the offline mode spike is completed.",
+          "episode_id": "ep_mtg_orbit_002_011"
+        },
+        {
+          "kind": "commitment",
+          "subject": "sync conflict resolution proposal",
+          "predicate": "due",
+          "object": "2026-09-16",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will bring a sync conflict resolution proposal to the design review on September 16th.",
+          "episode_id": "ep_mtg_orbit_002_015"
+        },
+        {
+          "kind": "commitment",
+          "subject": "navigation accessibility review",
+          "predicate": "due",
+          "object": "2026-09-16",
+          "speaker_id": "spk_sana",
+          "text": "Sana will have the navigation accessibility review done by Wednesday's design review.",
+          "episode_id": "ep_mtg_orbit_002_028"
+        },
+        {
+          "kind": "decision",
+          "subject": "iOS build",
+          "predicate": "status",
+          "object": "deferred to November",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided to move iOS to the November release.",
+          "episode_id": "ep_mtg_orbit_002_031"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "Orbit standup",
+          "predicate": "uses_pattern",
+          "object": "done, next, blockers, decisions since last, stale commitments",
+          "speaker_id": "spk_aditya",
+          "segment_index": 0,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "commitment",
+          "subject": "Meridian requirements call",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_aditya",
+          "segment_index": 35,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian pilot start",
+          "predicate": "due",
+          "object": "2026-10-20",
+          "speaker_id": "spk_aditya",
+          "segment_index": 36,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "payment receipts",
+          "predicate": "uses_pattern",
+          "object": "in-app only",
+          "speaker_id": "spk_aditya",
+          "segment_index": 39,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "commitment",
+          "subject": "Razorpay sandbox keys",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported that the Razorpay sandbox keys arrived on time.",
+          "episode_id": "ep_mtg_orbit_002_009"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian",
+          "predicate": "requires",
+          "object": "agents share territories",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul noted that Meridian agents share territories, making conflicts likely.",
+          "episode_id": "ep_mtg_orbit_002_015"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "minimum touch targets and screen reader order",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted that the Meridian accessibility checklist requires minimum touch targets and screen reader order.",
+          "episode_id": "ep_mtg_orbit_002_026"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian pilot start",
+          "predicate": "due",
+          "object": "2026-10-16",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated the Meridian pilot starts on October 16th.",
+          "episode_id": "ep_mtg_orbit_002_031"
+        },
+        {
+          "kind": "decision",
+          "subject": "Meridian pilot",
+          "predicate": "scope_includes",
+          "object": "Android only",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided the Meridian pilot will be Android only.",
+          "episode_id": "ep_mtg_orbit_002_031"
+        },
+        {
+          "kind": "decision",
+          "subject": "payment receipts",
+          "predicate": "uses_pattern",
+          "object": "in-app receipt",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided that payment receipts will be in-app only, with no printing.",
+          "episode_id": "ep_mtg_orbit_002_033"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_003",
+      "tp": 4,
+      "fp": 13,
+      "fn": 2,
+      "precision": 0.235,
+      "recall": 0.667,
+      "f1": 0.348,
+      "proposed": 21,
+      "dropped": 4,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "decision",
+          "subject": "Orbit navigation",
+          "predicate": "uses_pattern",
+          "object": "side drawer",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided that navigation will be a side drawer, reversing the previous decision to use a bottom tab bar.",
+          "episode_id": "ep_mtg_orbit_003_010"
+        },
+        {
+          "kind": "commitment",
+          "subject": "side drawer",
+          "predicate": "due",
+          "object": "2026-09-23",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will have the side drawer implemented by September 23rd.",
+          "episode_id": "ep_mtg_orbit_003_013"
+        },
+        {
+          "kind": "commitment",
+          "subject": "drawer mockup sign-off",
+          "predicate": "due",
+          "object": "2026-09-18",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya will send the drawer mockup to Meridian for sign-off by Friday the 18th.",
+          "episode_id": "ep_mtg_orbit_003_014"
+        },
+        {
+          "kind": "decision",
+          "subject": "Orbit",
+          "predicate": "requires",
+          "object": "Meridian accessibility checklist",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided that the Meridian accessibility checklist is the baseline for every Orbit screen.",
+          "episode_id": "ep_mtg_orbit_003_018"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "onboarding buttons",
+          "predicate": "uses_pattern",
+          "object": "56dp full width",
+          "speaker_id": "spk_aditya",
+          "segment_index": 28,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": {
+            "subject": "Orbit navigation",
+            "predicate": "uses_pattern"
+          },
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "offline mode",
+          "predicate": "uses_pattern",
+          "object": "last-write-wins per field",
+          "speaker_id": "spk_aditya",
+          "segment_index": 38,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "primary navigation target at least 56 dp",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted that the Meridian accessibility checklist requires primary navigation targets to be at least 56 dp.",
+          "episode_id": "ep_mtg_orbit_003_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "navigation as single landmark",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted that the Meridian accessibility checklist requires navigation to be a single landmark for the screen reader.",
+          "episode_id": "ep_mtg_orbit_003_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "no icon-only controls",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted that the Meridian accessibility checklist forbids icon-only controls.",
+          "episode_id": "ep_mtg_orbit_003_003"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian Bank",
+          "predicate": "requires",
+          "object": "56 dp navigation target",
+          "speaker_id": "spk_sana",
+          "text": "Sana stated that a 56 dp navigation target is a hard requirement in the Meridian Bank contract.",
+          "episode_id": "ep_mtg_orbit_003_007"
+        },
+        {
+          "kind": "commitment",
+          "subject": "drawer mockup sign-off",
+          "predicate": "due",
+          "object": "2026-09-16",
+          "speaker_id": "spk_sana",
+          "text": "Sana will have the mockup to Aditya tonight.",
+          "episode_id": "ep_mtg_orbit_003_015"
+        },
+        {
+          "kind": "fact",
+          "subject": "onboarding screens",
+          "predicate": "requires",
+          "object": "Meridian accessibility checklist",
+          "speaker_id": "spk_sana",
+          "text": "Sana proposed that every screen must be checked against the Meridian accessibility checklist before completion.",
+          "episode_id": "ep_mtg_orbit_003_017"
+        },
+        {
+          "kind": "fact",
+          "subject": "onboarding screens",
+          "predicate": "requires",
+          "object": "56 dp buttons",
+          "speaker_id": "spk_sana",
+          "text": "Sana stated that primary buttons on onboarding must be 56 dp and full width.",
+          "episode_id": "ep_mtg_orbit_003_022"
+        },
+        {
+          "kind": "decision",
+          "subject": "onboarding buttons",
+          "predicate": "scope_includes",
+          "object": "56 dp full width",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided that onboarding buttons must be 56 dp and full width, following the drawer precedent.",
+          "episode_id": "ep_mtg_orbit_003_023"
+        },
+        {
+          "kind": "commitment",
+          "subject": "onboarding screens",
+          "predicate": "due",
+          "object": "2026-09-19",
+          "speaker_id": "spk_sana",
+          "text": "Sana will have the onboarding screens done by September 19th.",
+          "episode_id": "ep_mtg_orbit_003_024"
+        },
+        {
+          "kind": "decision",
+          "subject": "offline mode",
+          "predicate": "uses_pattern",
+          "object": "last-write-wins per field, server timestamp",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided that offline mode conflict resolution will use last-write-wins per field with server timestamps.",
+          "episode_id": "ep_mtg_orbit_003_032"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian Bank",
+          "predicate": "requires",
+          "object": "UPI autopay mandates",
+          "speaker_id": "spk_priya",
+          "text": "Priya noted that Meridian Bank requires UPI autopay mandates for subscription accounts.",
+          "episode_id": "ep_mtg_orbit_003_033"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "due",
+          "object": "2026-09-17",
+          "speaker_id": "spk_priya",
+          "text": "Priya will submit the Razorpay merchant KYC tomorrow.",
+          "episode_id": "ep_mtg_orbit_003_033"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_aditya",
+          "text": "Priya will have the UPI flow done by September 25th.",
+          "episode_id": "ep_mtg_orbit_003_038"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_004",
+      "tp": 3,
+      "fp": 10,
+      "fn": 5,
+      "precision": 0.231,
+      "recall": 0.375,
+      "f1": 0.286,
+      "proposed": 15,
+      "dropped": 2,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "onboarding screens",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_sana",
+          "text": "Sana completed the five onboarding screens on September 19th.",
+          "episode_id": "ep_mtg_orbit_004_001"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_priya",
+          "text": "Priya moved the UPI flow due date to September 28th.",
+          "episode_id": "ep_mtg_orbit_004_015"
+        },
+        {
+          "kind": "commitment",
+          "subject": "payments service staging deploy",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_priya",
+          "text": "Priya will have the payments service deployed to staging by Friday the 25th.",
+          "episode_id": "ep_mtg_orbit_004_021"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "Orbit standup",
+          "predicate": "uses_pattern",
+          "object": "done, next, blockers, decisions since last, stale commitments",
+          "speaker_id": "spk_aditya",
+          "segment_index": 0,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "commitment",
+          "subject": "offline mode demo",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_rahul",
+          "segment_index": 8,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "commitment",
+          "subject": "Meridian test devices request",
+          "predicate": "due",
+          "object": "2026-09-23",
+          "speaker_id": "spk_aditya",
+          "segment_index": 13,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "commitment",
+          "subject": "drawer mockup sign-off",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_aditya",
+          "segment_index": 30,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "code freeze",
+          "predicate": "due",
+          "object": "2026-10-09",
+          "speaker_id": "spk_aditya",
+          "segment_index": 33,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "commitment",
+          "subject": "offline flow",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will demo the offline flow end to end on September 28th.",
+          "episode_id": "ep_mtg_orbit_004_007"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian test devices",
+          "predicate": "requires",
+          "object": "2 actual devices",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul requires two of Meridian's actual devices for testing.",
+          "episode_id": "ep_mtg_orbit_004_009"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Meridian test devices",
+          "predicate": "due",
+          "object": "2026-09-23",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya will ask Meridian for two test devices during the call on Wednesday.",
+          "episode_id": "ep_mtg_orbit_004_012"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported that the UPI flow is done, including polling and the one-time path.",
+          "episode_id": "ep_mtg_orbit_004_017"
+        },
+        {
+          "kind": "fact",
+          "subject": "UPI autopay mandates",
+          "predicate": "requires",
+          "object": "Razorpay merchant KYC",
+          "speaker_id": "spk_priya",
+          "text": "Priya noted that UPI autopay mandates require Razorpay merchant KYC.",
+          "episode_id": "ep_mtg_orbit_004_017"
+        },
+        {
+          "kind": "fact",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "due",
+          "object": "2026-09-24",
+          "speaker_id": "spk_priya",
+          "text": "Priya stated that Razorpay merchant KYC will unlock at the earliest on Thursday the 24th.",
+          "episode_id": "ep_mtg_orbit_004_017"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI autopay mandates",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_priya",
+          "text": "Priya committed to having the UPI autopay mandates done by September 28th.",
+          "episode_id": "ep_mtg_orbit_004_019"
+        },
+        {
+          "kind": "decision",
+          "subject": "UPI autopay mandates",
+          "predicate": "status",
+          "object": "cut from October release if UPI flow slips",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided to cut mandates from the release if the UPI flow slips past the 28th.",
+          "episode_id": "ep_mtg_orbit_004_020"
+        },
+        {
+          "kind": "fact",
+          "subject": "drawer mockup sign-off",
+          "predicate": "status",
+          "object": "approved by Meridian",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted that Meridian signed off the drawer mockup on September 18th.",
+          "episode_id": "ep_mtg_orbit_004_025"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian requirements call",
+          "predicate": "decided",
+          "object": "Wednesday 09:00",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya scheduled the Meridian call for Wednesday at 09:00.",
+          "episode_id": "ep_mtg_orbit_004_031"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_005",
+      "tp": 8,
+      "fp": 11,
+      "fn": 7,
+      "precision": 0.421,
+      "recall": 0.533,
+      "f1": 0.471,
+      "proposed": 22,
+      "dropped": 3,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "fact",
+          "subject": "Meridian test devices",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated Meridian test devices are arriving on Friday the 25th.",
+          "episode_id": "ep_mtg_orbit_005_002"
+        },
+        {
+          "kind": "fact",
+          "subject": "Orbit",
+          "predicate": "requires",
+          "object": "data residency in India",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated that all Orbit data must stay in India for data residency.",
+          "episode_id": "ep_mtg_orbit_005_009"
+        },
+        {
+          "kind": "commitment",
+          "subject": "PayU integration",
+          "predicate": "due",
+          "object": "2026-10-01",
+          "speaker_id": "spk_priya",
+          "text": "Priya will have the PayU sandbox integration done by October 1st.",
+          "episode_id": "ep_mtg_orbit_005_023"
+        },
+        {
+          "kind": "decision",
+          "subject": "payments service",
+          "predicate": "uses_vendor",
+          "object": "PayU",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided the payments service uses PayU.",
+          "episode_id": "ep_mtg_orbit_005_026"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Razorpay SDK removal",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will pull the Razorpay SDK out of the shell by Friday the 25th.",
+          "episode_id": "ep_mtg_orbit_005_027"
+        },
+        {
+          "kind": "commitment",
+          "subject": "payment consent screen",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_sana",
+          "text": "Sana will have the payment consent screen done by September 28th.",
+          "episode_id": "ep_mtg_orbit_005_030"
+        },
+        {
+          "kind": "fact",
+          "subject": "Kestrel Logistics pilot",
+          "predicate": "due",
+          "object": "2026-11-16",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated the Kestrel Logistics pilot starts on November 16th.",
+          "episode_id": "ep_mtg_orbit_005_035"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Kestrel discovery call",
+          "predicate": "due",
+          "object": "2026-09-30",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya will do a Kestrel discovery call on September 30th.",
+          "episode_id": "ep_mtg_orbit_005_037"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "commitment",
+          "subject": "Meridian test devices request",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_aditya",
+          "segment_index": 2,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "offline payments",
+          "predicate": "status",
+          "object": "out of scope",
+          "speaker_id": "spk_aditya",
+          "segment_index": 4,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian compliance team",
+          "predicate": "owner",
+          "object": "Farah",
+          "speaker_id": "spk_aditya",
+          "segment_index": 7,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "payments service",
+          "predicate": "requires",
+          "object": "audit log retained 7 years",
+          "speaker_id": "spk_aditya",
+          "segment_index": 9,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "payments service",
+          "predicate": "uses_vendor",
+          "object": "Razorpay",
+          "speaker_id": "spk_rahul",
+          "segment_index": 12,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian Bank",
+          "predicate": "requires",
+          "object": "PayU as payment provider",
+          "speaker_id": "spk_aditya",
+          "segment_index": 13,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Orbit",
+          "predicate": "customer",
+          "object": "Kestrel Logistics",
+          "speaker_id": "spk_aditya",
+          "segment_index": 36,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "decision",
+          "subject": "Meridian test devices",
+          "predicate": "owner",
+          "object": "Rahul",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya assigned the Meridian test devices to Rahul.",
+          "episode_id": "ep_mtg_orbit_005_002"
+        },
+        {
+          "kind": "decision",
+          "subject": "offline mode",
+          "predicate": "scope_includes",
+          "object": "forms and inspections only",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided offline mode is limited to forms and inspections.",
+          "episode_id": "ep_mtg_orbit_005_004"
+        },
+        {
+          "kind": "fact",
+          "subject": "offline payments",
+          "predicate": "status",
+          "object": "require connectivity",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated that offline payments require connectivity per the Meridian compliance team's position.",
+          "episode_id": "ep_mtg_orbit_005_004"
+        },
+        {
+          "kind": "fact",
+          "subject": "Orbit",
+          "predicate": "requires",
+          "object": "audit log retained for 7 years",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated that Meridian compliance requires an audit log of all payment attempts to be retained for seven years.",
+          "episode_id": "ep_mtg_orbit_005_009"
+        },
+        {
+          "kind": "commitment",
+          "subject": "app shell",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported that the Razorpay SDK is already wired into the app shell.",
+          "episode_id": "ep_mtg_orbit_005_012"
+        },
+        {
+          "kind": "fact",
+          "subject": "payments service",
+          "predicate": "requires",
+          "object": "PayU integration",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya stated that the Meridian compliance team mandates PayU.",
+          "episode_id": "ep_mtg_orbit_005_013"
+        },
+        {
+          "kind": "fact",
+          "subject": "vendor preference",
+          "predicate": "decided",
+          "object": "no preference",
+          "speaker_id": "spk_priya",
+          "text": "Priya noted that on the 11th, there was no stated vendor preference.",
+          "episode_id": "ep_mtg_orbit_005_016"
+        },
+        {
+          "kind": "fact",
+          "subject": "payments service",
+          "predicate": "requires",
+          "object": "PayU",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted that Meridian's compliance team mandates PayU and won't onboard another provider.",
+          "episode_id": "ep_mtg_orbit_005_026"
+        },
+        {
+          "kind": "fact",
+          "subject": "payment consent screen",
+          "predicate": "requires",
+          "object": "explicit consent before storing payment instrument",
+          "speaker_id": "spk_priya",
+          "text": "Priya noted that PayU requires an explicit consent screen before storing a payment instrument.",
+          "episode_id": "ep_mtg_orbit_005_029"
+        },
+        {
+          "kind": "fact",
+          "subject": "Kestrel Logistics pilot",
+          "predicate": "scope_includes",
+          "object": "delivery inspections",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted that Kestrel Logistics wants the same app for delivery inspections as the Meridian demo.",
+          "episode_id": "ep_mtg_orbit_005_033"
+        },
+        {
+          "kind": "decision",
+          "subject": "iOS build",
+          "predicate": "status",
+          "object": "active",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya confirmed iOS is required for the Kestrel pilot in November.",
+          "episode_id": "ep_mtg_orbit_005_035"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_006",
+      "tp": 10,
+      "fp": 6,
+      "fn": 4,
+      "precision": 0.625,
+      "recall": 0.714,
+      "f1": 0.667,
+      "proposed": 26,
+      "dropped": 10,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported the UPI flow was completed and delivered on September 28th.",
+          "episode_id": "ep_mtg_orbit_006_001"
+        },
+        {
+          "kind": "commitment",
+          "subject": "side drawer",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported the side drawer was merged on September 23rd.",
+          "episode_id": "ep_mtg_orbit_006_003"
+        },
+        {
+          "kind": "commitment",
+          "subject": "offline mode demo",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported the offline mode demo was completed on September 28th.",
+          "episode_id": "ep_mtg_orbit_006_003"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Razorpay SDK removal",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported the Razorpay SDK removal is done.",
+          "episode_id": "ep_mtg_orbit_006_003"
+        },
+        {
+          "kind": "commitment",
+          "subject": "payment consent screen",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_sana",
+          "text": "Sana stated the consent screen was delivered on September 28th.",
+          "episode_id": "ep_mtg_orbit_006_005"
+        },
+        {
+          "kind": "decision",
+          "subject": "Kestrel pilot",
+          "predicate": "uses_vendor",
+          "object": "PayU",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided the Kestrel pilot will use PayU.",
+          "episode_id": "ep_mtg_orbit_006_032"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Kestrel onboarding variant",
+          "predicate": "due",
+          "object": "2026-10-07",
+          "speaker_id": "spk_sana",
+          "text": "Sana will explore a Kestrel onboarding variant by October 7th.",
+          "episode_id": "ep_mtg_orbit_006_033"
+        },
+        {
+          "kind": "decision",
+          "subject": "November release",
+          "predicate": "scope_includes",
+          "object": "iOS",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided the November release scope includes iOS.",
+          "episode_id": "ep_mtg_orbit_006_034"
+        },
+        {
+          "kind": "decision",
+          "subject": "November release",
+          "predicate": "scope_includes",
+          "object": "Kestrel pilot",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided the November release scope includes the Kestrel pilot.",
+          "episode_id": "ep_mtg_orbit_006_034"
+        },
+        {
+          "kind": "commitment",
+          "subject": "retro notes",
+          "predicate": "due",
+          "object": "2026-10-01",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya will send the retro notes by October 1st.",
+          "episode_id": "ep_mtg_orbit_006_038"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "side drawer",
+          "predicate": "decided",
+          "object": "because of Meridian accessibility checklist, 56dp minimum touch targets",
+          "speaker_id": "spk_priya",
+          "segment_index": 16,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "Orbit",
+          "predicate": "lesson",
+          "object": "confirm vendor constraints with the customer's compliance team before choosing a vendor",
+          "speaker_id": "spk_aditya",
+          "segment_index": 23,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "Orbit",
+          "predicate": "lesson",
+          "object": "a commitment that slips twice gets a scope cut, not a third date",
+          "speaker_id": "spk_aditya",
+          "segment_index": 30,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "Orbit",
+          "predicate": "lesson",
+          "object": "record the rationale with every decision",
+          "speaker_id": "spk_aditya",
+          "segment_index": 34,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "commitment",
+          "subject": "onboarding",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_sana",
+          "text": "Sana stated onboarding is built.",
+          "episode_id": "ep_mtg_orbit_006_005"
+        },
+        {
+          "kind": "fact",
+          "subject": "Orbit",
+          "predicate": "requires",
+          "object": "Meridian accessibility checklist",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted that the Meridian accessibility checklist became the baseline for reviews.",
+          "episode_id": "ep_mtg_orbit_006_008"
+        },
+        {
+          "kind": "fact",
+          "subject": "side drawer",
+          "predicate": "decided",
+          "object": "because tab bar couldn't fit 5 sections",
+          "speaker_id": "spk_sana",
+          "text": "Sana noted the side drawer was chosen because the tab bar could not accommodate five sections.",
+          "episode_id": "ep_mtg_orbit_006_012"
+        },
+        {
+          "kind": "fact",
+          "subject": "side drawer",
+          "predicate": "decided",
+          "object": "because of Meridian's accessibility checklist",
+          "speaker_id": "spk_priya",
+          "text": "Priya stated the side drawer decision was driven by Meridian's accessibility checklist requirements.",
+          "episode_id": "ep_mtg_orbit_006_013"
+        },
+        {
+          "kind": "fact",
+          "subject": "Kestrel pilot",
+          "predicate": "status",
+          "object": "pilot starts November 16th",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted the Kestrel pilot starts on November 16th.",
+          "episode_id": "ep_mtg_orbit_006_032"
+        },
+        {
+          "kind": "commitment",
+          "subject": "PayU integration",
+          "predicate": "due",
+          "object": "2026-10-01",
+          "speaker_id": "spk_priya",
+          "text": "Priya stated the PayU integration is still on track for October 1st.",
+          "episode_id": "ep_mtg_orbit_006_037"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_thread_001",
+      "tp": 1,
+      "fp": 2,
+      "fn": 3,
+      "precision": 0.333,
+      "recall": 0.25,
+      "f1": 0.286,
+      "proposed": 3,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "onboarding screens",
+          "predicate": "due",
+          "object": "2026-09-19",
+          "speaker_id": "spk_sana",
+          "text": "Sana will have the final onboarding screens done by September 19th.",
+          "episode_id": "ep_thr_orbit_001_003"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "onboarding tour",
+          "predicate": "uses_pattern",
+          "object": "three cards",
+          "speaker_id": "spk_aditya",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "PIN setup",
+          "predicate": "uses_pattern",
+          "object": "4-digit PIN",
+          "speaker_id": "spk_aditya",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "permissions screen",
+          "predicate": "scope_includes",
+          "object": "camera and notifications only",
+          "speaker_id": "spk_sana",
+          "segment_index": null,
+          "message_index": 3,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "decision",
+          "subject": "onboarding tour",
+          "predicate": "scope_includes",
+          "object": "3 cards",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided to cut the onboarding tour from five cards to three.",
+          "episode_id": "ep_thr_orbit_001_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "PIN setup",
+          "predicate": "requires",
+          "object": "4-digit PIN",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted that Meridian requires a 4-digit PIN.",
+          "episode_id": "ep_thr_orbit_001_001"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_thread_002",
+      "tp": 1,
+      "fp": 3,
+      "fn": 3,
+      "precision": 0.25,
+      "recall": 0.25,
+      "f1": 0.25,
+      "proposed": 4,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "due",
+          "object": "2026-09-28",
+          "speaker_id": "spk_priya",
+          "text": "Priya is moving the UPI flow due date to September 28th.",
+          "episode_id": "ep_thr_orbit_002_000"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "due",
+          "object": "2026-09-24",
+          "speaker_id": "spk_priya",
+          "segment_index": null,
+          "message_index": 0,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "commitment",
+          "subject": "payments service staging deploy",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_priya",
+          "segment_index": null,
+          "message_index": 0,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "UPI autopay mandates",
+          "predicate": "status",
+          "object": "cut from October release if the UPI flow slips again",
+          "speaker_id": "spk_aditya",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "commitment",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya submitted the Razorpay merchant KYC this morning.",
+          "episode_id": "ep_thr_orbit_002_000"
+        },
+        {
+          "kind": "fact",
+          "subject": "Razorpay sandbox",
+          "predicate": "status",
+          "object": "activation takes 5 business days",
+          "speaker_id": "spk_priya",
+          "text": "Priya learned that sandbox mandate activation takes five business days.",
+          "episode_id": "ep_thr_orbit_002_000"
+        },
+        {
+          "kind": "decision",
+          "subject": "October release",
+          "predicate": "status",
+          "object": "cut from October release if UPI autopay mandates move again",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya decided to cut UPI autopay mandates from the October release if the date moves again.",
+          "episode_id": "ep_thr_orbit_002_001"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_thread_003",
+      "tp": 2,
+      "fp": 4,
+      "fn": 3,
+      "precision": 0.333,
+      "recall": 0.4,
+      "f1": 0.364,
+      "proposed": 6,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "drawer mockup sign-off",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya reported that the commitment to get the drawer mockup signed off by today is completed.",
+          "episode_id": "ep_thr_orbit_003_002"
+        },
+        {
+          "kind": "commitment",
+          "subject": "side drawer",
+          "predicate": "due",
+          "object": "2026-09-23",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will have the side drawer in the app by September 23rd.",
+          "episode_id": "ep_thr_orbit_003_003"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "Orbit navigation",
+          "predicate": "uses_pattern",
+          "object": "side drawer",
+          "speaker_id": "spk_rahul",
+          "segment_index": null,
+          "message_index": 0,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": {
+            "subject": "Orbit navigation",
+            "predicate": "uses_pattern"
+          },
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "56dp minimum primary navigation target",
+          "speaker_id": "ext_meridian_compliance",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "side drawer",
+          "predicate": "status",
+          "object": "approved by Meridian compliance",
+          "speaker_id": "ext_meridian_compliance",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "decision",
+          "subject": "Orbit navigation",
+          "predicate": "uses_pattern",
+          "object": "side drawer",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul noted the team decided to replace the bottom tab bar with a side drawer.",
+          "episode_id": "ep_thr_orbit_003_000"
+        },
+        {
+          "kind": "fact",
+          "subject": "Meridian accessibility checklist",
+          "predicate": "requires",
+          "object": "56 dp minimum for primary navigation targets",
+          "speaker_id": "ext_meridian_compliance",
+          "text": "Farah Siddiqui stated that the Meridian accessibility checklist requires a 56 dp minimum for primary navigation targets.",
+          "episode_id": "ep_thr_orbit_003_001"
+        },
+        {
+          "kind": "decision",
+          "subject": "drawer mockup sign-off",
+          "predicate": "status",
+          "object": "approved by Meridian Bank compliance",
+          "speaker_id": "ext_meridian_compliance",
+          "text": "Farah Siddiqui approved the drawer mockup on behalf of Meridian Bank compliance.",
+          "episode_id": "ep_thr_orbit_003_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "onboarding buttons",
+          "predicate": "status",
+          "object": "pass",
+          "speaker_id": "spk_sana",
+          "text": "Sana confirmed onboarding buttons pass the 56 dp requirement.",
+          "episode_id": "ep_thr_orbit_003_004"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_thread_004",
+      "tp": 5,
+      "fp": 5,
+      "fn": 2,
+      "precision": 0.5,
+      "recall": 0.714,
+      "f1": 0.588,
+      "proposed": 11,
+      "dropped": 1,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "decision",
+          "subject": "payments service",
+          "predicate": "uses_vendor",
+          "object": "PayU",
+          "speaker_id": "spk_priya",
+          "text": "Priya decided the payments service is moving from Razorpay to PayU for the October release.",
+          "episode_id": "ep_thr_orbit_004_000"
+        },
+        {
+          "kind": "fact",
+          "subject": "Razorpay merchant account",
+          "predicate": "status",
+          "object": "active",
+          "speaker_id": "ext_razorpay_am",
+          "text": "Nikhil Rao confirmed the merchant account stays active at no cost.",
+          "episode_id": "ep_thr_orbit_004_001"
+        },
+        {
+          "kind": "decision",
+          "subject": "payments service",
+          "predicate": "uses_vendor",
+          "object": "PayU",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya recorded that the payments service uses PayU for the October release.",
+          "episode_id": "ep_thr_orbit_004_002"
+        },
+        {
+          "kind": "commitment",
+          "subject": "PayU integration",
+          "predicate": "due",
+          "object": "2026-10-01",
+          "speaker_id": "spk_priya",
+          "text": "Priya committed to the PayU integration being ready by October 1st.",
+          "episode_id": "ep_thr_orbit_004_003"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Razorpay SDK removal",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul reported that the Razorpay SDK removal is done as of this morning.",
+          "episode_id": "ep_thr_orbit_004_004"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "status",
+          "object": "approved",
+          "speaker_id": "spk_priya",
+          "segment_index": null,
+          "message_index": 0,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "fact",
+          "subject": "Razorpay sandbox",
+          "predicate": "status",
+          "object": "open for 90 days",
+          "speaker_id": "ext_razorpay_am",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "fact",
+          "subject": "Orbit",
+          "predicate": "requires",
+          "object": "PayU",
+          "speaker_id": "spk_priya",
+          "text": "Priya stated Meridian Bank mandates PayU as the payment provider for the Orbit pilot.",
+          "episode_id": "ep_thr_orbit_004_000"
+        },
+        {
+          "kind": "fact",
+          "subject": "Razorpay sandbox",
+          "predicate": "status",
+          "object": "active for 90 days",
+          "speaker_id": "ext_razorpay_am",
+          "text": "Nikhil Rao stated sandbox access stays open for 90 days from today.",
+          "episode_id": "ep_thr_orbit_004_001"
+        },
+        {
+          "kind": "commitment",
+          "subject": "Razorpay merchant KYC",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "ext_razorpay_am",
+          "text": "Nikhil Rao noted that KYC is complete.",
+          "episode_id": "ep_thr_orbit_004_001"
+        },
+        {
+          "kind": "fact",
+          "subject": "payments service",
+          "predicate": "requires",
+          "object": "PayU",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya noted PayU is required because Meridian Bank's compliance team mandates it.",
+          "episode_id": "ep_thr_orbit_004_002"
+        },
+        {
+          "kind": "decision",
+          "subject": "polling workaround",
+          "predicate": "status",
+          "object": "out of scope",
+          "speaker_id": "spk_priya",
+          "text": "Priya noted the polling workaround is no longer needed because PayU callbacks fire within two seconds.",
+          "episode_id": "ep_thr_orbit_004_003"
+        }
+      ]
+    },
+    {
+      "slug": "orbit_thread_005",
+      "tp": 3,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75,
+      "proposed": 5,
+      "dropped": 1,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "decision log",
+          "predicate": "due",
+          "object": "2026-10-02",
+          "speaker_id": "spk_aditya",
+          "text": "Aditya committed Rahul to set up the decision log by October 2nd.",
+          "episode_id": "ep_thr_orbit_005_000"
+        },
+        {
+          "kind": "commitment",
+          "subject": "decision log",
+          "predicate": "due",
+          "object": "2026-10-02",
+          "speaker_id": "spk_rahul",
+          "text": "Rahul will have the decision log done by October 2nd.",
+          "episode_id": "ep_thr_orbit_005_001"
+        },
+        {
+          "kind": "commitment",
+          "subject": "UPI flow",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported the UPI flow is done as of September 28th.",
+          "episode_id": "ep_thr_orbit_005_002"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "decision log",
+          "predicate": "owner",
+          "object": "Rahul",
+          "speaker_id": "spk_aditya",
+          "segment_index": null,
+          "message_index": 0,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "commitment",
+          "subject": "UPI autopay mandates",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_priya",
+          "text": "Priya reported the UPI autopay mandates are done as of September 28th.",
+          "episode_id": "ep_thr_orbit_005_002"
+        }
+      ]
+    },
+    {
+      "slug": "quill_001",
+      "tp": 5,
+      "fp": 6,
+      "fn": 2,
+      "precision": 0.455,
+      "recall": 0.714,
+      "f1": 0.556,
+      "proposed": 11,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "decided",
+          "object": "weekly on Thursdays",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided the newsletter cadence will be weekly on Thursdays.",
+          "episode_id": "ep_mtg_quill_001_002"
+        },
+        {
+          "kind": "decision",
+          "subject": "CMS",
+          "predicate": "uses_vendor",
+          "object": "Ghost",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided the CMS will be Ghost.",
+          "episode_id": "ep_mtg_quill_001_008"
+        },
+        {
+          "kind": "commitment",
+          "subject": "launch post",
+          "predicate": "due",
+          "object": "2026-09-22",
+          "speaker_id": "spk_omar",
+          "text": "Omar will have the launch post published by September 22nd.",
+          "episode_id": "ep_mtg_quill_001_011"
+        },
+        {
+          "kind": "commitment",
+          "subject": "style guide",
+          "predicate": "due",
+          "object": "2026-09-15",
+          "speaker_id": "spk_tara",
+          "text": "Tara will finish the style guide by September 15th.",
+          "episode_id": "ep_mtg_quill_001_014"
+        },
+        {
+          "kind": "decision",
+          "subject": "Quill sync",
+          "predicate": "decided",
+          "object": "Wednesdays 10:00",
+          "speaker_id": "spk_tara",
+          "text": "Tara set the Quill sync for Wednesdays at 10:00.",
+          "episode_id": "ep_mtg_quill_001_020"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "fact",
+          "subject": "newsletter audience",
+          "predicate": "status",
+          "object": "about 2000 subscribers",
+          "speaker_id": "spk_tara",
+          "segment_index": 11,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "October issues",
+          "predicate": "scope_includes",
+          "object": "four interviews instead of essays",
+          "speaker_id": "spk_tara",
+          "segment_index": 21,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "scope_includes",
+          "object": "1 essay and 3 links",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided the newsletter content will consist of one essay and three links.",
+          "episode_id": "ep_mtg_quill_001_004"
+        },
+        {
+          "kind": "fact",
+          "subject": "newsletter",
+          "predicate": "uses_vendor",
+          "object": "Ghost",
+          "speaker_id": "spk_omar",
+          "text": "Omar states the newsletter will use Ghost because they own the list.",
+          "episode_id": "ep_mtg_quill_001_007"
+        },
+        {
+          "kind": "fact",
+          "subject": "launch post",
+          "predicate": "requires",
+          "object": "legal review of pricing paragraph",
+          "speaker_id": "spk_tara",
+          "text": "Tara noted that the launch post requires legal to look at the pricing paragraph.",
+          "episode_id": "ep_mtg_quill_001_012"
+        },
+        {
+          "kind": "commitment",
+          "subject": "launch post",
+          "predicate": "due",
+          "object": "2026-09-11",
+          "speaker_id": "spk_omar",
+          "text": "Omar will send the launch post to legal by Friday.",
+          "episode_id": "ep_mtg_quill_001_013"
+        },
+        {
+          "kind": "fact",
+          "subject": "October issues",
+          "predicate": "scope_includes",
+          "object": "4 interviews",
+          "speaker_id": "spk_omar",
+          "text": "Omar decided the October issues will consist of four interviews instead of essays.",
+          "episode_id": "ep_mtg_quill_001_015"
+        },
+        {
+          "kind": "decision",
+          "subject": "October issues",
+          "predicate": "scope_includes",
+          "object": "4 interviews",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided October will feature four interviews instead of essays.",
+          "episode_id": "ep_mtg_quill_001_018"
+        }
+      ]
+    },
+    {
+      "slug": "quill_002",
+      "tp": 3,
+      "fp": 7,
+      "fn": 3,
+      "precision": 0.3,
+      "recall": 0.5,
+      "f1": 0.375,
+      "proposed": 10,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "style guide",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_tara",
+          "text": "Tara reported the style guide was shipped on Tuesday the 15th.",
+          "episode_id": "ep_mtg_quill_002_000"
+        },
+        {
+          "kind": "commitment",
+          "subject": "launch post",
+          "predicate": "due",
+          "object": "2026-09-25",
+          "speaker_id": "spk_omar",
+          "text": "Omar will move the launch post to September 25th.",
+          "episode_id": "ep_mtg_quill_002_003"
+        },
+        {
+          "kind": "commitment",
+          "subject": "interview outlines",
+          "predicate": "due",
+          "object": "2026-09-24",
+          "speaker_id": "spk_omar",
+          "text": "Omar will have three interview outlines for the October issues ready by September 24th.",
+          "episode_id": "ep_mtg_quill_002_015"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "launch post",
+          "predicate": "decided",
+          "object": "publish without the pricing paragraph if legal slips again",
+          "speaker_id": "spk_tara",
+          "segment_index": 4,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "decided",
+          "object": "weekly on Tuesdays",
+          "speaker_id": "spk_tara",
+          "segment_index": 8,
+          "message_index": null,
+          "supersedes": {
+            "subject": "newsletter",
+            "predicate": "decided"
+          },
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "decided",
+          "object": "no sponsors until 5000 subscribers",
+          "speaker_id": "spk_tara",
+          "segment_index": 21,
+          "message_index": null,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "decision",
+          "subject": "launch post",
+          "predicate": "status",
+          "object": "cut from launch post if legal slips",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided to publish the launch post without the pricing paragraph if legal delays occur.",
+          "episode_id": "ep_mtg_quill_002_004"
+        },
+        {
+          "kind": "commitment",
+          "subject": "newsletter",
+          "predicate": "status",
+          "object": "completed",
+          "speaker_id": "spk_tara",
+          "text": "Tara reported the first newsletter went out on Thursday.",
+          "episode_id": "ep_mtg_quill_002_006"
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "decided",
+          "object": "Tuesdays",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided to move the newsletter to Tuesdays.",
+          "episode_id": "ep_mtg_quill_002_008"
+        },
+        {
+          "kind": "commitment",
+          "subject": "essay",
+          "predicate": "due",
+          "object": "2026-09-21",
+          "speaker_id": "spk_omar",
+          "text": "Omar stated his essay is due Monday night.",
+          "episode_id": "ep_mtg_quill_002_009"
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "owner",
+          "object": "Tara",
+          "speaker_id": "spk_tara",
+          "text": "Tara will take the newsletter on September 29th.",
+          "episode_id": "ep_mtg_quill_002_012"
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "owner",
+          "object": "Omar",
+          "speaker_id": "spk_tara",
+          "text": "Omar will take the newsletter on October 6th.",
+          "episode_id": "ep_mtg_quill_002_012"
+        },
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "status",
+          "object": "no sponsors until 5000 subscribers",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided no sponsors are allowed in the newsletter until the audience reaches 5,000 subscribers.",
+          "episode_id": "ep_mtg_quill_002_020"
+        }
+      ]
+    },
+    {
+      "slug": "quill_thread_001",
+      "tp": 2,
+      "fp": 2,
+      "fn": 1,
+      "precision": 0.5,
+      "recall": 0.667,
+      "f1": 0.571,
+      "proposed": 4,
+      "dropped": 0,
+      "errors": 0,
+      "matched": [
+        {
+          "kind": "commitment",
+          "subject": "launch post",
+          "predicate": "due",
+          "object": "2026-09-29",
+          "speaker_id": "spk_omar",
+          "text": "Omar is moving the launch post from the 25th to the 29th.",
+          "episode_id": "ep_thr_quill_001_000"
+        },
+        {
+          "kind": "commitment",
+          "subject": "interview outlines",
+          "predicate": "due",
+          "object": "2026-09-24",
+          "speaker_id": "spk_omar",
+          "text": "Omar stated the interview outlines for October are due on September 24th.",
+          "episode_id": "ep_thr_quill_001_002"
+        }
+      ],
+      "missed": [
+        {
+          "kind": "decision",
+          "subject": "newsletter",
+          "predicate": "scope_includes",
+          "object": "launch post leads the September 29 issue",
+          "speaker_id": "spk_tara",
+          "segment_index": null,
+          "message_index": 1,
+          "supersedes": null,
+          "follows_precedent": null,
+          "confirms": null,
+          "text": null
+        }
+      ],
+      "spurious": [
+        {
+          "kind": "fact",
+          "subject": "pricing paragraph",
+          "predicate": "due",
+          "object": "2026-09-24",
+          "speaker_id": "spk_omar",
+          "text": "Omar reported that external counsel will provide feedback on the pricing paragraph by September 24th.",
+          "episode_id": "ep_thr_quill_001_000"
+        },
+        {
+          "kind": "decision",
+          "subject": "launch post",
+          "predicate": "scope_includes",
+          "object": "leads the Tuesday newsletter",
+          "speaker_id": "spk_tara",
+          "text": "Tara decided the launch post will lead the Tuesday newsletter instead of the essay.",
+          "episode_id": "ep_thr_quill_001_001"
+        }
+      ]
+    }
+  ],
+  "client": "calls=261 ok=260 http429=0 5xx=1 json_retries=1 prompt_tokens=749278 output_tokens=22949 wall=65.1 min, 4.0 ok calls/min, avg latency 3.52 s"
+}

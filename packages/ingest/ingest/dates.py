@@ -122,3 +122,30 @@ def calendar_table(reference: date | datetime, weeks_after: int = 1) -> str:
         lines.append(f"{label}: {cells}")
     lines.append(f"Yesterday: {(ref - timedelta(days=1)).isoformat()}; tomorrow: {(ref + timedelta(days=1)).isoformat()}")
     return "\n".join(lines)
+
+
+_DAY_ONLY = re.compile(r"(?<![0-9])([0-9]{1,2})(st|nd|rd|th)(?![a-z])", re.IGNORECASE)
+
+
+def resolve_day_of_month(text: str | None, reference: date | datetime) -> str | None:
+    """Resolve "the 25th" / "Friday the 25th" -> ISO date in the reference month (next month if already past).
+
+    A fallback for objects the model left relative; full dates go through :func:`normalize_date`.
+    """
+    if not text:
+        return None
+    match = _DAY_ONLY.search(text)
+    if not match:
+        return None
+    ref = reference.date() if isinstance(reference, datetime) else reference
+    day = int(match.group(1))
+    year, month = ref.year, ref.month
+    for _ in range(2):
+        try:
+            candidate = date(year, month, day)
+        except ValueError:
+            candidate = None
+        if candidate is not None and candidate >= ref - timedelta(days=7):
+            return candidate.isoformat()
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return None

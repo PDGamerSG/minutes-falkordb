@@ -25,6 +25,11 @@ _KIND_SYNONYMS = {
     "action item": "commitment",
     "todo": "commitment",
     "task": "commitment",
+    "completion": "commitment",
+    # predicate names the model sometimes puts in ``kind`` (seen with Gemma 4: kind "lesson")
+    "lesson": "decision",
+    "requirement": "fact",
+    "customer": "fact",
 }
 
 _NON_WORD = re.compile(r"[^a-z0-9]+")
@@ -189,6 +194,8 @@ class ExtractionStats(BaseModel):
     kept: int = 0
     dropped: int = 0
     errors: list[str] = Field(default_factory=list)
+    #: the model call itself failed (format error after the retry, quota, transport): nothing was extracted
+    failed: bool = False
 
     @property
     def drop_rate(self) -> float:

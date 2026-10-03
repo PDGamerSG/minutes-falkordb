@@ -21,10 +21,11 @@ from typing import Any
 
 from .chunker import chunk
 from .dates import normalize_date
-from .extract import EpisodeContext, Extractor, GoldExtractor, LLMExtractor, select_prior_facts
+from .extract import CURRENT_VERSION, EpisodeContext, Extractor, GoldExtractor, LLMExtractor, select_prior_facts
 from .gold import GoldFile, GoldItem, find_gold
 from .models import ExtractedFact
 from .recorder_format import load_export
+from .vocab import FEWSHOT_SOURCE, tenant_of
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ class EvalResult:
     fn: int = 0
     proposed: int = 0
     dropped: int = 0
+    errors: int = 0
     matched: list[dict[str, Any]] = field(default_factory=list)
     missed: list[dict[str, Any]] = field(default_factory=list)
     spurious: list[dict[str, Any]] = field(default_factory=list)
@@ -93,6 +95,8 @@ class EvalResult:
             "f1": round(self.f1, 3),
             "proposed": self.proposed,
             "dropped": self.dropped,
+            "errors": self.errors,
+            "matched": self.matched,
             "missed": self.missed,
             "spurious": self.spurious,
         }
@@ -135,9 +139,18 @@ def fact_to_row(item: ExtractedFact) -> dict[str, Any]:
     }
 
 
-def _extract_all(episodes: list[Any], source_title: str, day: date, speakers: list[dict[str, Any]], extractor: Extractor, result: EvalResult) -> list[dict[str, Any]]:
+def _extract_all(
+    episodes: list[Any],
+    source_title: str,
+    day: date,
+    speakers: list[dict[str, Any]],
+    extractor: Extractor,
+    result: EvalResult,
+    tenant: str = "",
+) -> list[dict[str, Any]]:
     extracted: list[dict[str, Any]] = []
     prior: list[dict[str, Any]] = []
+    context: list[dict[str, Any]] = []
     for episode in episodes:
         ctx = EpisodeContext(
             episode=episode,
@@ -146,14 +159,19 @@ def _extract_all(episodes: list[Any], source_title: str, day: date, speakers: li
             speakers=speakers,
             prior_facts=select_prior_facts(prior, episode.text),
             source_kind=episode.source_kind,
+            tenant=tenant,
+            context_before=list(context),
+            container_items=list(prior),
         )
         res = extractor.extract(ctx)
         result.proposed += res.stats.proposed
         result.dropped += res.stats.dropped
+        result.errors += int(res.stats.failed)
         for item in res.items:
             row = fact_to_row(item)
             extracted.append(row)
             prior.append({**row, "id": f"eval_{len(prior)}", "valid_from": episode.t_occurred})
+        context.append({"speaker": episode.speaker_id, "text": episode.text})
     return extracted
 
 
@@ -169,9 +187,10 @@ def run_meeting_eval(path: Path, gold: GoldFile, extractor: Extractor, *, min_se
         [s.model_dump() for s in export.speakers],
         extractor,
         result,
+        tenant_of(path.stem),
     )
     scored = evaluate(extracted, gold.items, export.meeting.started_at.date(), slug=path.stem)
-    scored.proposed, scored.dropped = result.proposed, result.dropped
+    scored.proposed, scored.dropped, scored.errors = result.proposed, result.dropped, result.errors
     return scored
 
 
@@ -190,9 +209,10 @@ def run_thread_eval(path: Path, gold: GoldFile, extractor: Extractor, roster: li
         [{"id": p["id"], "name": p["name"], "role": p.get("role")} for p in people.values()],
         extractor,
         result,
+        tenant_of(path.stem),
     )
     scored = evaluate(extracted, gold.items, thread.thread.started_at.date(), slug=path.stem)
-    scored.proposed, scored.dropped = result.proposed, result.dropped
+    scored.proposed, scored.dropped, scored.errors = result.proposed, result.dropped, result.errors
     return scored
 
 
@@ -272,24 +292,44 @@ def load_llm_factory(spec: str) -> Any:
     return getattr(module, attr)()
 
 
+def _split(values: list[str] | None) -> list[str]:
+    return [v.strip() for chunk in values or [] for v in chunk.split(",") if v.strip()]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Score extraction against gold labels.")
     parser.add_argument("--meetings", default="data/meetings", help="directory with meeting/thread JSON files")
     parser.add_argument("--gold", default="data/gold", help="directory with gold label files")
-    parser.add_argument("--backend", default=os.environ.get("LLM_BACKEND", "fake"), help="fake | ollama | gemini | openrouter")
-    parser.add_argument("--model", default=os.environ.get("LLM_MODEL"), help="model id for the backend")
-    parser.add_argument("--llm-factory", default="apps.api.llm:llm_from_env", help="module:callable returning an LLM")
-    parser.add_argument("--only", default=None, help="only this slug")
+    parser.add_argument("--backend", default=os.environ.get("LLM_BACKEND", "fake"), help="fake | gemini | ollama (built in) | anything --llm-factory supports")
+    parser.add_argument("--model", default=None, help="model id for the backend (default: LLM_MODEL, or gemma4:e4b for ollama)")
+    parser.add_argument("--llm-factory", default=None, help="module:callable returning an LLM (e.g. apps.api.llm:llm_from_env); default: built-in client")
+    parser.add_argument("--prompt-version", default=CURRENT_VERSION, help="extraction prompt version: v1, v2, v3 ... (prompts/extract_<v>.md)")
+    parser.add_argument("--files", action="append", default=None, help="only these slugs (comma-separated, repeatable)")
+    parser.add_argument("--only", default=None, help="only this slug (same as --files with one slug)")
+    parser.add_argument("--exclude", action="append", default=None, help="slugs to leave out (comma-separated, repeatable)")
+    parser.add_argument("--include-fewshot-source", action="store_true", help=f"also score {FEWSHOT_SOURCE}, the source of the v2+ few-shot examples")
     parser.add_argument("--limit", type=int, default=None, help="stop after N files")
+    parser.add_argument("--rpm", type=float, default=None, help="per-key request budget for the gemini client (default LLM_RPM or 15)")
+    parser.add_argument("--tpm", type=float, default=None, help="per-key input-token budget per minute (default LLM_TPM or 15000; 0 disables)")
     parser.add_argument("--show-misses", action="store_true", help="print missed and spurious items")
     parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
+    parser.add_argument("--out", default=None, help="also write the full JSON results (matched, missed, spurious) to this path")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    for noisy in ("httpx", "google_genai", "google_genai.models"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     meetings_dir, gold_dir = Path(args.meetings), Path(args.gold)
     pairs = discover(meetings_dir, gold_dir)
-    if args.only:
-        pairs = [p for p in pairs if p[0].stem == args.only]
+    wanted = set(_split(args.files)) | ({args.only} if args.only else set())
+    if wanted:
+        pairs = [p for p in pairs if p[0].stem in wanted]
+    excluded = set(_split(args.exclude))
+    uses_fewshot = args.backend != "fake" and args.prompt_version != "v1"
+    if uses_fewshot and not args.include_fewshot_source:
+        excluded.add(FEWSHOT_SOURCE)
+    if excluded:
+        pairs = [p for p in pairs if p[0].stem not in excluded]
     if args.limit:
         pairs = pairs[: args.limit]
     if not pairs:
@@ -298,31 +338,55 @@ def main(argv: list[str] | None = None) -> int:
 
     llm = None
     if args.backend != "fake":
-        os.environ["LLM_BACKEND"] = args.backend
-        if args.model:
-            os.environ["LLM_MODEL"] = args.model
-        llm = load_llm_factory(args.llm_factory)
+        if args.llm_factory:
+            os.environ["LLM_BACKEND"] = args.backend
+            if args.model:
+                os.environ["LLM_MODEL"] = args.model
+            llm = load_llm_factory(args.llm_factory)
+        else:
+            from .llm_client import make_llm
+
+            llm = make_llm(args.backend, args.model, rpm=args.rpm, tpm=args.tpm)
+        print(f"backend={args.backend} model={getattr(llm, 'model', '?')} prompt={args.prompt_version} files={len(pairs)}"
+              + (f" (excluded: {', '.join(sorted(excluded))})" if excluded else ""))
     else:
         print("backend=fake: replaying gold labels through the pipeline (measures plumbing, not the model)")
 
     results: list[EvalResult] = []
     for path, gold, kind in pairs:
-        extractor: Extractor = LLMExtractor(llm) if llm is not None else GoldExtractor(gold)
+        extractor: Extractor = LLMExtractor(llm, version=args.prompt_version) if llm is not None else GoldExtractor(gold)
         if kind == "thread":
             results.append(run_thread_eval(path, gold, extractor, load_roster(meetings_dir, path.stem)))
         else:
             results.append(run_meeting_eval(path, gold, extractor))
+        if llm is not None:
+            r = results[-1]
+            log.info("%s: P=%.2f R=%.2f F1=%.2f (tp=%d fp=%d fn=%d errors=%d)", r.slug, r.precision, r.recall, r.f1, r.tp, r.fp, r.fn, r.errors)
 
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "backend": args.backend,
+            "model": getattr(llm, "model", "fake"),
+            "prompt_version": args.prompt_version,
+            "results": [r.as_dict() for r in results],
+            "client": getattr(getattr(llm, "stats", None), "summary", lambda: "")(),
+        }
+        out.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     if args.json:
-        print(json.dumps([r.as_dict() for r in results], indent=2))
+        print(json.dumps([r.as_dict() for r in results], indent=2, default=str))
     else:
         print(format_table(results))
         if args.show_misses:
             for r in results:
                 for miss in r.missed:
-                    print(f"MISSED   {r.slug}: {miss}")
+                    print(f"MISSED   {r.slug}: [{miss.get('segment_index') if miss.get('segment_index') is not None else miss.get('message_index')}] {miss['kind']} {miss['speaker_id']} | {miss['subject']} | {miss['predicate']} | {miss['object']}")
                 for extra in r.spurious:
-                    print(f"SPURIOUS {r.slug}: {extra}")
+                    print(f"SPURIOUS {r.slug}: {extra.get('episode_id', '')[-3:]} {extra['kind']} {extra['speaker_id']} | {extra['subject']} | {extra['predicate']} | {extra['object']}")
+    stats = getattr(llm, "stats", None)
+    if stats is not None and hasattr(stats, "summary"):
+        print(f"client: {stats.summary()}")
     return 0
 
 

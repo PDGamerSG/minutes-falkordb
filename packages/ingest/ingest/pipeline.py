@@ -35,6 +35,11 @@ log = logging.getLogger(__name__)
 ProgressFn = Callable[[str, float], None]
 Judge = Callable[[dict[str, Any], ExtractedFact], SupersessionVerdict]
 
+#: Predicates with one current value per subject: a new object supersedes the old one. Every other
+#: predicate (lesson, requires, scope_includes, customer, decided, ...) is multi-valued and only
+#: supersedes when the extracted item carries a ``supersedes_hint``.
+SINGLE_VALUED_PREDICATES = frozenset({"due", "owner", "uses_vendor", "uses_pattern", "status"})
+
 _PUNCT = re.compile(r"[^a-z0-9 ]+")
 _SPACES = re.compile(r"\s+")
 
@@ -92,6 +97,8 @@ class PipelineStats:
     proposed: int = 0
     dropped: int = 0
     errors: list[str] = field(default_factory=list)
+    #: episodes whose extraction call failed outright (nothing extracted); callers should surface these
+    failed_episodes: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -345,6 +352,8 @@ def _extract_and_store(
     start: float,
 ) -> None:
     total = len(episodes) or 1
+    context: list[dict[str, Any]] = []
+    container_items: list[dict[str, Any]] = []
     for index, episode in enumerate(episodes):
         active = hive.active_facts(tenant)
         ctx = EpisodeContext(
@@ -354,11 +363,22 @@ def _extract_and_store(
             speakers=source.speakers,
             prior_facts=select_prior_facts(active, episode.text),
             source_kind=episode.source_kind,
+            tenant=tenant,
+            context_before=list(context),
+            container_items=list(container_items),
         )
         result = extractor.extract(ctx)
+        context.append({"speaker": episode.speaker_id, "text": episode.text})
+        container_items.extend(
+            {"subject": i.subject, "predicate": i.predicate, "object": i.object, "kind": i.kind, "speaker_id": episode.speaker_id}
+            for i in result.items
+        )
         stats.proposed += result.stats.proposed
         stats.dropped += result.stats.dropped
         stats.errors.extend(result.stats.errors[:5])
+        if result.stats.failed:
+            stats.failed_episodes.append(episode.id)
+            log.warning("extraction failed for episode %s: %s", episode.id, "; ".join(result.stats.errors[:1]))
 
         entity_types: dict[str, str] = {}
         for entity in result.entities:
@@ -470,6 +490,19 @@ def _store_item(
     head = next((f for f in reversed(chain) if f.get("status") == "active"), None)
     new_object = normalize_object(item.object)
 
+    if item.predicate not in SINGLE_VALUED_PREDICATES:
+        # Multi-valued key (lessons, requirements, scope items, customers, decided rules): a different
+        # object is a new value next to the others, not a replacement, unless the item says it supersedes.
+        believed = _beliefs_in_chain(chain, t)
+        same = next((f for f in believed if normalize_object(f.get("object")) == new_object), None)
+        if same is not None:
+            prior = same
+        elif item.supersedes_hint:
+            active = [f for f in chain if f.get("status") == "active"]
+            head = _hinted_target(active, item.supersedes_hint) or head
+        else:
+            head = None
+
     if prior is not None and normalize_object(prior.get("object")) == new_object:
         # A restatement of what was already believed at that time: confirmation, never SUPERSEDES.
         stats.duplicates += 1
@@ -550,6 +583,27 @@ def _store_item(
     }
     _emit(hive, tenant, "fact.created", payload)
     _count(stats, item.kind)
+
+
+def _beliefs_in_chain(chain: list[dict[str, Any]], t: int) -> list[dict[str, Any]]:
+    """Every chain member believed at time ``t`` (several for multi-valued predicates)."""
+    out = []
+    for fact in chain:
+        valid_from = int(fact.get("valid_from") or 0)
+        valid_to = fact.get("valid_to")
+        if valid_from <= t and (valid_to is None or int(valid_to) > t):
+            out.append(fact)
+    return out
+
+
+def _hinted_target(active: list[dict[str, Any]], hint: str) -> dict[str, Any] | None:
+    """The active fact a supersedes hint names (its object appears in the hint), else the latest one."""
+    if not active:
+        return None
+    text = normalize_object(hint)
+    named = [f for f in active if normalize_object(f.get("object")) and normalize_object(f.get("object")) in text]
+    pool = named or active
+    return max(pool, key=lambda f: (int(f.get("valid_from") or 0), int(f.get("created_at") or 0)))
 
 
 def _belief_in_chain(chain: list[dict[str, Any]], t: int) -> dict[str, Any] | None:

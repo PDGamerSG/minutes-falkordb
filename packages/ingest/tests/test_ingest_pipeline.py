@@ -147,16 +147,70 @@ def test_supersession_contradiction_expires_old_fact(sample_meeting):
     assert any(e["event"] == "commitment.updated" for e in hive.events["orbit"])
 
 
-def test_refinement_keeps_both_with_precedent(sample_meeting):
+def _later(sample_meeting, meeting_id: str, started_at: str):
+    later = copy.deepcopy(sample_meeting)
+    later["meeting"].update({"id": meeting_id, "started_at": started_at, "ended_at": None})
+    later["segments"] = later["segments"][:1]
+    return later
+
+
+def test_multi_valued_predicate_adds_a_value_without_the_judge(sample_meeting):
     hive = MemoryHive()
     _run(hive, FakeLLM([EP0, EP1, EP2]), sample_meeting)
-    refine = {"items": [{"kind": "decision", "subject": "October release", "predicate": "scope_includes", "object": "payments and refunds", "text": "scope now includes payments and refunds"}]}
-    later = copy.deepcopy(sample_meeting)
-    later["meeting"].update({"id": "mtg_orbit_003", "started_at": "2026-09-21T10:00:00+05:30", "ended_at": None})
-    later["segments"] = later["segments"][:1]
-    stats = _run(hive, FakeLLM([refine, {"verdict": "refinement"}]), later)
-    assert stats["refinements"] == 1 and stats["superseded"] == 0
+    more = {"items": [{"kind": "decision", "subject": "October release", "predicate": "scope_includes", "object": "refunds", "text": "scope also includes refunds"}]}
+    llm = FakeLLM([more])
+    stats = _run(hive, llm, _later(sample_meeting, "mtg_orbit_003", "2026-09-21T10:00:00+05:30"))
+    assert stats["superseded"] == 0 and stats["decisions"] == 1
+    assert [c["kind"] for c in llm.calls] == ["complete_json"]  # extraction only, no supersession judge
     active = hive.active_facts("orbit", key="october release|scope_includes")
+    assert sorted(f["object"] for f in active) == ["payments", "refunds"]
+
+
+def test_lessons_and_requirements_do_not_supersede_each_other(sample_meeting):
+    hive = MemoryHive()
+    lessons = {
+        "items": [
+            {"kind": "decision", "subject": "Orbit", "predicate": "lesson", "object": "confirm vendor constraints first", "text": "l1"},
+            {"kind": "decision", "subject": "Orbit", "predicate": "requires", "object": "Meridian accessibility checklist", "text": "r1"},
+        ]
+    }
+    more = {
+        "items": [
+            {"kind": "decision", "subject": "Orbit", "predicate": "lesson", "object": "record the rationale", "text": "l2"},
+            {"kind": "fact", "subject": "Orbit", "predicate": "requires", "object": "data residency in India", "text": "r2"},
+        ]
+    }
+    _run(hive, FakeLLM([lessons, {"items": []}, {"items": []}]), sample_meeting)
+    stats = _run(hive, FakeLLM([more]), _later(sample_meeting, "mtg_orbit_005", "2026-09-23T10:00:00+05:30"))
+    assert stats["superseded"] == 0
+    assert len(hive.active_facts("orbit", key="orbit|lesson")) == 2
+    assert len(hive.active_facts("orbit", key="orbit|requires")) == 2
+
+
+def test_multi_valued_predicate_supersedes_only_with_a_hint(sample_meeting):
+    hive = MemoryHive()
+    first = {"items": [{"kind": "decision", "subject": "newsletter", "predicate": "decided", "object": "weekly on Thursdays", "text": "Thursdays"}]}
+    _run(hive, FakeLLM([first, {"items": []}, {"items": []}]), sample_meeting)
+    moved = {
+        "items": [
+            {"kind": "decision", "subject": "newsletter", "predicate": "decided", "object": "weekly on Tuesdays", "text": "Tuesdays", "supersedes_hint": "replaces: newsletter decided weekly on Thursdays"},
+            {"kind": "decision", "subject": "newsletter", "predicate": "decided", "object": "no sponsors until 5000 subscribers", "text": "no sponsors"},
+        ]
+    }
+    stats = _run(hive, FakeLLM([moved, {"verdict": "contradiction", "reason": "day moved"}]), _later(sample_meeting, "mtg_quill_002", "2026-09-16T10:00:00+05:30"))
+    assert stats["superseded"] == 1
+    active = sorted(f["object"] for f in hive.active_facts("orbit", key="newsletter|decided"))
+    assert active == ["no sponsors until 5000 subscribers", "weekly on Tuesdays"]
+
+
+def test_refinement_keeps_both_with_precedent(sample_meeting):
+    hive = MemoryHive()
+    first = {"items": [{"kind": "decision", "subject": "offline mode", "predicate": "uses_pattern", "object": "SQLite cache", "text": "SQLite cache"}]}
+    _run(hive, FakeLLM([first, {"items": []}, {"items": []}]), sample_meeting)
+    refine = {"items": [{"kind": "decision", "subject": "offline mode", "predicate": "uses_pattern", "object": "SQLite cache with sync queue", "text": "adds the sync queue"}]}
+    stats = _run(hive, FakeLLM([refine, {"verdict": "refinement"}]), _later(sample_meeting, "mtg_orbit_003", "2026-09-21T10:00:00+05:30"))
+    assert stats["refinements"] == 1 and stats["superseded"] == 0
+    active = hive.active_facts("orbit", key="offline mode|uses_pattern")
     assert len(active) == 2
     newer = max(active, key=lambda f: f["valid_from"])
     assert newer["precedent_ids"] == [min(active, key=lambda f: f["valid_from"])["id"]]
@@ -176,6 +230,7 @@ def test_model_failure_is_logged_not_fatal(sample_meeting, caplog):
     with caplog.at_level("ERROR"):
         stats = _run(hive, FakeLLM([]), sample_meeting)
     assert stats["items"] == 0 and len(stats["errors"]) == 3
+    assert stats["failed_episodes"] == [e["id"] for e in hive.meeting_episodes("orbit", "mtg_orbit_001")]
     assert "extraction failed" in caplog.text
     assert len(hive.meeting_episodes("orbit", "mtg_orbit_001")) == 3
 

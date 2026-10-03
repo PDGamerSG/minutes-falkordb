@@ -2,6 +2,12 @@
 
     uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --reset
     uv run --package minutes-api python data/seed.py --tenants orbit --skip orbit_002   # import it live later
+    LLM_BACKEND=gemini uv run --package minutes-api python data/seed.py --tenants orbit --reset --extract real
+
+``--extract gold`` (default) replays the gold labels whatever the LLM backend is, so tests and the
+demo database are deterministic. ``--extract real`` runs Gemma 4 extraction (prompt
+``ingest.extract.CURRENT_VERSION``, see docs/eval/extraction.md) and the model supersession judge;
+it needs a real LLM backend.
 
 Idempotent: tenants are MERGEd, episodes and facts carry deterministic ids, restated facts are
 confirmations rather than duplicates. Works without any model when LLM_BACKEND=fake (gold labels
@@ -25,8 +31,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from apps.api.config import get_settings
 from apps.api.hive_adapter import register_default_agents
-from apps.api.ingest_service import import_meeting, import_thread, load_roster, source_kind_of
+from apps.api.ingest_service import import_meeting, import_thread, load_roster, maybe_learn_standup, source_kind_of
 from apps.api.main import build_context
+from ingest import pipeline
+from ingest.extract import GoldExtractor, hinted_supersession, make_extractor
+from ingest.gold import find_gold
 
 log = logging.getLogger("seed")
 
@@ -56,7 +65,63 @@ def discover(meetings_dir: Path, tenant: str) -> list[tuple[str, Path]]:
     return [(kind, path) for _, kind, path in found]
 
 
-def seed_tenant(ctx, tenant: str, meetings_dir: Path, *, reset: bool, skip: set[str]) -> list[dict]:
+_EXTRACTION_LLM: dict[str, object] = {}
+
+
+def extraction_llm(ctx):
+    """The client used for ``--extract real``.
+
+    On the Gemini free tier the binding limit is input tokens per minute, so the paced, key-rotating
+    ``ingest.llm_client.GeminiClient`` is used (same model, same keys as ``ctx.llm``); other backends
+    use ``ctx.llm`` unchanged.
+    """
+    if "llm" not in _EXTRACTION_LLM:
+        settings = ctx.settings
+        llm = ctx.llm
+        if str(settings.llm_backend).lower() == "gemini":
+            import os
+
+            from ingest.llm_client import GeminiClient
+
+            keys = [k.strip() for k in (settings.llm_api_key or "").split(",") if k.strip()]
+            llm = GeminiClient(
+                settings.llm_model,
+                keys,
+                rpm=float(os.environ.get("LLM_RPM", "15")),
+                tpm=float(os.environ.get("LLM_TPM", "15000")),
+            )
+        _EXTRACTION_LLM["llm"] = llm
+    return _EXTRACTION_LLM["llm"]
+
+
+def _import(ctx, tenant: str, kind: str, data: dict, slug: str, roster, extract: str) -> dict:
+    """Import one file with the requested extraction mode.
+
+    gold + fake LLM keeps the original API path (gold replay inside ``import_meeting``); gold with a real
+    LLM replays gold explicitly; real uses the current Gemma 4 extractor and the model judge.
+    """
+    is_fake = getattr(ctx.llm, "backend", "fake") == "fake"
+    if extract == "gold" and is_fake:
+        if kind == "meeting":
+            return import_meeting(data, tenant, ctx, slug=slug)
+        return import_thread(data, tenant, ctx, slug=slug, roster=roster)
+    if extract == "gold":
+        container_id = str((data.get("meeting") or data.get("thread") or {}).get("id") or "")
+        gold = find_gold(ctx.settings.data_path / "gold", container_id=container_id, slug=slug)
+        if gold is None:
+            raise RuntimeError(f"--extract gold but no gold labels for {slug}")
+        extractor, judge = GoldExtractor(gold), hinted_supersession
+    else:
+        extractor, judge = make_extractor(extraction_llm(ctx)), None  # judge None: the pipeline asks the model
+    llm = extraction_llm(ctx) if extract == "real" else ctx.llm
+    if kind == "meeting":
+        stats = pipeline.run(data, tenant, ctx.hive, llm, ctx.embedder, extractor=extractor, judge=judge)
+        stats["skill_learned"] = maybe_learn_standup(tenant, ctx, str(data["meeting"].get("title") or ""))
+        return stats
+    return pipeline.run_thread(data, tenant, ctx.hive, llm, ctx.embedder, roster=roster, extractor=extractor, judge=judge)
+
+
+def seed_tenant(ctx, tenant: str, meetings_dir: Path, *, reset: bool, skip: set[str], extract: str = "gold") -> list[dict]:
     hive = ctx.hive
     if reset and tenant in hive.list_tenants():
         log.info("resetting tenant %s", tenant)
@@ -76,10 +141,7 @@ def seed_tenant(ctx, tenant: str, meetings_dir: Path, *, reset: bool, skip: set[
         started = time.perf_counter()
         data = json.loads(path.read_text(encoding="utf-8"))
         try:
-            if kind == "meeting":
-                stats = import_meeting(data, tenant, ctx, slug=path.stem)
-            else:
-                stats = import_thread(data, tenant, ctx, slug=path.stem, roster=roster)
+            stats = _import(ctx, tenant, kind, data, path.stem, roster, extract)
         except Exception as exc:
             log.exception("import of %s failed", path.name)
             rows.append({"tenant": tenant, "file": path.stem, "kind": kind, "status": f"failed: {type(exc).__name__}: {exc}"[:120]})
@@ -110,6 +172,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skip", action="append", default=[], help="file slug to leave out, e.g. --skip orbit_002 (repeatable, comma-separated ok)")
     parser.add_argument("--meetings-dir", default=None, help="directory with the data files (default: <data_dir>/meetings)")
     parser.add_argument("--json", action="store_true", help="print JSON instead of a table")
+    parser.add_argument(
+        "--extract",
+        choices=("gold", "real"),
+        default="gold",
+        help="gold: replay data/gold labels (default, deterministic); real: Gemma 4 extraction (needs LLM_BACKEND != fake)",
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -123,6 +191,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     ctx = build_context(settings)
+    if args.extract == "real" and getattr(ctx.llm, "backend", "fake") == "fake":
+        print("--extract real needs a real model: set LLM_BACKEND=gemini (or ollama/openrouter)", file=sys.stderr)
+        return 2
+    log.info("extraction mode: %s", args.extract)
     log.info(
         "hive=%s llm=%s/%s embedder=%s (%s) tenants=%s skip=%s",
         getattr(ctx.hive, "kind", "?"), getattr(ctx.llm, "backend", "?"), getattr(ctx.llm, "model", "?"),
@@ -135,16 +207,21 @@ def main(argv: list[str] | None = None) -> int:
 
     rows: list[dict] = []
     for tenant in tenants:
-        rows.extend(seed_tenant(ctx, tenant, meetings_dir, reset=args.reset, skip=skip))
+        rows.extend(seed_tenant(ctx, tenant, meetings_dir, reset=args.reset, skip=skip, extract=args.extract))
     if args.json:
         print(json.dumps(rows, indent=2, default=str))
     else:
         print_table(rows)
     failures = [r for r in rows if r["status"].startswith("failed")]
+    failed_episodes = [(r["file"], ep) for r in rows for ep in r.get("failed_episodes") or []]
+    for file, ep in failed_episodes:
+        print(f"WARNING: extraction failed for episode {ep} ({file}); its facts are missing", file=sys.stderr)
+    if failed_episodes:
+        print(f"WARNING: {len(failed_episodes)} episode(s) lost to extraction failures; re-run the seed", file=sys.stderr)
     close = getattr(ctx.hive, "close", None)
     if callable(close):
         close()
-    return 1 if failures else 0
+    return 1 if failures or failed_episodes else 0
 
 
 if __name__ == "__main__":
