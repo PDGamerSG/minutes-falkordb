@@ -1,0 +1,343 @@
+{
+  "run_id": "6.0.1-local-p8-200x20-20261003-020813",
+  "ts": 1790993426458,
+  "engine": "6.0.1",
+  "target": "local-p8",
+  "agents": 200,
+  "tenants": 20,
+  "duration_s": 120.0,
+  "read_p50": 50.099,
+  "read_p95": 129.531,
+  "read_p99": 158.745,
+  "write_p50": 82.179,
+  "write_p95": 240.033,
+  "write_p99": 299.776,
+  "errors": 64529,
+  "cas": {
+    "attempts": 500,
+    "winners": 20,
+    "losers": 480
+  },
+  "cas_violations": [],
+  "cas_per_tenant": [
+    {
+      "tenant": "bench0",
+      "task_id": "task_01m3zrdsse3sxzhrm40rhmv1eb",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench1",
+      "task_id": "task_01m3zrdstamzqt67jzewae47mn",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench2",
+      "task_id": "task_01m3zrdstj6ykbby8f6811nmmx",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench3",
+      "task_id": "task_01m3zrdstvdk4d47hyssdsfew3",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench4",
+      "task_id": "task_01m3zrdsv4kkjerg1jp4m9jfye",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench5",
+      "task_id": "task_01m3zrdsve1spk9nyc0v8n80ng",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench6",
+      "task_id": "task_01m3zrdsvpg7bek29zmdxxfm39",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench7",
+      "task_id": "task_01m3zrdsw2fbmg8t11nszfbs4w",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench8",
+      "task_id": "task_01m3zrdswbktd8c7hwkkjefnz4",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench9",
+      "task_id": "task_01m3zrdswkcn499f4hkgng9kt7",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench10",
+      "task_id": "task_01m3zrdswwapvngq78b4qt9dz2",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench11",
+      "task_id": "task_01m3zrdsx6n23kw49d0faam75s",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench12",
+      "task_id": "task_01m3zrdsxf68mqzqtjqjsw9kz6",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench13",
+      "task_id": "task_01m3zrdsxry97kgfpcm7zvts64",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench14",
+      "task_id": "task_01m3zrdsy29f20prhmq6zzcfy2",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench15",
+      "task_id": "task_01m3zrdsybxak2vp27fx91zevs",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench16",
+      "task_id": "task_01m3zrdsynd32htbwcfnderk04",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench17",
+      "task_id": "task_01m3zrdsyybbrvpq6x7p2787fv",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench18",
+      "task_id": "task_01m3zrdsz718bv1kt8egzt2hax",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench19",
+      "task_id": "task_01m3zrdszj0bc0wt7r6wdh7zwn",
+      "attempts": 25,
+      "winners": 1
+    }
+  ],
+  "ops": {
+    "total": 300984,
+    "reads": 240153,
+    "writes": 60831,
+    "per_second": 2508.2,
+    "read_ratio": 0.8
+  },
+  "per_op": {
+    "active_facts": {
+      "n": 83770,
+      "p50": 41.346,
+      "p95": 67.821,
+      "p99": 88.54
+    },
+    "claim": {
+      "n": 21038,
+      "p50": 56.393,
+      "p95": 107.802,
+      "p99": 142.717
+    },
+    "complete": {
+      "n": 21005,
+      "p50": 82.446,
+      "p95": 133.333,
+      "p99": 175.085
+    },
+    "list_tasks": {
+      "n": 71734,
+      "p50": 106.329,
+      "p95": 150.229,
+      "p99": 188.996
+    },
+    "recall": {
+      "n": 84649,
+      "p50": 43.726,
+      "p95": 72.085,
+      "p99": 93.462
+    },
+    "remember_fact": {
+      "n": 18788,
+      "p50": 183.125,
+      "p95": 283.795,
+      "p99": 344.345
+    }
+  },
+  "error_samples": [
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded",
+    "ResponseError: Max pending queries exceeded"
+  ],
+  "error_kinds": {
+    "ResponseError: Max pending queries exceeded": 64529
+  },
+  "usage_mb": {
+    "bench0": 3.0,
+    "bench1": 3.0,
+    "bench2": 3.0,
+    "bench3": 3.0,
+    "bench4": 3.0,
+    "bench5": 3.0,
+    "bench6": 3.0,
+    "bench7": 3.0,
+    "bench8": 3.0,
+    "bench9": 3.0,
+    "bench10": 3.0,
+    "bench11": 3.0,
+    "bench12": 3.0,
+    "bench13": 3.0,
+    "bench14": 3.0,
+    "bench15": 3.0,
+    "bench16": 3.0,
+    "bench17": 3.0,
+    "bench18": 3.0,
+    "bench19": 3.0
+  },
+  "memory": {
+    "bench0": {
+      "total_mb": 3.0,
+      "nodes": 2182
+    },
+    "bench1": {
+      "total_mb": 3.0,
+      "nodes": 2064
+    },
+    "bench2": {
+      "total_mb": 3.0,
+      "nodes": 2047
+    },
+    "bench3": {
+      "total_mb": 3.0,
+      "nodes": 2117
+    },
+    "bench4": {
+      "total_mb": 3.0,
+      "nodes": 2041
+    },
+    "bench5": {
+      "total_mb": 3.0,
+      "nodes": 2072
+    },
+    "bench6": {
+      "total_mb": 3.0,
+      "nodes": 2151
+    },
+    "bench7": {
+      "total_mb": 3.0,
+      "nodes": 2140
+    },
+    "bench8": {
+      "total_mb": 3.0,
+      "nodes": 2050
+    },
+    "bench9": {
+      "total_mb": 3.0,
+      "nodes": 2102
+    },
+    "bench10": {
+      "total_mb": 3.0,
+      "nodes": 2100
+    },
+    "bench11": {
+      "total_mb": 3.0,
+      "nodes": 2091
+    },
+    "bench12": {
+      "total_mb": 3.0,
+      "nodes": 2146
+    },
+    "bench13": {
+      "total_mb": 3.0,
+      "nodes": 2088
+    },
+    "bench14": {
+      "total_mb": 3.0,
+      "nodes": 2128
+    },
+    "bench15": {
+      "total_mb": 3.0,
+      "nodes": 2126
+    },
+    "bench16": {
+      "total_mb": 3.0,
+      "nodes": 2084
+    },
+    "bench17": {
+      "total_mb": 3.0,
+      "nodes": 2097
+    },
+    "bench18": {
+      "total_mb": 3.0,
+      "nodes": 2128
+    },
+    "bench19": {
+      "total_mb": 3.0,
+      "nodes": 2093
+    }
+  },
+  "server": {
+    "THREAD_COUNT": 32,
+    "MAX_QUEUED_QUERIES": 25,
+    "TIMEOUT": 1000,
+    "TIMEOUT_DEFAULT": 0,
+    "TIMEOUT_MAX": 0,
+    "CACHE_SIZE": 25,
+    "redis_version": "8.10.2",
+    "server_os": "Linux 6.6.87.2-microsoft-standard-WSL2 x86_64"
+  },
+  "capabilities": {
+    "udf": "loaded",
+    "read_ops": [
+      "recall",
+      "active_facts",
+      "list_tasks"
+    ]
+  },
+  "cpu": {
+    "server_cpu_s": 933.42,
+    "server_cores_busy": 7.78,
+    "client_cpu_s": 708.48,
+    "client_cores_busy": 5.9
+  },
+  "note": "i9-13900HX 24C/32T, 48 GB, Windows 11 + Docker Desktop WSL2 (32 vCPU, 23 GiB); client on the same host; other FalkorDB containers of the team running alongside; procs=8; default MAX_QUEUED_QUERIES",
+  "seed_s": 5.03,
+  "latency_unit": "ms",
+  "client": {
+    "python": "3.12.13",
+    "os": "Windows-11-10.0.26200-SP0",
+    "mode": "asyncio.to_thread over falkordb-py sync client",
+    "procs": 8,
+    "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_cpus": 32
+  }
+}

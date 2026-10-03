@@ -1,0 +1,154 @@
+{
+  "run_id": "6.0.1-local-p4-20x4-20261003-021301",
+  "ts": 1790993647558,
+  "engine": "6.0.1",
+  "target": "local-p4",
+  "agents": 20,
+  "tenants": 4,
+  "duration_s": 60.0,
+  "read_p50": 8.513,
+  "read_p95": 20.265,
+  "read_p99": 25.132,
+  "write_p50": 11.811,
+  "write_p95": 39.02,
+  "write_p99": 50.844,
+  "errors": 0,
+  "cas": {
+    "attempts": 100,
+    "winners": 4,
+    "losers": 96
+  },
+  "cas_violations": [],
+  "cas_per_tenant": [
+    {
+      "tenant": "bench0",
+      "task_id": "task_01m3zrmhvwr1jj8j1yetc1ftqe",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench1",
+      "task_id": "task_01m3zrmhx0mn6t9c27rch2cw3h",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench2",
+      "task_id": "task_01m3zrmhxcsmg3fxzf1e7swchs",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench3",
+      "task_id": "task_01m3zrmhxpa21kfq0hybkpx5wm",
+      "attempts": 25,
+      "winners": 1
+    }
+  ],
+  "ops": {
+    "total": 108075,
+    "reads": 86399,
+    "writes": 21676,
+    "per_second": 1801.2,
+    "read_ratio": 0.8
+  },
+  "per_op": {
+    "active_facts": {
+      "n": 28599,
+      "p50": 6.45,
+      "p95": 11.901,
+      "p99": 14.899
+    },
+    "claim": {
+      "n": 7198,
+      "p50": 7.497,
+      "p95": 17.331,
+      "p99": 23.769
+    },
+    "complete": {
+      "n": 7271,
+      "p50": 10.792,
+      "p95": 20.765,
+      "p99": 28.171
+    },
+    "list_tasks": {
+      "n": 28948,
+      "p50": 15.151,
+      "p95": 23.603,
+      "p99": 28.429
+    },
+    "recall": {
+      "n": 28852,
+      "p50": 6.678,
+      "p95": 12.392,
+      "p99": 15.926
+    },
+    "remember_fact": {
+      "n": 7207,
+      "p50": 26.952,
+      "p95": 47.032,
+      "p99": 58.993
+    }
+  },
+  "error_samples": [],
+  "error_kinds": {},
+  "usage_mb": {
+    "bench0": 7.0,
+    "bench1": 6.0,
+    "bench2": 6.0,
+    "bench3": 6.0
+  },
+  "memory": {
+    "bench0": {
+      "total_mb": 7.0,
+      "nodes": 3727
+    },
+    "bench1": {
+      "total_mb": 6.0,
+      "nodes": 3684
+    },
+    "bench2": {
+      "total_mb": 6.0,
+      "nodes": 3686
+    },
+    "bench3": {
+      "total_mb": 6.0,
+      "nodes": 3621
+    }
+  },
+  "server": {
+    "THREAD_COUNT": 32,
+    "MAX_QUEUED_QUERIES": 25,
+    "TIMEOUT": 1000,
+    "TIMEOUT_DEFAULT": 0,
+    "TIMEOUT_MAX": 0,
+    "CACHE_SIZE": 25,
+    "redis_version": "8.10.2",
+    "server_os": "Linux 6.6.87.2-microsoft-standard-WSL2 x86_64"
+  },
+  "capabilities": {
+    "udf": "loaded",
+    "read_ops": [
+      "recall",
+      "active_facts",
+      "list_tasks"
+    ]
+  },
+  "cpu": {
+    "server_cpu_s": 198.14,
+    "server_cores_busy": 3.3,
+    "client_cpu_s": 172.09,
+    "client_cores_busy": 2.87
+  },
+  "note": "i9-13900HX 24C/32T, 48 GB, Windows 11 + Docker Desktop WSL2 (32 vCPU, 23 GiB); client on the same host; other FalkorDB containers of the team running alongside; procs=4; run 2",
+  "seed_s": 0.95,
+  "latency_unit": "ms",
+  "client": {
+    "python": "3.12.13",
+    "os": "Windows-11-10.0.26200-SP0",
+    "mode": "asyncio.to_thread over falkordb-py sync client",
+    "procs": 4,
+    "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_cpus": 32
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "run_id": "4.22.0-local-p4-100x1-20261003-021621",
+  "ts": 1790993847113,
+  "engine": "4.22.0",
+  "target": "local-p4",
+  "agents": 100,
+  "tenants": 1,
+  "duration_s": 60.0,
+  "read_p50": 22.44,
+  "read_p95": 54.367,
+  "read_p99": 72.904,
+  "write_p50": 358.03,
+  "write_p95": 847.214,
+  "write_p99": 975.392,
+  "errors": 0,
+  "cas": {
+    "attempts": 25,
+    "winners": 1,
+    "losers": 24
+  },
+  "cas_violations": [],
+  "cas_per_tenant": [
+    {
+      "tenant": "bench0",
+      "task_id": "task_01m3zrtmsak42px1k7n1cyr9cn",
+      "attempts": 25,
+      "winners": 1
+    }
+  ],
+  "ops": {
+    "total": 61800,
+    "reads": 49570,
+    "writes": 12230,
+    "per_second": 1030.0,
+    "read_ratio": 0.8
+  },
+  "per_op": {
+    "active_facts": {
+      "n": 16230,
+      "p50": 17.355,
+      "p95": 40.165,
+      "p99": 54.271
+    },
+    "claim": {
+      "n": 4102,
+      "p50": 336.317,
+      "p95": 490.865,
+      "p99": 533.044
+    },
+    "complete": {
+      "n": 4090,
+      "p50": 331.894,
+      "p95": 492.374,
+      "p99": 539.987
+    },
+    "list_tasks": {
+      "n": 16734,
+      "p50": 32.123,
+      "p95": 65.205,
+      "p99": 84.055
+    },
+    "recall": {
+      "n": 16606,
+      "p50": 20.098,
+      "p95": 44.775,
+      "p99": 59.39
+    },
+    "remember_fact": {
+      "n": 4038,
+      "p50": 585.709,
+      "p95": 950.538,
+      "p99": 1027.715
+    }
+  },
+  "error_samples": [],
+  "error_kinds": {},
+  "usage_mb": {
+    "bench0": 14.0
+  },
+  "memory": {
+    "bench0": {
+      "total_mb": 14.0,
+      "nodes": 8623
+    }
+  },
+  "server": {
+    "THREAD_COUNT": 32,
+    "MAX_QUEUED_QUERIES": 25,
+    "TIMEOUT": 1000,
+    "TIMEOUT_DEFAULT": 0,
+    "TIMEOUT_MAX": 0,
+    "CACHE_SIZE": 25,
+    "redis_version": "8.10.2",
+    "server_os": "Linux 6.6.87.2-microsoft-standard-WSL2 x86_64"
+  },
+  "capabilities": {
+    "udf": "loaded",
+    "read_ops": [
+      "recall",
+      "active_facts",
+      "list_tasks"
+    ]
+  },
+  "cpu": {
+    "server_cpu_s": 140.52,
+    "server_cores_busy": 2.34,
+    "client_cpu_s": 141.97,
+    "client_cores_busy": 2.37
+  },
+  "note": "i9-13900HX 24C/32T, 48 GB, Windows 11 + Docker Desktop WSL2 (32 vCPU, 23 GiB); client on the same host; other FalkorDB containers of the team running alongside; procs=4; single graph write contention; run 2",
+  "seed_s": 0.21,
+  "latency_unit": "ms",
+  "client": {
+    "python": "3.12.13",
+    "os": "Windows-11-10.0.26200-SP0",
+    "mode": "asyncio.to_thread over falkordb-py sync client",
+    "procs": 4,
+    "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_cpus": 32
+  }
+}
