@@ -21,6 +21,8 @@ def test_list_tenants_shape(client):
     rules = orbit["acl"]["rules"]
     assert rules and all("change-me" not in r and "fake-ro" not in r and "#<sha256>" in r for r in rules)
     assert isinstance(orbit["usage_mb"], float)
+    assert isinstance(orbit["nodes"], int) and isinstance(orbit["edges"], int)
+    assert orbit["nodes"] >= orbit["counts"]["episodes"] + orbit["counts"]["facts"] and orbit["edges"] > 0
 
 
 def test_create_tenant_returns_full_object(client):
@@ -29,6 +31,7 @@ def test_create_tenant_returns_full_object(client):
     body = created.json()
     assert body["slug"] == "quill" and body["display_name"] == "Quill" and body["graph"] == "team_quill"
     assert body["counts"]["facts"] == 0 and body["acl"]["ro_user"] == "team_quill_ro"
+    assert body["edges"] == 0 and isinstance(body["nodes"], int)
     assert "quill" in [t["slug"] for t in client.get("/tenants").json()]
     agents = client.get("/tenants/quill/agents").json()
     assert {a["id"] for a in agents} == {"fact_agent", "followup_agent", "scheduler_agent", "standup_agent", "answer_agent"}

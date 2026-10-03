@@ -126,9 +126,20 @@ class FakeHive(MemoryHive):
             "display_name": meta.get("display_name") or tenant.capitalize(),
             "graph": f"team_{tenant}",
             "usage_mb": round(0.01 * (counts["episodes"] + counts["facts"] + counts["decisions"] + counts["commitments"]), 3),
+            **self.graph_size(tenant),
             "counts": counts,
             "acl": self.acl_info(tenant),
         }
+
+    def graph_size(self, tenant: str) -> dict[str, int]:
+        """Approximate node and edge totals of the in-memory tenant graph (mirrors RealHive.graph_size)."""
+        store = self.store(tenant)
+        nodes = sum(len(bag) for bag in (store.persons, store.meetings, store.threads, store.episodes, store.entities, store.facts))
+        nodes += len(self._tasks.get(tenant, {})) + len(self._skills.get(tenant, {})) + len(self._agents.get(tenant, {}))
+        edges = sum(len(ids) for ids in store.mentions.values())
+        edges += sum(1 for e in store.episodes.values() if e.get("container_id"))
+        edges += sum(1 + len(f.get("entity_ids") or []) for f in store.facts.values())
+        return {"nodes": nodes, "edges": edges}
 
     def acl_probe(self, tenant: str, target: str) -> dict[str, Any]:
         return {
@@ -680,6 +691,21 @@ class RealHive:
             counts[key] += int(n)
         return counts
 
+    def graph_size(self, tenant: str) -> dict[str, int]:
+        """Total nodes and edges of `team_<tenant>` via read-only Cypher.
+
+        FalkorDB 6.0.1 answers GRAPH.MEMORY USAGE with zeros, so these counts are the size signal
+        the UI shows; `usage_mb` stays for servers that do report memory.
+        """
+        size = {"nodes": 0, "edges": 0}
+        for key, query in (("nodes", "MATCH (n) RETURN count(n)"), ("edges", "MATCH ()-[r]->() RETURN count(r)")):
+            try:
+                res = self._ro(tenant, query)
+                size[key] = int(res.result_set[0][0]) if res.result_set else 0
+            except Exception as exc:  # noqa: BLE001 - a size probe must not break the tenant list
+                log.warning("%s count failed for %s: %s", key, tenant, exc)
+        return size
+
     def tenant_info(self, tenant: str) -> dict[str, Any]:
         registry = {row["slug"]: row for row in self._tenancy.list_registered_tenants(self.db)}
         meta = registry.get(tenant, {})
@@ -694,6 +720,7 @@ class RealHive:
             "display_name": meta.get("display_name") or tenant.capitalize(),
             "graph": acl.get("graph") or f"team_{tenant}",
             "usage_mb": round(usage, 3),
+            **self.graph_size(tenant),
             "counts": self.counts(tenant),
             "acl": {"rw_user": acl.get("rw_user"), "ro_user": acl.get("ro_user"), "rules": acl.get("rules", []), "isolation": acl.get("isolation")},
         }

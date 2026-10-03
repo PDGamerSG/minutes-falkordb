@@ -3,7 +3,10 @@
 Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). JSON everywhere. Errors: `{"error": {"code": str, "message": str}}` with 4xx/5xx. All timestamps epoch ms. `tenant` is a team slug (`orbit`, `nimbus`, `quill` in the seed).
 
 ## Tenants
-- `GET /tenants` → `[{slug, display_name, graph, usage_mb, counts: {episodes, facts, decisions, commitments, tasks, skills}, acl: {rw_user, ro_user, rules: [str]}}]`
+- `GET /tenants` → `[{slug, display_name, graph, usage_mb, nodes, edges, counts: {episodes, facts, decisions, commitments, tasks, skills}, acl: {rw_user, ro_user, rules: [str]}}]`
+  - `nodes` / `edges` (int): total nodes and edges in the tenant graph, counted with read-only Cypher (`MATCH (n) RETURN count(n)`, `MATCH ()-[r]->() RETURN count(r)`). This is the size signal the UI shows ("N nodes · M edges").
+  - `usage_mb` (float): `GRAPH.MEMORY USAGE` total. FalkorDB 6.0.1 reports 0 for every field, so clients show MB only when `usage_mb > 0`.
+  - The same tenant object (with `nodes`/`edges`) is returned by `POST /tenants` and `GET /tenants/{tenant}`.
 - `POST /tenants` `{slug, display_name}` → tenant object
 - `GET /tenants/{tenant}/acl-probe?target={other_tenant}` → `{allowed: false, error: "..."}` (demonstrates isolation: attempts to read another tenant's graph with this tenant's ro user)
 

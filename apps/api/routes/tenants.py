@@ -28,7 +28,9 @@ def tenant_object(ctx: AppContext, tenant: str) -> dict:
         "slug": info.get("slug", tenant),
         "display_name": info.get("display_name") or tenant.capitalize(),
         "graph": info.get("graph") or f"team_{tenant}",
-        "usage_mb": info.get("usage_mb", 0.0),
+        "usage_mb": float(info.get("usage_mb", 0.0)),
+        "nodes": int(info.get("nodes", 0)),
+        "edges": int(info.get("edges", 0)),
         "counts": {k: info.get("counts", {}).get(k, 0) for k in ("episodes", "facts", "decisions", "commitments", "tasks", "skills")} | {k: v for k, v in info.get("counts", {}).items() if k not in ("episodes", "facts", "decisions", "commitments", "tasks", "skills")},
         "acl": {"rw_user": acl.get("rw_user"), "ro_user": acl.get("ro_user"), "rules": [_mask(r) for r in acl.get("rules", [])], **({"isolation": acl["isolation"]} if acl.get("isolation") else {})},
     }

@@ -44,7 +44,8 @@ function TenantCard({ tenant, others }: { tenant: Tenant; others: Tenant[] }) {
           <span className="font-mono text-xs font-normal text-muted-foreground">{tenant.slug}</span>
         </CardTitle>
         <CardDescription className="font-mono text-xs">
-          {tenant.graph} · {fmtMb(tenant.usage_mb)}
+          {tenant.graph} · {fmtNum(tenant.nodes ?? 0)} nodes · {fmtNum(tenant.edges ?? 0)} edges
+          {tenant.usage_mb > 0 ? ` · ${fmtMb(tenant.usage_mb)}` : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">

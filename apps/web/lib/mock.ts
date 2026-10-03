@@ -726,7 +726,8 @@ export function mockTenants(): Tenant[] {
     slug: "orbit",
     display_name: "Orbit",
     graph: "team_orbit",
-    usage_mb: 12.6,
+    // FalkorDB 6.0.1 answers GRAPH.MEMORY USAGE with zeros; the card falls back to nodes/edges.
+    usage_mb: 0,
     counts: {
       episodes: Object.values(EPISODES).reduce((n, e) => n + e.length, 0) + Object.values(MESSAGES).reduce((n, m) => n + m.length, 0),
       facts: f.filter((x) => x.kind === "fact").length,
@@ -744,11 +745,16 @@ export function mockTenants(): Tenant[] {
       ],
     },
   };
+  const orbitNodes = Object.values(orbit.counts).reduce((n, v) => n + v, 0) + 24; // + persons, entities, meetings, threads, agents
+  orbit.nodes = orbitNodes;
+  orbit.edges = Math.round(orbitNodes * 2.4);
   const nimbus: Tenant = {
     slug: "nimbus",
     display_name: "Nimbus",
     graph: "team_nimbus",
     usage_mb: 4.1,
+    nodes: 61,
+    edges: 142,
     counts: { episodes: 18, facts: 7, decisions: 3, commitments: 4, tasks: 2, skills: 1 },
     acl: {
       rw_user: "team_nimbus_rw",
@@ -763,7 +769,9 @@ export function mockTenants(): Tenant[] {
     slug: "quill",
     display_name: "Quill",
     graph: "team_quill",
-    usage_mb: 2.3,
+    usage_mb: 0,
+    nodes: 31,
+    edges: 68,
     counts: { episodes: 9, facts: 4, decisions: 1, commitments: 2, tasks: 1, skills: 0 },
     acl: {
       rw_user: "team_quill_rw",

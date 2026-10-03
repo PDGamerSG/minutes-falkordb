@@ -17,7 +17,12 @@ export type Tenant = {
   slug: string;
   display_name: string;
   graph: string;
+  /** GRAPH.MEMORY USAGE total; FalkorDB 6.0.1 reports 0, so only show it when > 0. */
   usage_mb: number;
+  /** Node count of the tenant graph (`MATCH (n) RETURN count(n)`). Optional for older APIs. */
+  nodes?: number;
+  /** Edge count of the tenant graph (`MATCH ()-[r]->() RETURN count(r)`). Optional for older APIs. */
+  edges?: number;
   counts: TenantCounts;
   acl: { rw_user: string; ro_user: string; rules: string[] };
 };
