@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_quill_002",
+    "title": "Quill editorial sync",
+    "started_at": "2026-09-16T10:00:00+05:30",
+    "ended_at": "2026-09-16T10:02:20+05:30",
+    "audio_uri": "data/meetings/quill_002.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_tara",
+      "name": "Tara",
+      "role": "editor"
+    },
+    {
+      "id": "spk_omar",
+      "name": "Omar",
+      "role": "writer"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 5300,
+      "speaker_id": "spk_tara",
+      "text": "Sync. Style guide first. Done, shipped Tuesday the 15th, it's in the repo."
+    },
+    {
+      "start_ms": 5600,
+      "end_ms": 8900,
+      "speaker_id": "spk_omar",
+      "text": "Read it. I now use fewer commas."
+    },
+    {
+      "start_ms": 9237,
+      "end_ms": 11237,
+      "speaker_id": "spk_tara",
+      "text": "Launch post?"
+    },
+    {
+      "start_ms": 11611,
+      "end_ms": 20311,
+      "speaker_id": "spk_omar",
+      "text": "Legal. They haven't come back on the pricing paragraph. They said Monday. I need to move the launch post to Friday the 25th."
+    },
+    {
+      "start_ms": 20722,
+      "end_ms": 26022,
+      "speaker_id": "spk_tara",
+      "text": "The 25th. Okay. If legal slips again, we publish without the pricing paragraph."
+    },
+    {
+      "start_ms": 26470,
+      "end_ms": 28470,
+      "speaker_id": "spk_omar",
+      "text": "Deal."
+    },
+    {
+      "start_ms": 28955,
+      "end_ms": 38655,
+      "speaker_id": "spk_tara",
+      "text": "Second. The first newsletter went out on Thursday. Open rate was twenty-two percent. I ran a Tuesday test on the old list and it did thirty-one."
+    },
+    {
+      "start_ms": 39177,
+      "end_ms": 42477,
+      "speaker_id": "spk_omar",
+      "text": "Thirty-one is a lot more than twenty-two."
+    },
+    {
+      "start_ms": 43036,
+      "end_ms": 48736,
+      "speaker_id": "spk_tara",
+      "text": "Decision: the newsletter moves to Tuesdays, from Thursdays. Rationale, the Tuesday open rate test."
+    },
+    {
+      "start_ms": 49332,
+      "end_ms": 52932,
+      "speaker_id": "spk_omar",
+      "text": "That means my essay is due Monday nights."
+    },
+    {
+      "start_ms": 53565,
+      "end_ms": 55565,
+      "speaker_id": "spk_tara",
+      "text": "Yes. Sorry."
+    },
+    {
+      "start_ms": 56235,
+      "end_ms": 63935,
+      "speaker_id": "spk_omar",
+      "text": "Can we at least alternate properly, then? You take the Tuesday after the launch post, I'm going to be dead."
+    },
+    {
+      "start_ms": 64642,
+      "end_ms": 68642,
+      "speaker_id": "spk_tara",
+      "text": "Fine, I'll take the 29th. You take October 6th."
+    },
+    {
+      "start_ms": 69386,
+      "end_ms": 76786,
+      "speaker_id": "spk_omar",
+      "text": "Deal. Next. The October interviews. I've narrowed the eight down to four and I've written to two of them."
+    },
+    {
+      "start_ms": 77567,
+      "end_ms": 79667,
+      "speaker_id": "spk_tara",
+      "text": "Who said yes?"
+    },
+    {
+      "start_ms": 79985,
+      "end_ms": 87385,
+      "speaker_id": "spk_omar",
+      "text": "Nobody yet, it's been a day. But I want outlines ready so the interviews are tight when they do."
+    },
+    {
+      "start_ms": 87740,
+      "end_ms": 93740,
+      "speaker_id": "spk_omar",
+      "text": "New one from me. Three interview outlines for the October issues by Thursday the 24th."
+    },
+    {
+      "start_ms": 94132,
+      "end_ms": 96232,
+      "speaker_id": "spk_tara",
+      "text": "Three, not four?"
+    },
+    {
+      "start_ms": 96661,
+      "end_ms": 101661,
+      "speaker_id": "spk_omar",
+      "text": "The fourth depends on who says yes. Three I can write blind."
+    },
+    {
+      "start_ms": 102127,
+      "end_ms": 108827,
+      "speaker_id": "spk_tara",
+      "text": "Okay. One more thing. A sponsor wrote in. Small analytics tool, wants a slot in the newsletter."
+    },
+    {
+      "start_ms": 109330,
+      "end_ms": 113630,
+      "speaker_id": "spk_omar",
+      "text": "At two thousand subscribers? That's a hundred rupees a week."
+    },
+    {
+      "start_ms": 114170,
+      "end_ms": 124270,
+      "speaker_id": "spk_tara",
+      "text": "Roughly. I'm saying no. Decision: no sponsors in the newsletter until we pass five thousand subscribers. Rationale, the slot is worth more than the money right now."
+    },
+    {
+      "start_ms": 124847,
+      "end_ms": 129147,
+      "speaker_id": "spk_omar",
+      "text": "Agreed. Also I don't want to write around an ad."
+    },
+    {
+      "start_ms": 129761,
+      "end_ms": 136461,
+      "speaker_id": "spk_tara",
+      "text": "Good. Decisions since planning: Tuesdays, no sponsors. Stale: the launch post moved, it has a date. Done."
+    },
+    {
+      "start_ms": 137112,
+      "end_ms": 139112,
+      "speaker_id": "spk_omar",
+      "text": "Done."
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "meeting_id": "mtg_quill_001",
+  "items": [
+    {
+      "kind": "decision",
+      "subject": "newsletter",
+      "predicate": "decided",
+      "object": "weekly on Thursdays",
+      "speaker_id": "spk_tara",
+      "segment_index": 6
+    },
+    {
+      "kind": "decision",
+      "subject": "CMS",
+      "predicate": "uses_vendor",
+      "object": "Ghost",
+      "speaker_id": "spk_tara",
+      "segment_index": 9
+    },
+    {
+      "kind": "fact",
+      "subject": "newsletter audience",
+      "predicate": "status",
+      "object": "about 2000 subscribers",
+      "speaker_id": "spk_tara",
+      "segment_index": 11
+    },
+    {
+      "kind": "commitment",
+      "subject": "launch post",
+      "predicate": "due",
+      "object": "2026-09-22",
+      "speaker_id": "spk_omar",
+      "segment_index": 13
+    },
+    {
+      "kind": "commitment",
+      "subject": "style guide",
+      "predicate": "due",
+      "object": "2026-09-15",
+      "speaker_id": "spk_tara",
+      "segment_index": 16
+    },
+    {
+      "kind": "decision",
+      "subject": "October issues",
+      "predicate": "scope_includes",
+      "object": "four interviews instead of essays",
+      "speaker_id": "spk_tara",
+      "segment_index": 21
+    },
+    {
+      "kind": "decision",
+      "subject": "Quill sync",
+      "predicate": "decided",
+      "object": "Wednesdays 10:00",
+      "speaker_id": "spk_tara",
+      "segment_index": 24
+    }
+  ]
+}

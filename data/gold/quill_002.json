@@ -1,0 +1,61 @@
+{
+  "meeting_id": "mtg_quill_002",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "style guide",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_tara",
+      "segment_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "launch post",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_omar",
+      "segment_index": 3,
+      "supersedes": {
+        "subject": "launch post",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "decision",
+      "subject": "launch post",
+      "predicate": "decided",
+      "object": "publish without the pricing paragraph if legal slips again",
+      "speaker_id": "spk_tara",
+      "segment_index": 4
+    },
+    {
+      "kind": "decision",
+      "subject": "newsletter",
+      "predicate": "decided",
+      "object": "weekly on Tuesdays",
+      "speaker_id": "spk_tara",
+      "segment_index": 8,
+      "supersedes": {
+        "subject": "newsletter",
+        "predicate": "decided"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "interview outlines",
+      "predicate": "due",
+      "object": "2026-09-24",
+      "speaker_id": "spk_omar",
+      "segment_index": 16
+    },
+    {
+      "kind": "decision",
+      "subject": "newsletter",
+      "predicate": "decided",
+      "object": "no sponsors until 5000 subscribers",
+      "speaker_id": "spk_tara",
+      "segment_index": 21
+    }
+  ]
+}

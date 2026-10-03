@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+*.log
+data/meetings/*.wav
+data/meetings/*.m4a
+hf-cache/
+.DS_Store
+Thumbs.db
+*.zip
+*.step
+
+# internal research notes (not part of the submission)
+docs/01-hackathon-brief.md
+docs/02-track-analysis.md
+docs/03-linkedin-post.md
+docs/04-falkordb-alignment.md
+docs/05-decision-and-stack.md
+docs/team-brief.html
+
+# Claude Code local state
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

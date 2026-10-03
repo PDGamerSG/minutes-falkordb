@@ -1,0 +1,430 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_001",
+    "title": "Orbit kickoff",
+    "started_at": "2026-09-07T10:00:00+05:30",
+    "ended_at": "2026-09-07T10:06:44+05:30",
+    "audio_uri": "data/meetings/orbit_001.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 4300,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. Everyone's here? Rahul, you're on mute. There you go."
+    },
+    {
+      "start_ms": 4600,
+      "end_ms": 8100,
+      "speaker_id": "spk_rahul",
+      "text": "Sorry, yeah. Can you hear me now?"
+    },
+    {
+      "start_ms": 8437,
+      "end_ms": 12037,
+      "speaker_id": "spk_aditya",
+      "text": "Yes. Right. So this is the Orbit kickoff."
+    },
+    {
+      "start_ms": 12411,
+      "end_ms": 21811,
+      "speaker_id": "spk_aditya",
+      "text": "We've got the October release to scope, owners to assign, and a few tech calls to make. I want to leave this call with dates."
+    },
+    {
+      "start_ms": 22222,
+      "end_ms": 27222,
+      "speaker_id": "spk_sana",
+      "text": "Do we have the Meridian deck? I only saw the summary email."
+    },
+    {
+      "start_ms": 27670,
+      "end_ms": 37370,
+      "speaker_id": "spk_aditya",
+      "text": "I'll share it after. Short version: Meridian Bank is the launch customer. Three hundred field agents on the pilot, Android devices, patchy connectivity in the branches."
+    },
+    {
+      "start_ms": 37855,
+      "end_ms": 41655,
+      "speaker_id": "spk_priya",
+      "text": "Patchy how? Like no network, or slow network?"
+    },
+    {
+      "start_ms": 42177,
+      "end_ms": 49577,
+      "speaker_id": "spk_aditya",
+      "text": "Both. Some of the branches are literally in basements. That's why offline is in scope, which I'll get to."
+    },
+    {
+      "start_ms": 50136,
+      "end_ms": 58136,
+      "speaker_id": "spk_aditya",
+      "text": "Scope first. The October release has three things in it: payments, offline mode, and onboarding. That's it. Nothing else gets in."
+    },
+    {
+      "start_ms": 58732,
+      "end_ms": 63732,
+      "speaker_id": "spk_rahul",
+      "text": "What about the analytics dashboard? Product's been asking for it since July."
+    },
+    {
+      "start_ms": 64365,
+      "end_ms": 68965,
+      "speaker_id": "spk_aditya",
+      "text": "Deferred. The analytics dashboard goes to November. I've already told them."
+    },
+    {
+      "start_ms": 69635,
+      "end_ms": 73635,
+      "speaker_id": "spk_rahul",
+      "text": "Okay, good. That takes a lot off the shell."
+    },
+    {
+      "start_ms": 74342,
+      "end_ms": 80642,
+      "speaker_id": "spk_aditya",
+      "text": "Release date. We ship on October 16th. That's a Friday. Meridian's pilot starts the week after."
+    },
+    {
+      "start_ms": 81386,
+      "end_ms": 84186,
+      "speaker_id": "spk_sana",
+      "text": "Is that fixed, or aspirational?"
+    },
+    {
+      "start_ms": 84967,
+      "end_ms": 92967,
+      "speaker_id": "spk_aditya",
+      "text": "Fixed. Their steering committee signed on it. If we miss it we miss the pilot window and we're waiting till January."
+    },
+    {
+      "start_ms": 93285,
+      "end_ms": 103685,
+      "speaker_id": "spk_aditya",
+      "text": "Owners. Priya, you own the payments service end to end, including the UPI flow. Rahul, offline mode and the app shell. Sana, onboarding and anything a user touches."
+    },
+    {
+      "start_ms": 104040,
+      "end_ms": 111440,
+      "speaker_id": "spk_priya",
+      "text": "Fine by me. I do want a decision on the payment vendor today though, I can't start without it."
+    },
+    {
+      "start_ms": 111832,
+      "end_ms": 117732,
+      "speaker_id": "spk_aditya",
+      "text": "Yeah, let's do it now. The options were Razorpay and PayU. What's your take?"
+    },
+    {
+      "start_ms": 118161,
+      "end_ms": 127861,
+      "speaker_id": "spk_priya",
+      "text": "Razorpay. Their UPI SDK is the fastest to integrate, we used it on the Lumen project, and their sandbox is decent. PayU I've honestly never touched."
+    },
+    {
+      "start_ms": 128327,
+      "end_ms": 133327,
+      "speaker_id": "spk_rahul",
+      "text": "I've only heard bad things about PayU's docs, for what it's worth."
+    },
+    {
+      "start_ms": 133830,
+      "end_ms": 142430,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. Decision: payments go through Razorpay. Rationale, fastest UPI integration and we have prior experience with it. Priya, you're good with that?"
+    },
+    {
+      "start_ms": 142970,
+      "end_ms": 145570,
+      "speaker_id": "spk_priya",
+      "text": "Yes. I'll own the integration."
+    },
+    {
+      "start_ms": 146147,
+      "end_ms": 154847,
+      "speaker_id": "spk_aditya",
+      "text": "Then the UPI flow. Priya, when can you have it done? And I mean working end to end in sandbox, not a branch."
+    },
+    {
+      "start_ms": 155461,
+      "end_ms": 163861,
+      "speaker_id": "spk_priya",
+      "text": "Let me think. If I have sandbox keys this week... the 24th. I can have the UPI flow done by September 24th."
+    },
+    {
+      "start_ms": 164512,
+      "end_ms": 170512,
+      "speaker_id": "spk_aditya",
+      "text": "The 24th. Written down. I'll get you the Razorpay sandbox keys by Wednesday, the 9th."
+    },
+    {
+      "start_ms": 171200,
+      "end_ms": 178200,
+      "speaker_id": "spk_priya",
+      "text": "And I'll share the payments service API spec by Thursday the 10th, so Rahul can build against it."
+    },
+    {
+      "start_ms": 178925,
+      "end_ms": 182225,
+      "speaker_id": "spk_rahul",
+      "text": "Thursday's fine. I'll stub it until then."
+    },
+    {
+      "start_ms": 182987,
+      "end_ms": 188887,
+      "speaker_id": "spk_aditya",
+      "text": "Offline mode. Rahul, this is the scary one. How do we even approach it?"
+    },
+    {
+      "start_ms": 189686,
+      "end_ms": 198386,
+      "speaker_id": "spk_rahul",
+      "text": "So, my proposal is local-first. SQLite cache on the device, a sync queue for writes, and the server reconciles when we're back online."
+    },
+    {
+      "start_ms": 198722,
+      "end_ms": 202322,
+      "speaker_id": "spk_rahul",
+      "text": "It's boring, which is why I like it."
+    },
+    {
+      "start_ms": 202695,
+      "end_ms": 209195,
+      "speaker_id": "spk_priya",
+      "text": "Does the sync queue need anything from the payments service? Like, do payments go offline too?"
+    },
+    {
+      "start_ms": 209605,
+      "end_ms": 213905,
+      "speaker_id": "spk_rahul",
+      "text": "I honestly don't know yet. Let me spike it first."
+    },
+    {
+      "start_ms": 214352,
+      "end_ms": 223052,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. Decision: offline mode is local-first, SQLite cache plus a sync queue. Rationale is the basement branches. We revisit payments-offline after the spike."
+    },
+    {
+      "start_ms": 223536,
+      "end_ms": 226036,
+      "speaker_id": "spk_aditya",
+      "text": "Rahul, the spike. When?"
+    },
+    {
+      "start_ms": 226557,
+      "end_ms": 233957,
+      "speaker_id": "spk_rahul",
+      "text": "Give me until the 18th. Offline mode spike done by September 18th, with a written recommendation on conflict handling."
+    },
+    {
+      "start_ms": 234515,
+      "end_ms": 237315,
+      "speaker_id": "spk_aditya",
+      "text": "Good. And the app shell?"
+    },
+    {
+      "start_ms": 237910,
+      "end_ms": 246310,
+      "speaker_id": "spk_rahul",
+      "text": "The shell with navigation is quicker. I can have the app shell up by the 15th, assuming we pick the nav today."
+    },
+    {
+      "start_ms": 246942,
+      "end_ms": 249442,
+      "speaker_id": "spk_aditya",
+      "text": "Let's pick it. Sana?"
+    },
+    {
+      "start_ms": 250111,
+      "end_ms": 259211,
+      "speaker_id": "spk_sana",
+      "text": "I'd go with a bottom tab bar. Four sections: Home, Payments, Inspections, Profile. Everything is one tap away and users already know the pattern."
+    },
+    {
+      "start_ms": 259917,
+      "end_ms": 264517,
+      "speaker_id": "spk_rahul",
+      "text": "Agreed, a tab bar is the least work for me too."
+    },
+    {
+      "start_ms": 265260,
+      "end_ms": 273660,
+      "speaker_id": "spk_aditya",
+      "text": "Any reason not to? No? Okay. Decision: navigation is a bottom tab bar, four tabs. Rationale, discoverability, and it's the standard pattern."
+    },
+    {
+      "start_ms": 274440,
+      "end_ms": 278440,
+      "speaker_id": "spk_sana",
+      "text": "I'll mock it up along with the onboarding screens."
+    },
+    {
+      "start_ms": 278757,
+      "end_ms": 283557,
+      "speaker_id": "spk_aditya",
+      "text": "Which brings us to onboarding. Sana, what's the shape, and when?"
+    },
+    {
+      "start_ms": 283911,
+      "end_ms": 292311,
+      "speaker_id": "spk_sana",
+      "text": "Five screens. Welcome, phone verification, PIN setup, permissions, and a quick tour. Nothing fancy, the field agents aren't going to read much."
+    },
+    {
+      "start_ms": 292702,
+      "end_ms": 300702,
+      "speaker_id": "spk_sana",
+      "text": "I can have the onboarding screens done by the 19th. That's a Saturday, but I'm out on Friday, so the 19th."
+    },
+    {
+      "start_ms": 301130,
+      "end_ms": 305430,
+      "speaker_id": "spk_aditya",
+      "text": "The 19th works. Rahul, you'll build them the week after."
+    },
+    {
+      "start_ms": 305895,
+      "end_ms": 308195,
+      "speaker_id": "spk_rahul",
+      "text": "Yeah no, that's fine."
+    },
+    {
+      "start_ms": 308697,
+      "end_ms": 312897,
+      "speaker_id": "spk_priya",
+      "text": "Quick one. Platforms. Are we doing iOS at all?"
+    },
+    {
+      "start_ms": 313436,
+      "end_ms": 320136,
+      "speaker_id": "spk_aditya",
+      "text": "Android first. iOS only if we have slack, which we won't. Meridian's devices are all Android anyway."
+    },
+    {
+      "start_ms": 320712,
+      "end_ms": 328112,
+      "speaker_id": "spk_sana",
+      "text": "Can we at least flag iOS for November? There's that logistics prospect... sorry, never mind, that's not real yet."
+    },
+    {
+      "start_ms": 328725,
+      "end_ms": 331025,
+      "speaker_id": "spk_aditya",
+      "text": "Flag it. We'll see."
+    },
+    {
+      "start_ms": 331675,
+      "end_ms": 338675,
+      "speaker_id": "spk_aditya",
+      "text": "Cadence. Standup every Monday at ten, this call. Design review when Sana needs one. Retro after we ship."
+    },
+    {
+      "start_ms": 339362,
+      "end_ms": 341962,
+      "speaker_id": "spk_rahul",
+      "text": "Mondays at ten. Got it."
+    },
+    {
+      "start_ms": 342686,
+      "end_ms": 350386,
+      "speaker_id": "spk_aditya",
+      "text": "One more. I'm doing a requirements call with Meridian on Friday the 11th. I'll bring back anything that changes scope."
+    },
+    {
+      "start_ms": 351147,
+      "end_ms": 357447,
+      "speaker_id": "spk_priya",
+      "text": "Can you ask them about receipts? Whether they need a printed receipt or in-app is fine."
+    },
+    {
+      "start_ms": 358245,
+      "end_ms": 360745,
+      "speaker_id": "spk_aditya",
+      "text": "Will do. Anything else?"
+    },
+    {
+      "start_ms": 361080,
+      "end_ms": 363080,
+      "speaker_id": "spk_sana",
+      "text": "Not from me."
+    },
+    {
+      "start_ms": 363452,
+      "end_ms": 365452,
+      "speaker_id": "spk_rahul",
+      "text": "I'm good."
+    },
+    {
+      "start_ms": 365861,
+      "end_ms": 367861,
+      "speaker_id": "spk_priya",
+      "text": "Same."
+    },
+    {
+      "start_ms": 368307,
+      "end_ms": 376707,
+      "speaker_id": "spk_aditya",
+      "text": "Then let me read it back. Scope: payments, offline, onboarding. Razorpay for payments. Tab bar nav. Local-first offline. We ship October 16th."
+    },
+    {
+      "start_ms": 377190,
+      "end_ms": 384190,
+      "speaker_id": "spk_aditya",
+      "text": "Dates. Razorpay keys Wednesday the 9th, me. API spec Thursday the 10th, Priya. Meridian call the 11th, me."
+    },
+    {
+      "start_ms": 384710,
+      "end_ms": 391410,
+      "speaker_id": "spk_aditya",
+      "text": "Shell the 15th and spike the 18th, Rahul. Onboarding the 19th, Sana. UPI flow the 24th, Priya."
+    },
+    {
+      "start_ms": 391967,
+      "end_ms": 393967,
+      "speaker_id": "spk_priya",
+      "text": "That's right."
+    },
+    {
+      "start_ms": 394561,
+      "end_ms": 397861,
+      "speaker_id": "spk_aditya",
+      "text": "Great. Go build Orbit. See you Monday."
+    },
+    {
+      "start_ms": 398492,
+      "end_ms": 400492,
+      "speaker_id": "spk_rahul",
+      "text": "Later."
+    },
+    {
+      "start_ms": 401160,
+      "end_ms": 403160,
+      "speaker_id": "spk_sana",
+      "text": "Bye."
+    }
+  ]
+}

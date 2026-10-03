@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_quill_001",
+    "title": "Quill editorial planning",
+    "started_at": "2026-09-09T10:00:00+05:30",
+    "ended_at": "2026-09-09T10:02:17+05:30",
+    "audio_uri": "data/meetings/quill_001.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_tara",
+      "name": "Tara",
+      "role": "editor"
+    },
+    {
+      "id": "spk_omar",
+      "name": "Omar",
+      "role": "writer"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 5700,
+      "speaker_id": "spk_tara",
+      "text": "Okay, Quill planning. Just us two, so let's be quick. Newsletter, CMS, launch post."
+    },
+    {
+      "start_ms": 6000,
+      "end_ms": 8300,
+      "speaker_id": "spk_omar",
+      "text": "Coffee first. Okay. Go."
+    },
+    {
+      "start_ms": 8637,
+      "end_ms": 14937,
+      "speaker_id": "spk_tara",
+      "text": "Newsletter cadence. I want weekly. Thursdays, because that's when open rates peaked on the old list."
+    },
+    {
+      "start_ms": 15311,
+      "end_ms": 18611,
+      "speaker_id": "spk_omar",
+      "text": "Weekly is a lot for two people."
+    },
+    {
+      "start_ms": 19022,
+      "end_ms": 26022,
+      "speaker_id": "spk_tara",
+      "text": "It's one essay and three links. You write the essay every other week, I do the alternate ones."
+    },
+    {
+      "start_ms": 26470,
+      "end_ms": 28470,
+      "speaker_id": "spk_omar",
+      "text": "Fine. Thursdays."
+    },
+    {
+      "start_ms": 28955,
+      "end_ms": 34655,
+      "speaker_id": "spk_tara",
+      "text": "Decision: the newsletter goes out weekly on Thursdays. Rationale, the old list's open rates."
+    },
+    {
+      "start_ms": 35177,
+      "end_ms": 37677,
+      "speaker_id": "spk_tara",
+      "text": "CMS. Ghost or Substack?"
+    },
+    {
+      "start_ms": 38236,
+      "end_ms": 46636,
+      "speaker_id": "spk_omar",
+      "text": "Ghost. We own the list, newsletters are built in, and the blog can live on the same thing. Substack owns your audience."
+    },
+    {
+      "start_ms": 47232,
+      "end_ms": 53932,
+      "speaker_id": "spk_tara",
+      "text": "Agreed. Decision: the CMS is Ghost. Rationale, we own the subscriber list and newsletters are built in."
+    },
+    {
+      "start_ms": 54565,
+      "end_ms": 57665,
+      "speaker_id": "spk_omar",
+      "text": "How big is the list, actually?"
+    },
+    {
+      "start_ms": 58335,
+      "end_ms": 62335,
+      "speaker_id": "spk_tara",
+      "text": "About two thousand subscribers, migrated from the old one."
+    },
+    {
+      "start_ms": 63042,
+      "end_ms": 66142,
+      "speaker_id": "spk_tara",
+      "text": "Launch post. Omar, that's yours. When?"
+    },
+    {
+      "start_ms": 66886,
+      "end_ms": 71886,
+      "speaker_id": "spk_omar",
+      "text": "The draft is half done. Launch post published by Tuesday the 22nd."
+    },
+    {
+      "start_ms": 72667,
+      "end_ms": 77267,
+      "speaker_id": "spk_tara",
+      "text": "The 22nd. It needs legal to look at the pricing paragraph."
+    },
+    {
+      "start_ms": 77585,
+      "end_ms": 80485,
+      "speaker_id": "spk_omar",
+      "text": "I'll send it to them Friday."
+    },
+    {
+      "start_ms": 80840,
+      "end_ms": 88240,
+      "speaker_id": "spk_tara",
+      "text": "And I'll finish the style guide by Tuesday the 15th, so your draft and mine sound like one person."
+    },
+    {
+      "start_ms": 88632,
+      "end_ms": 90932,
+      "speaker_id": "spk_omar",
+      "text": "Please. Our commas disagree."
+    },
+    {
+      "start_ms": 91361,
+      "end_ms": 99761,
+      "speaker_id": "spk_omar",
+      "text": "One more. The October issues. I want to do interviews instead of essays, four of them, people who actually run small newsrooms."
+    },
+    {
+      "start_ms": 100227,
+      "end_ms": 102727,
+      "speaker_id": "spk_tara",
+      "text": "I like it. Who?"
+    },
+    {
+      "start_ms": 103230,
+      "end_ms": 110930,
+      "speaker_id": "spk_omar",
+      "text": "I have a list of eight. I'll narrow it down after the launch post, I can't do both at once."
+    },
+    {
+      "start_ms": 111470,
+      "end_ms": 116470,
+      "speaker_id": "spk_tara",
+      "text": "Fine. Decision: October is an interview month, four interviews instead of essays."
+    },
+    {
+      "start_ms": 117047,
+      "end_ms": 119847,
+      "speaker_id": "spk_tara",
+      "text": "Weekly sync, Wednesdays at ten?"
+    },
+    {
+      "start_ms": 120461,
+      "end_ms": 122461,
+      "speaker_id": "spk_omar",
+      "text": "Wednesdays. Fine."
+    },
+    {
+      "start_ms": 123112,
+      "end_ms": 126712,
+      "speaker_id": "spk_tara",
+      "text": "Decision: the editorial sync is Wednesdays at ten."
+    },
+    {
+      "start_ms": 127400,
+      "end_ms": 133100,
+      "speaker_id": "spk_tara",
+      "text": "Done. Thursdays, Ghost, launch post the 22nd, style guide the 15th, interviews in October."
+    },
+    {
+      "start_ms": 133825,
+      "end_ms": 136125,
+      "speaker_id": "spk_omar",
+      "text": "Back to the draft."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_quill_001",
+    "subject": "Launch post: legal still reviewing",
+    "started_at": "2026-09-21T10:30:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_omar",
+      "name": "Omar",
+      "email": "omar@quill.example"
+    },
+    {
+      "id": "spk_tara",
+      "name": "Tara",
+      "email": "tara@quill.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_quill_001_1",
+      "sent_at": "2026-09-21T10:30:00+05:30",
+      "from": "omar@quill.example",
+      "to": [
+        "tara@quill.example"
+      ],
+      "cc": [],
+      "in_reply_to": null,
+      "subject": "Launch post: legal still reviewing",
+      "body_text": "Tara,\n\nLegal came back, but only on half of it. The pricing paragraph is still with their external counsel and they've said Thursday the 24th.\n\nI'm moving the launch post from Friday the 25th to Tuesday the 29th, so it goes out with the newsletter. If legal misses Thursday, I'll publish without the pricing paragraph, as we agreed.\n\nOmar"
+    },
+    {
+      "id": "msg_quill_001_2",
+      "sent_at": "2026-09-21T11:02:00+05:30",
+      "from": "tara@quill.example",
+      "to": [
+        "omar@quill.example"
+      ],
+      "cc": [],
+      "in_reply_to": "msg_quill_001_1",
+      "subject": "Re: Launch post: legal still reviewing",
+      "body_text": "Agreed, the 29th. One change while we wait: the launch post leads the Tuesday newsletter that week instead of the essay, so you get that week off the essay.\n\nTara"
+    },
+    {
+      "id": "msg_quill_001_3",
+      "sent_at": "2026-09-21T11:10:00+05:30",
+      "from": "omar@quill.example",
+      "to": [
+        "tara@quill.example"
+      ],
+      "cc": [],
+      "in_reply_to": "msg_quill_001_2",
+      "subject": "Re: Launch post: legal still reviewing",
+      "body_text": "Deal. The interview outlines for October are still on for Thursday the 24th.\n\nOmar"
+    }
+  ]
+}

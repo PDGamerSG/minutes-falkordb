@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_orbit_003",
+    "subject": "Orbit navigation: side drawer vs accessibility checklist",
+    "started_at": "2026-09-18T09:35:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "email": "rahul@orbit.example"
+    },
+    {
+      "id": "ext_meridian_compliance",
+      "name": "Farah Siddiqui",
+      "email": "compliance@meridianbank.example"
+    },
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "email": "aditya@orbit.example"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "email": "sana@orbit.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_orbit_003_1",
+      "sent_at": "2026-09-18T09:35:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "compliance@meridianbank.example"
+      ],
+      "cc": [
+        "aditya@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": null,
+      "subject": "Orbit navigation: side drawer vs accessibility checklist",
+      "body_text": "Hello Farah,\n\nRahul here, I'm building the Orbit mobile app for the Meridian pilot. Sana's review of your accessibility checklist found that our planned bottom tab bar gives about 48 dp per tab on your 5-inch rugged devices, below your minimum. We decided on Wednesday to replace it with a side drawer.\n\nBefore I build it, two questions on the checklist:\n1. Is 56 dp a hard minimum for primary navigation targets, or a recommendation?\n2. Does a side drawer satisfy the single-landmark rule if it opens from a 56 dp button in the top bar and is announced as navigation?\n\nMockup of the drawer attached (orbit-drawer-mockup-v1.pdf). Aditya mentioned you need to sign it off; happy to adjust.\n\nThanks,\nRahul"
+    },
+    {
+      "id": "msg_orbit_003_2",
+      "sent_at": "2026-09-18T12:48:00+05:30",
+      "from": "compliance@meridianbank.example",
+      "to": [
+        "rahul@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_003_1",
+      "subject": "Re: Orbit navigation: side drawer vs accessibility checklist",
+      "body_text": "Dear Rahul,\n\nThank you for checking before building; most vendors do not.\n\n1. 56 dp is a hard minimum (checklist section 4.2, Primary navigation targets). It comes from our field study with gloved agents and is not negotiable for the pilot.\n2. Yes. A side drawer satisfies section 4.5 provided the trigger is at least 56 dp, the drawer is announced as Navigation to TalkBack, and focus moves into the drawer when it opens. Your mockup does all three.\n\nPlease consider the drawer mockup approved by Meridian Bank compliance as of today. The tab bar proposal would not have passed.\n\nWe will have further items for the payment flows on the call on the 23rd with Aditya and Priya.\n\nKind regards,\nFarah Siddiqui\nCompliance, Meridian Bank"
+    },
+    {
+      "id": "msg_orbit_003_3",
+      "sent_at": "2026-09-18T13:05:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "compliance@meridianbank.example"
+      ],
+      "cc": [
+        "rahul@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_003_2",
+      "subject": "Re: Orbit navigation: side drawer vs accessibility checklist",
+      "body_text": "Farah, thank you. We will treat this as the formal sign-off on the drawer mockup. Rahul, that closes my commitment to get the mockup signed off by today.\n\nSana, please add sections 4.2 and 4.5 to our design review template.\n\nAditya"
+    },
+    {
+      "id": "msg_orbit_003_4",
+      "sent_at": "2026-09-18T13:20:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "compliance@meridianbank.example"
+      ],
+      "cc": [
+        "aditya@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_003_2",
+      "subject": "Re: Orbit navigation: side drawer vs accessibility checklist",
+      "body_text": "Thanks Farah, that's exactly what I needed. Building it now; the side drawer will be in the app by Wednesday the 23rd as planned.\n\nRahul"
+    },
+    {
+      "id": "msg_orbit_003_5",
+      "sent_at": "2026-09-18T14:02:00+05:30",
+      "from": "sana@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_003_3",
+      "subject": "Re: Orbit navigation: side drawer vs accessibility checklist",
+      "body_text": "Added 4.2 and 4.5 to the template. I also re-measured the onboarding buttons at 56 dp against her numbers; they pass.\n\nSana"
+    }
+  ]
+}

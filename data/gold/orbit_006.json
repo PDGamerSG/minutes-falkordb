@@ -1,0 +1,117 @@
+{
+  "meeting_id": "mtg_orbit_006",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_priya",
+      "segment_index": 2
+    },
+    {
+      "kind": "commitment",
+      "subject": "side drawer",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_rahul",
+      "segment_index": 4
+    },
+    {
+      "kind": "commitment",
+      "subject": "offline mode demo",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_rahul",
+      "segment_index": 4
+    },
+    {
+      "kind": "commitment",
+      "subject": "Razorpay SDK removal",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_rahul",
+      "segment_index": 4
+    },
+    {
+      "kind": "commitment",
+      "subject": "payment consent screen",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_sana",
+      "segment_index": 6
+    },
+    {
+      "kind": "fact",
+      "subject": "side drawer",
+      "predicate": "decided",
+      "object": "because of Meridian accessibility checklist, 56dp minimum touch targets",
+      "speaker_id": "spk_priya",
+      "segment_index": 16
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit",
+      "predicate": "lesson",
+      "object": "confirm vendor constraints with the customer's compliance team before choosing a vendor",
+      "speaker_id": "spk_aditya",
+      "segment_index": 23
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit",
+      "predicate": "lesson",
+      "object": "a commitment that slips twice gets a scope cut, not a third date",
+      "speaker_id": "spk_aditya",
+      "segment_index": 30
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit",
+      "predicate": "lesson",
+      "object": "record the rationale with every decision",
+      "speaker_id": "spk_aditya",
+      "segment_index": 34
+    },
+    {
+      "kind": "decision",
+      "subject": "Kestrel pilot",
+      "predicate": "uses_vendor",
+      "object": "PayU",
+      "speaker_id": "spk_aditya",
+      "segment_index": 42
+    },
+    {
+      "kind": "commitment",
+      "subject": "Kestrel onboarding variant",
+      "predicate": "due",
+      "object": "2026-10-07",
+      "speaker_id": "spk_sana",
+      "segment_index": 43
+    },
+    {
+      "kind": "decision",
+      "subject": "November release",
+      "predicate": "scope_includes",
+      "object": "iOS",
+      "speaker_id": "spk_aditya",
+      "segment_index": 44
+    },
+    {
+      "kind": "decision",
+      "subject": "November release",
+      "predicate": "scope_includes",
+      "object": "Kestrel pilot",
+      "speaker_id": "spk_aditya",
+      "segment_index": 44
+    },
+    {
+      "kind": "commitment",
+      "subject": "retro notes",
+      "predicate": "due",
+      "object": "2026-10-01",
+      "speaker_id": "spk_aditya",
+      "segment_index": 48
+    }
+  ]
+}

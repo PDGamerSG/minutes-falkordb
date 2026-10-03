@@ -1,0 +1,29 @@
+{
+  "thread_id": "thr_nimbus_001",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "events pipeline",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_dev",
+      "message_index": 0,
+      "supersedes": {
+        "subject": "events pipeline",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "Lumen dashboard",
+      "predicate": "due",
+      "object": "2026-09-29",
+      "speaker_id": "spk_anika",
+      "message_index": 2,
+      "supersedes": {
+        "subject": "Lumen dashboard",
+        "predicate": "due"
+      }
+    }
+  ]
+}

@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_003",
+    "title": "Orbit design review",
+    "started_at": "2026-09-16T10:00:00+05:30",
+    "ended_at": "2026-09-16T10:06:02+05:30",
+    "audio_uri": "data/meetings/orbit_003.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 7700,
+      "speaker_id": "spk_aditya",
+      "text": "Design review. Sana has the onboarding screens and the accessibility review, Rahul has conflicts. Sana, start with the scary one."
+    },
+    {
+      "start_ms": 8000,
+      "end_ms": 17100,
+      "speaker_id": "spk_sana",
+      "text": "Okay. So I went through Meridian's accessibility checklist with the tab bar on a five inch screen, which is what their field agents carry."
+    },
+    {
+      "start_ms": 17437,
+      "end_ms": 21437,
+      "speaker_id": "spk_sana",
+      "text": "Rugged devices, and they wear gloves half the time."
+    },
+    {
+      "start_ms": 21811,
+      "end_ms": 31511,
+      "speaker_id": "spk_sana",
+      "text": "The checklist says every primary navigation target has to be at least fifty-six dp, and navigation has to be a single landmark for the screen reader."
+    },
+    {
+      "start_ms": 31922,
+      "end_ms": 43022,
+      "speaker_id": "spk_sana",
+      "text": "Our tab bar, with four tabs on a five inch screen, gives us about forty-eight dp per tab. That fails. I tried three tabs, still forty-eight because of the labels."
+    },
+    {
+      "start_ms": 43470,
+      "end_ms": 46970,
+      "speaker_id": "spk_rahul",
+      "text": "Can we drop the labels? Icons only?"
+    },
+    {
+      "start_ms": 47455,
+      "end_ms": 51755,
+      "speaker_id": "spk_sana",
+      "text": "Then it fails their no icon-only controls rule. I checked."
+    },
+    {
+      "start_ms": 52277,
+      "end_ms": 55377,
+      "speaker_id": "spk_aditya",
+      "text": "So the tab bar is dead?"
+    },
+    {
+      "start_ms": 55936,
+      "end_ms": 67036,
+      "speaker_id": "spk_sana",
+      "text": "The tab bar fails Meridian's checklist. My recommendation is a side drawer. Full width items, as tall as we want, one landmark, and it scales when we add sections later."
+    },
+    {
+      "start_ms": 67632,
+      "end_ms": 75332,
+      "speaker_id": "spk_rahul",
+      "text": "I mean... I'm not thrilled. Drawers hide things. Discoverability was the whole reason we picked the tab bar at kickoff."
+    },
+    {
+      "start_ms": 75965,
+      "end_ms": 84665,
+      "speaker_id": "spk_sana",
+      "text": "I know. But this isn't our preference versus theirs, it's a hard requirement in their contract. Fifty-six dp or they don't sign off."
+    },
+    {
+      "start_ms": 85335,
+      "end_ms": 91635,
+      "speaker_id": "spk_priya",
+      "text": "Also, honestly, their agents will use this app eight hours a day. They'll find the drawer."
+    },
+    {
+      "start_ms": 92342,
+      "end_ms": 94642,
+      "speaker_id": "spk_rahul",
+      "text": "Yeah. Yeah, okay. Fair."
+    },
+    {
+      "start_ms": 95386,
+      "end_ms": 104086,
+      "speaker_id": "spk_aditya",
+      "text": "Alright. Let's be explicit about this, because we are reversing a kickoff decision. At kickoff we chose a bottom tab bar, for discoverability."
+    },
+    {
+      "start_ms": 104867,
+      "end_ms": 114967,
+      "speaker_id": "spk_aditya",
+      "text": "We're reversing that. Decision: navigation is a side drawer. Rationale is Meridian's accessibility requirement, the fifty-six dp minimum touch target on five inch devices. That overrides discoverability."
+    },
+    {
+      "start_ms": 115285,
+      "end_ms": 119485,
+      "speaker_id": "spk_rahul",
+      "text": "Okay. Can I rip out the tab bar today?"
+    },
+    {
+      "start_ms": 119840,
+      "end_ms": 123340,
+      "speaker_id": "spk_aditya",
+      "text": "Yes. When can the drawer be in?"
+    },
+    {
+      "start_ms": 123732,
+      "end_ms": 128332,
+      "speaker_id": "spk_rahul",
+      "text": "The drawer's not hard. Side drawer implemented by Wednesday the 23rd."
+    },
+    {
+      "start_ms": 128761,
+      "end_ms": 136761,
+      "speaker_id": "spk_aditya",
+      "text": "The 23rd. And I'll send Meridian the drawer mockup for sign-off by Friday the 18th, so we don't get surprised twice."
+    },
+    {
+      "start_ms": 137227,
+      "end_ms": 140527,
+      "speaker_id": "spk_sana",
+      "text": "I'll have the mockup to you tonight."
+    },
+    {
+      "start_ms": 141030,
+      "end_ms": 150630,
+      "speaker_id": "spk_aditya",
+      "text": "Now, I want to go further. If their checklist can kill the tab bar, it can kill anything. Sana, should it just be the baseline?"
+    },
+    {
+      "start_ms": 151170,
+      "end_ms": 159170,
+      "speaker_id": "spk_sana",
+      "text": "Yes. I was going to propose exactly that. Every screen gets checked against Meridian's accessibility checklist before we call it done."
+    },
+    {
+      "start_ms": 159747,
+      "end_ms": 170147,
+      "speaker_id": "spk_aditya",
+      "text": "Decision: Meridian's accessibility checklist is the baseline for every Orbit screen. Rationale, same as the drawer. It's contractual, and we'd rather find out in design than at sign-off."
+    },
+    {
+      "start_ms": 170761,
+      "end_ms": 175761,
+      "speaker_id": "spk_priya",
+      "text": "Does that include the payment screens? Those are mostly Razorpay's SDK UI."
+    },
+    {
+      "start_ms": 176412,
+      "end_ms": 182712,
+      "speaker_id": "spk_sana",
+      "text": "It includes anything we render. The SDK screens we can't change, I'll flag that to Meridian."
+    },
+    {
+      "start_ms": 183400,
+      "end_ms": 185700,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. Onboarding screens, Sana."
+    },
+    {
+      "start_ms": 186425,
+      "end_ms": 193425,
+      "speaker_id": "spk_sana",
+      "text": "Five screens, four done. Welcome, phone verification, PIN, permissions. The tour is the last one, three cards now."
+    },
+    {
+      "start_ms": 194187,
+      "end_ms": 203587,
+      "speaker_id": "spk_sana",
+      "text": "And applying the same reasoning as the drawer: the primary buttons on onboarding go to fifty-six dp, full width. Right now they're forty-eight and centred."
+    },
+    {
+      "start_ms": 204386,
+      "end_ms": 211386,
+      "speaker_id": "spk_aditya",
+      "text": "Same precedent, same answer. Decision: onboarding buttons are fifty-six dp, full width. The drawer decision is the precedent."
+    },
+    {
+      "start_ms": 211722,
+      "end_ms": 218022,
+      "speaker_id": "spk_sana",
+      "text": "That doesn't change my date. Onboarding screens still done by the 19th, with the new buttons."
+    },
+    {
+      "start_ms": 218395,
+      "end_ms": 220395,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Rahul, conflicts."
+    },
+    {
+      "start_ms": 220805,
+      "end_ms": 228505,
+      "speaker_id": "spk_rahul",
+      "text": "Right. Conflict resolution for offline mode. I looked at three options: last-write-wins per record, last-write-wins per field, and manual merge."
+    },
+    {
+      "start_ms": 228952,
+      "end_ms": 239052,
+      "speaker_id": "spk_rahul",
+      "text": "Manual merge is the correct one and nobody will use it. Per record loses too much data. So I'm proposing last-write-wins per field, using the server timestamp."
+    },
+    {
+      "start_ms": 239536,
+      "end_ms": 244836,
+      "speaker_id": "spk_priya",
+      "text": "Server timestamp, not device? Because device clocks on rugged Androids are a mess."
+    },
+    {
+      "start_ms": 245357,
+      "end_ms": 255457,
+      "speaker_id": "spk_rahul",
+      "text": "Server. The device sends its queue, the server stamps on arrival. Field-level means if I edit the meter reading and you edit the notes, we both win."
+    },
+    {
+      "start_ms": 256015,
+      "end_ms": 259515,
+      "speaker_id": "spk_aditya",
+      "text": "Any objections? Sana, from the UX side?"
+    },
+    {
+      "start_ms": 260110,
+      "end_ms": 264710,
+      "speaker_id": "spk_sana",
+      "text": "As long as the agent sees a this-record-was-updated toast, I'm fine."
+    },
+    {
+      "start_ms": 265342,
+      "end_ms": 267342,
+      "speaker_id": "spk_rahul",
+      "text": "Easy."
+    },
+    {
+      "start_ms": 268011,
+      "end_ms": 276711,
+      "speaker_id": "spk_aditya",
+      "text": "Decision: offline mode conflict resolution is last-write-wins per field, server timestamp. Rationale, it keeps the most data without asking agents to merge anything."
+    },
+    {
+      "start_ms": 277417,
+      "end_ms": 279917,
+      "speaker_id": "spk_aditya",
+      "text": "Priya, anything on payments?"
+    },
+    {
+      "start_ms": 280660,
+      "end_ms": 290360,
+      "speaker_id": "spk_priya",
+      "text": "Quick update. The UPI flow is still on for Friday the 25th. The polling workaround is in, and Razorpay's UPI intent flow works in sandbox now."
+    },
+    {
+      "start_ms": 291140,
+      "end_ms": 301240,
+      "speaker_id": "spk_priya",
+      "text": "One risk. Meridian wants UPI autopay mandates for the subscription accounts, and Razorpay needs a merchant KYC step before mandates work in sandbox. I'm submitting that tomorrow."
+    },
+    {
+      "start_ms": 301557,
+      "end_ms": 304357,
+      "speaker_id": "spk_aditya",
+      "text": "How long does KYC take?"
+    },
+    {
+      "start_ms": 304711,
+      "end_ms": 312411,
+      "speaker_id": "spk_priya",
+      "text": "They say three business days. If it's more than that, I'll tell you by email, I won't wait for Monday."
+    },
+    {
+      "start_ms": 312802,
+      "end_ms": 321902,
+      "speaker_id": "spk_priya",
+      "text": "Also, the offline payments question is still open. I'm building as if payments need connectivity. If that changes, tell me this week, not next."
+    },
+    {
+      "start_ms": 322330,
+      "end_ms": 325630,
+      "speaker_id": "spk_aditya",
+      "text": "Noted. I've asked Meridian twice. I'll escalate."
+    },
+    {
+      "start_ms": 326095,
+      "end_ms": 335195,
+      "speaker_id": "spk_rahul",
+      "text": "Hey, are we still on for the drawer sign-off on Friday? Because if Meridian bounces it I want to know before I build it."
+    },
+    {
+      "start_ms": 335697,
+      "end_ms": 337997,
+      "speaker_id": "spk_aditya",
+      "text": "Friday. I'll push them."
+    },
+    {
+      "start_ms": 338536,
+      "end_ms": 347636,
+      "speaker_id": "spk_aditya",
+      "text": "Okay, summary. Reversed: tab bar to side drawer, because of Meridian accessibility. New: the checklist is the baseline, fifty-six dp buttons, last-write-wins per field."
+    },
+    {
+      "start_ms": 348212,
+      "end_ms": 355912,
+      "speaker_id": "spk_aditya",
+      "text": "Dates: mockup sign-off the 18th, me. Onboarding the 19th, Sana. Drawer the 23rd, Rahul. UPI flow still the 25th, Priya."
+    },
+    {
+      "start_ms": 356525,
+      "end_ms": 358525,
+      "speaker_id": "spk_sana",
+      "text": "That's right."
+    },
+    {
+      "start_ms": 359175,
+      "end_ms": 361475,
+      "speaker_id": "spk_aditya",
+      "text": "Good review. Thanks, all."
+    }
+  ]
+}

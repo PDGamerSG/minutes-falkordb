@@ -1,0 +1,106 @@
+{
+  "run_id": "6.0.1-local-20261002-210317",
+  "ts": 1790975018694,
+  "engine": "6.0.1",
+  "target": "local",
+  "agents": 20,
+  "tenants": 4,
+  "duration_s": 20.01,
+  "read_p50": 31.661,
+  "read_p95": 75.909,
+  "read_p99": 110.851,
+  "write_p50": 35.972,
+  "write_p95": 94.997,
+  "write_p99": 129.205,
+  "errors": 0,
+  "cas": {
+    "attempts": 100,
+    "winners": 4,
+    "losers": 96
+  },
+  "cas_per_tenant": [
+    {
+      "tenant": "bench0",
+      "task_id": "task_01m3z6w1mv8gpm0q317eyre25v",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench1",
+      "task_id": "task_01m3z6w1n5gvb4r7p5pbnkvz75",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench2",
+      "task_id": "task_01m3z6w1nfhcrtty8nexzbqz8a",
+      "attempts": 25,
+      "winners": 1
+    },
+    {
+      "tenant": "bench3",
+      "task_id": "task_01m3z6w1nstgms9z7mhsn6hsv6",
+      "attempts": 25,
+      "winners": 1
+    }
+  ],
+  "ops": {
+    "total": 10662,
+    "reads": 8532,
+    "writes": 2130,
+    "per_second": 532.8,
+    "read_ratio": 0.8
+  },
+  "per_op": {
+    "active_facts": {
+      "n": 2807,
+      "p50": 25.73,
+      "p95": 60.853,
+      "p99": 82.413
+    },
+    "claim": {
+      "n": 679,
+      "p50": 26.031,
+      "p95": 65.71,
+      "p99": 87.556
+    },
+    "complete": {
+      "n": 728,
+      "p50": 33.265,
+      "p95": 71.386,
+      "p99": 107.007
+    },
+    "list_tasks": {
+      "n": 2878,
+      "p50": 41.527,
+      "p95": 92.912,
+      "p99": 132.309
+    },
+    "recall": {
+      "n": 2847,
+      "p50": 29.395,
+      "p95": 66.542,
+      "p99": 92.583
+    },
+    "remember_fact": {
+      "n": 723,
+      "p50": 53.073,
+      "p95": 116.325,
+      "p99": 152.611
+    }
+  },
+  "error_samples": [],
+  "usage_mb": {
+    "bench0": 0.0,
+    "bench1": 0.0,
+    "bench2": 0.0,
+    "bench3": 0.0
+  },
+  "seed_s": 1.17,
+  "latency_unit": "ms",
+  "client": {
+    "python": "3.12.13",
+    "os": "Windows-11-10.0.26200-SP0",
+    "mode": "asyncio.to_thread over falkordb-py sync client"
+  }
+}

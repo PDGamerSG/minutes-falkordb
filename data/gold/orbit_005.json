@@ -1,0 +1,130 @@
+{
+  "meeting_id": "mtg_orbit_005",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "Meridian test devices request",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_aditya",
+      "segment_index": 2
+    },
+    {
+      "kind": "fact",
+      "subject": "Meridian test devices",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_aditya",
+      "segment_index": 2
+    },
+    {
+      "kind": "decision",
+      "subject": "offline payments",
+      "predicate": "status",
+      "object": "out of scope",
+      "speaker_id": "spk_aditya",
+      "segment_index": 4
+    },
+    {
+      "kind": "fact",
+      "subject": "Meridian compliance team",
+      "predicate": "owner",
+      "object": "Farah",
+      "speaker_id": "spk_aditya",
+      "segment_index": 7
+    },
+    {
+      "kind": "fact",
+      "subject": "payments service",
+      "predicate": "requires",
+      "object": "audit log retained 7 years",
+      "speaker_id": "spk_aditya",
+      "segment_index": 9
+    },
+    {
+      "kind": "fact",
+      "subject": "Orbit",
+      "predicate": "requires",
+      "object": "data residency in India",
+      "speaker_id": "spk_aditya",
+      "segment_index": 9
+    },
+    {
+      "kind": "fact",
+      "subject": "payments service",
+      "predicate": "uses_vendor",
+      "object": "Razorpay",
+      "speaker_id": "spk_rahul",
+      "segment_index": 12
+    },
+    {
+      "kind": "fact",
+      "subject": "Meridian Bank",
+      "predicate": "requires",
+      "object": "PayU as payment provider",
+      "speaker_id": "spk_aditya",
+      "segment_index": 13
+    },
+    {
+      "kind": "commitment",
+      "subject": "PayU integration",
+      "predicate": "due",
+      "object": "2026-10-01",
+      "speaker_id": "spk_priya",
+      "segment_index": 26
+    },
+    {
+      "kind": "decision",
+      "subject": "payments service",
+      "predicate": "uses_vendor",
+      "object": "PayU",
+      "speaker_id": "spk_aditya",
+      "segment_index": 29,
+      "supersedes": {
+        "subject": "payments service",
+        "predicate": "uses_vendor"
+      },
+      "reverses_meeting": "mtg_orbit_001"
+    },
+    {
+      "kind": "commitment",
+      "subject": "Razorpay SDK removal",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_rahul",
+      "segment_index": 30
+    },
+    {
+      "kind": "commitment",
+      "subject": "payment consent screen",
+      "predicate": "due",
+      "object": "2026-09-28",
+      "speaker_id": "spk_sana",
+      "segment_index": 33
+    },
+    {
+      "kind": "fact",
+      "subject": "Orbit",
+      "predicate": "customer",
+      "object": "Kestrel Logistics",
+      "speaker_id": "spk_aditya",
+      "segment_index": 36
+    },
+    {
+      "kind": "fact",
+      "subject": "Kestrel Logistics pilot",
+      "predicate": "due",
+      "object": "2026-11-16",
+      "speaker_id": "spk_aditya",
+      "segment_index": 38
+    },
+    {
+      "kind": "commitment",
+      "subject": "Kestrel discovery call",
+      "predicate": "due",
+      "object": "2026-09-30",
+      "speaker_id": "spk_aditya",
+      "segment_index": 40
+    }
+  ]
+}

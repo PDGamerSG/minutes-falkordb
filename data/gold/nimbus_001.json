@@ -1,0 +1,69 @@
+{
+  "meeting_id": "mtg_nimbus_001",
+  "items": [
+    {
+      "kind": "decision",
+      "subject": "warehouse",
+      "predicate": "uses_vendor",
+      "object": "BigQuery",
+      "speaker_id": "spk_meera",
+      "segment_index": 6
+    },
+    {
+      "kind": "decision",
+      "subject": "transformations",
+      "predicate": "uses_pattern",
+      "object": "dbt models",
+      "speaker_id": "spk_meera",
+      "segment_index": 11
+    },
+    {
+      "kind": "decision",
+      "subject": "nightly events job",
+      "predicate": "decided",
+      "object": "02:00 IST",
+      "speaker_id": "spk_meera",
+      "segment_index": 14
+    },
+    {
+      "kind": "commitment",
+      "subject": "events pipeline",
+      "predicate": "due",
+      "object": "2026-09-18",
+      "speaker_id": "spk_dev",
+      "segment_index": 16
+    },
+    {
+      "kind": "commitment",
+      "subject": "Lumen dashboard",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_anika",
+      "segment_index": 18
+    },
+    {
+      "kind": "commitment",
+      "subject": "migration plan",
+      "predicate": "due",
+      "object": "2026-09-11",
+      "speaker_id": "spk_meera",
+      "segment_index": 19
+    },
+    {
+      "kind": "fact",
+      "subject": "raw events retention",
+      "predicate": "decided",
+      "object": "13 months",
+      "speaker_id": "spk_meera",
+      "segment_index": 21
+    },
+    {
+      "kind": "decision",
+      "subject": "Nimbus sync",
+      "predicate": "decided",
+      "object": "Tuesdays 10:00",
+      "speaker_id": "spk_meera",
+      "segment_index": 27
+    }
+  ]
+}

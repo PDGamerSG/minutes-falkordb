@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_orbit_004",
+    "subject": "Orbit payments: switching provider to PayU",
+    "started_at": "2026-09-24T10:15:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "email": "priya@orbit.example"
+    },
+    {
+      "id": "ext_razorpay_am",
+      "name": "Nikhil Rao",
+      "email": "am@razorpay.example"
+    },
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "email": "aditya@orbit.example"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "email": "rahul@orbit.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_orbit_004_1",
+      "sent_at": "2026-09-24T10:15:00+05:30",
+      "from": "priya@orbit.example",
+      "to": [
+        "am@razorpay.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": null,
+      "subject": "Orbit payments: switching provider to PayU",
+      "body_text": "Hi Nikhil,\n\nI wanted you to hear this from us directly. Our launch customer, Meridian Bank, mandates PayU as the payment provider for the Orbit pilot; their compliance team confirmed it yesterday and will not onboard a second provider. Orbit's payments service is therefore moving from Razorpay to PayU for the October release.\n\nTwo requests:\n1. Please keep our sandbox account open until at least October 1st. We are finishing the one-time UPI flow and the autopay mandate tests against it (merchant KYC came through this morning, thank you) and will swap the provider underneath afterwards.\n2. Please don't close the merchant account. We have a second prospect, Kestrel Logistics, and no vendor constraint there yet.\n\nNothing about your team's support caused this. It's the customer's licence.\n\nRegards,\nPriya"
+    },
+    {
+      "id": "msg_orbit_004_2",
+      "sent_at": "2026-09-24T12:40:00+05:30",
+      "from": "am@razorpay.example",
+      "to": [
+        "priya@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_004_1",
+      "subject": "Re: Orbit payments: switching provider to PayU",
+      "body_text": "Hi Priya,\n\nUnderstood, and thank you for telling us rather than going quiet. Confirming:\n- Sandbox access stays open for 90 days from today, so well past October 1st.\n- The merchant account stays active at no cost. KYC is complete, so Kestrel or any future project can go live without repeating it.\n\nIf Meridian's position changes, we'd be glad to talk about a joint integration. Also, the UPI collect callback issue you reported on the 11th is fixed in sandbox as of yesterday, for what it's worth.\n\nBest,\nNikhil Rao\nAccount Manager, Razorpay"
+    },
+    {
+      "id": "msg_orbit_004_3",
+      "sent_at": "2026-09-24T13:02:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "am@razorpay.example"
+      ],
+      "cc": [
+        "priya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_004_2",
+      "subject": "Re: Orbit payments: switching provider to PayU",
+      "body_text": "Nikhil, appreciated. For the record on our side: the Orbit payments service uses PayU for the October release, superseding our kickoff decision on Razorpay, because Meridian Bank's compliance team mandates it. We'll come back to you for Kestrel if their compliance allows.\n\nAditya"
+    },
+    {
+      "id": "msg_orbit_004_4",
+      "sent_at": "2026-09-24T13:30:00+05:30",
+      "from": "priya@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_004_3",
+      "subject": "Re: Orbit payments: switching provider to PayU (internal)",
+      "body_text": "Internal only, Nikhil dropped.\n\nPayU sandbox keys arrived. Their UPI callbacks fire within two seconds, so the polling workaround goes away. PayU integration still on for Thursday, October 1st.\n\nRahul, the Razorpay SDK can come out of the shell whenever; staging already points at the provider interface.\n\nPriya"
+    },
+    {
+      "id": "msg_orbit_004_5",
+      "sent_at": "2026-09-24T13:41:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "priya@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_004_4",
+      "subject": "Re: Orbit payments: switching provider to PayU",
+      "body_text": "SDK's out as of this morning. Two files and a gradle line. Done.\n\nRahul"
+    }
+  ]
+}

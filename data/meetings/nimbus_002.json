@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_nimbus_002",
+    "title": "Nimbus weekly sync",
+    "started_at": "2026-09-15T10:00:00+05:30",
+    "ended_at": "2026-09-15T10:02:12+05:30",
+    "audio_uri": "data/meetings/nimbus_002.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_meera",
+      "name": "Meera",
+      "role": "data lead"
+    },
+    {
+      "id": "spk_dev",
+      "name": "Dev",
+      "role": "data engineer"
+    },
+    {
+      "id": "spk_anika",
+      "name": "Anika",
+      "role": "analyst"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 2600,
+      "speaker_id": "spk_meera",
+      "text": "Weekly sync. Dev, the pipeline."
+    },
+    {
+      "start_ms": 2900,
+      "end_ms": 12000,
+      "speaker_id": "spk_dev",
+      "text": "Bad news first. The events pipeline is going to slip. The source team changed the schema again on Thursday. Three renamed columns, no notice."
+    },
+    {
+      "start_ms": 12337,
+      "end_ms": 14337,
+      "speaker_id": "spk_meera",
+      "text": "Again?"
+    },
+    {
+      "start_ms": 14711,
+      "end_ms": 21411,
+      "speaker_id": "spk_dev",
+      "text": "Again. I lost two days to it. I need to move the pipeline to Wednesday the 23rd."
+    },
+    {
+      "start_ms": 21822,
+      "end_ms": 26022,
+      "speaker_id": "spk_meera",
+      "text": "The 23rd. Anika, does that kill the dashboard date?"
+    },
+    {
+      "start_ms": 26470,
+      "end_ms": 36170,
+      "speaker_id": "spk_anika",
+      "text": "It squeezes it. I can keep the 25th if the pipeline lands on the 23rd and nothing else breaks. If it slips again, I move too."
+    },
+    {
+      "start_ms": 36655,
+      "end_ms": 40255,
+      "speaker_id": "spk_meera",
+      "text": "Okay. The dashboard stays the 25th for now."
+    },
+    {
+      "start_ms": 40777,
+      "end_ms": 47777,
+      "speaker_id": "spk_dev",
+      "text": "And about the schema. I want a registry. Nothing lands in BigQuery unless it matches a registered schema."
+    },
+    {
+      "start_ms": 48336,
+      "end_ms": 55736,
+      "speaker_id": "spk_meera",
+      "text": "Decision: we add a schema registry in front of the events load. Rationale, two schema breaks in a month."
+    },
+    {
+      "start_ms": 56332,
+      "end_ms": 58332,
+      "speaker_id": "spk_dev",
+      "text": "Thank you."
+    },
+    {
+      "start_ms": 58965,
+      "end_ms": 68665,
+      "speaker_id": "spk_meera",
+      "text": "Second thing. Platform told me the nightly backup window moves to one thirty to two thirty from next week. Our two a.m. job collides with it."
+    },
+    {
+      "start_ms": 69335,
+      "end_ms": 75335,
+      "speaker_id": "spk_dev",
+      "text": "Then we move to three. Three a.m. IST. The dashboard is still fine by eight."
+    },
+    {
+      "start_ms": 76042,
+      "end_ms": 82342,
+      "speaker_id": "spk_meera",
+      "text": "Decision: the nightly events job moves to three a.m. IST, from two. Rationale, the backup window."
+    },
+    {
+      "start_ms": 83086,
+      "end_ms": 85986,
+      "speaker_id": "spk_anika",
+      "text": "Fine. Nobody's up at three either."
+    },
+    {
+      "start_ms": 86767,
+      "end_ms": 91367,
+      "speaker_id": "spk_meera",
+      "text": "Me. The migration plan went to finance on Friday the 11th."
+    },
+    {
+      "start_ms": 91685,
+      "end_ms": 99685,
+      "speaker_id": "spk_meera",
+      "text": "They want a monthly cost estimate with the BigQuery numbers. I'll have the cost estimate to them by Friday the 18th."
+    },
+    {
+      "start_ms": 100040,
+      "end_ms": 104240,
+      "speaker_id": "spk_anika",
+      "text": "Should I include the dashboard query costs in that?"
+    },
+    {
+      "start_ms": 104632,
+      "end_ms": 107532,
+      "speaker_id": "spk_meera",
+      "text": "Yes. Send me what you have."
+    },
+    {
+      "start_ms": 107961,
+      "end_ms": 117061,
+      "speaker_id": "spk_anika",
+      "text": "Lumen dashboard. I've repointed the sales models to dbt, waiting on the pipeline for real data. On track for the 25th if Dev is."
+    },
+    {
+      "start_ms": 117527,
+      "end_ms": 121527,
+      "speaker_id": "spk_dev",
+      "text": "I will be. The 23rd is real this time."
+    },
+    {
+      "start_ms": 122030,
+      "end_ms": 128730,
+      "speaker_id": "spk_meera",
+      "text": "Decisions since kickoff: schema registry, three a.m. Stale: nothing, the pipeline moved and has a date. Done."
+    },
+    {
+      "start_ms": 129270,
+      "end_ms": 131270,
+      "speaker_id": "spk_anika",
+      "text": "Bye."
+    }
+  ]
+}

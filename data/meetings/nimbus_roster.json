@@ -1,0 +1,20 @@
+[
+  {
+    "id": "spk_meera",
+    "name": "Meera",
+    "role": "data lead",
+    "email": "meera@nimbus.example"
+  },
+  {
+    "id": "spk_dev",
+    "name": "Dev",
+    "role": "data engineer",
+    "email": "dev@nimbus.example"
+  },
+  {
+    "id": "spk_anika",
+    "name": "Anika",
+    "role": "analyst",
+    "email": "anika@nimbus.example"
+  }
+]

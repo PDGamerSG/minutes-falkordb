@@ -1,0 +1,41 @@
+{
+  "thread_id": "thr_orbit_001",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "onboarding screens",
+      "predicate": "due",
+      "object": "2026-09-19",
+      "speaker_id": "spk_sana",
+      "message_index": 0,
+      "confirms": {
+        "subject": "onboarding screens",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "decision",
+      "subject": "onboarding tour",
+      "predicate": "uses_pattern",
+      "object": "three cards",
+      "speaker_id": "spk_aditya",
+      "message_index": 1
+    },
+    {
+      "kind": "decision",
+      "subject": "PIN setup",
+      "predicate": "uses_pattern",
+      "object": "4-digit PIN",
+      "speaker_id": "spk_aditya",
+      "message_index": 1
+    },
+    {
+      "kind": "decision",
+      "subject": "permissions screen",
+      "predicate": "scope_includes",
+      "object": "camera and notifications only",
+      "speaker_id": "spk_sana",
+      "message_index": 3
+    }
+  ]
+}

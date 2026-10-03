@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_orbit_005",
+    "subject": "Retro prep and action item: decision log (issue #42)",
+    "started_at": "2026-09-29T09:20:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "email": "aditya@orbit.example"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "email": "rahul@orbit.example"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "email": "priya@orbit.example"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "email": "sana@orbit.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_orbit_005_1",
+      "sent_at": "2026-09-29T09:20:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "rahul@orbit.example",
+        "priya@orbit.example",
+        "sana@orbit.example"
+      ],
+      "cc": [],
+      "in_reply_to": null,
+      "subject": "Retro prep and action item: decision log (issue #42)",
+      "body_text": "Team,\n\nAhead of tomorrow's retro (Wednesday 10:00), two things.\n\n1. Action item for Rahul: set up a decision log in the mobile repo, one entry per decision with the date, who decided, and the rationale. Tracked here: https://github.com/orbit-app/mobile/issues/42. Due Friday, October 2nd. Backfill it from the kickoff, the design review and the Meridian recap.\n\n2. Everyone: add one went-well and one didn't-go-well as a comment on issue #42 before 10:00 tomorrow, so we don't spend the retro remembering.\n\nAditya"
+    },
+    {
+      "id": "msg_orbit_005_2",
+      "sent_at": "2026-09-29T09:48:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "priya@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_005_1",
+      "subject": "Re: Retro prep and action item: decision log (issue #42)",
+      "body_text": "Accepted. Decision log by Friday the 2nd, in docs/decisions.md, one file, and I'll link each entry to the issue. Backfilling from the kickoff notes first; the Razorpay one is going to make a good first entry.\n\nRahul"
+    },
+    {
+      "id": "msg_orbit_005_3",
+      "sent_at": "2026-09-29T11:05:00+05:30",
+      "from": "priya@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example",
+        "sana@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_005_1",
+      "subject": "Re: Retro prep and action item: decision log (issue #42)",
+      "body_text": "Comment added to #42.\n\nAlso, for the record, since this is the date everyone has been watching: the UPI flow is done as of last night, one-time and autopay mandates, tested against the Razorpay sandbox. Monday the 28th, as promised in my email on the 17th. The PayU swap continues, still October 1st.\n\nPriya"
+    },
+    {
+      "id": "msg_orbit_005_4",
+      "sent_at": "2026-09-29T11:40:00+05:30",
+      "from": "sana@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example",
+        "priya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_005_1",
+      "subject": "Re: Retro prep and action item: decision log (issue #42)",
+      "body_text": "Done, comment's on the issue. Mine for went-well is the checklist as a baseline. For didn't-go-well: I can't remember why we chose the drawer without looking it up, which is sort of the point of Rahul's log.\n\nSana"
+    },
+    {
+      "id": "msg_orbit_005_5",
+      "sent_at": "2026-09-29T11:52:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "sana@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example",
+        "priya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_005_4",
+      "subject": "Re: Retro prep and action item: decision log (issue #42)",
+      "body_text": "That is exactly the point. See you at ten.\n\nAditya"
+    }
+  ]
+}

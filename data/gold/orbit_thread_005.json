@@ -1,0 +1,41 @@
+{
+  "thread_id": "thr_orbit_005",
+  "items": [
+    {
+      "kind": "decision",
+      "subject": "decision log",
+      "predicate": "owner",
+      "object": "Rahul",
+      "speaker_id": "spk_aditya",
+      "message_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "decision log",
+      "predicate": "due",
+      "object": "2026-10-02",
+      "speaker_id": "spk_aditya",
+      "message_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "decision log",
+      "predicate": "due",
+      "object": "2026-10-02",
+      "speaker_id": "spk_rahul",
+      "message_index": 1,
+      "confirms": {
+        "subject": "decision log",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_priya",
+      "message_index": 2
+    }
+  ]
+}

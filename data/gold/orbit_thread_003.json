@@ -1,0 +1,53 @@
+{
+  "thread_id": "thr_orbit_003",
+  "items": [
+    {
+      "kind": "fact",
+      "subject": "Orbit navigation",
+      "predicate": "uses_pattern",
+      "object": "side drawer",
+      "speaker_id": "spk_rahul",
+      "message_index": 0,
+      "confirms": {
+        "subject": "Orbit navigation",
+        "predicate": "uses_pattern"
+      }
+    },
+    {
+      "kind": "fact",
+      "subject": "Meridian accessibility checklist",
+      "predicate": "requires",
+      "object": "56dp minimum primary navigation target",
+      "speaker_id": "ext_meridian_compliance",
+      "message_index": 1
+    },
+    {
+      "kind": "fact",
+      "subject": "side drawer",
+      "predicate": "status",
+      "object": "approved by Meridian compliance",
+      "speaker_id": "ext_meridian_compliance",
+      "message_index": 1
+    },
+    {
+      "kind": "commitment",
+      "subject": "drawer mockup sign-off",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_aditya",
+      "message_index": 2
+    },
+    {
+      "kind": "commitment",
+      "subject": "side drawer",
+      "predicate": "due",
+      "object": "2026-09-23",
+      "speaker_id": "spk_rahul",
+      "message_index": 3,
+      "confirms": {
+        "subject": "side drawer",
+        "predicate": "due"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "spk_tara",
+    "name": "Tara",
+    "role": "editor",
+    "email": "tara@quill.example"
+  },
+  {
+    "id": "spk_omar",
+    "name": "Omar",
+    "role": "writer",
+    "email": "omar@quill.example"
+  }
+]

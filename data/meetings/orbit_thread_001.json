@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_orbit_001",
+    "subject": "Onboarding flow, first pass (wireframes)",
+    "started_at": "2026-09-09T11:12:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "email": "sana@orbit.example"
+    },
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "email": "aditya@orbit.example"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "email": "rahul@orbit.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_orbit_001_1",
+      "sent_at": "2026-09-09T11:12:00+05:30",
+      "from": "sana@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": null,
+      "subject": "Onboarding flow, first pass (wireframes)",
+      "body_text": "Hi Aditya,\n\nFirst pass of the onboarding flow is in Figma: https://figma.example/orbit/onboarding-v1\n\nFive screens, as agreed at kickoff: Welcome, phone verification, PIN setup, permissions, and a five-card tour. These are wireframes, not final visuals. I'm still on track for the finished onboarding screens by the 19th.\n\nTwo things I'd like a call on:\n1. The tour is five cards. Is that too many for field agents?\n2. PIN setup is a 4-digit PIN. Meridian's summary deck didn't specify a length.\n\nRahul, cc'ing you so you see the screen inventory early.\n\nSana"
+    },
+    {
+      "id": "msg_orbit_001_2",
+      "sent_at": "2026-09-09T13:40:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "sana@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_001_1",
+      "subject": "Re: Onboarding flow, first pass (wireframes)",
+      "body_text": "Sana,\n\nApproved, with one change: cut the tour from five cards to three. The agents will swipe past five; three they might read. Everything else stands.\n\n4-digit PIN is fine. Meridian confirmed a 4-digit PIN on the summary call, keep it.\n\nAditya\n\nOn Wed, 9 Sep 2026 at 11:12, Sana <sana@orbit.example> wrote:\n> First pass of the onboarding flow is in Figma ...\n> 1. The tour is five cards. Is that too many for field agents?"
+    },
+    {
+      "id": "msg_orbit_001_3",
+      "sent_at": "2026-09-09T14:05:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "sana@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_001_2",
+      "subject": "Re: Onboarding flow, first pass (wireframes)",
+      "body_text": "Three cards is also less work for me, so no complaints.\n\nOne question: does the permissions screen ask for location? Offline sync doesn't need it, and Meridian's agents will say no anyway.\n\nRahul"
+    },
+    {
+      "id": "msg_orbit_001_4",
+      "sent_at": "2026-09-09T15:22:00+05:30",
+      "from": "sana@orbit.example",
+      "to": [
+        "rahul@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_001_3",
+      "subject": "Re: Onboarding flow, first pass (wireframes)",
+      "body_text": "No location. The permissions screen asks for camera and notifications only. Camera for the inspection photos, notifications for sync status.\n\nUpdating the tour to three cards now. Final screens still by the 19th.\n\nSana"
+    },
+    {
+      "id": "msg_orbit_001_5",
+      "sent_at": "2026-09-09T15:30:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "sana@orbit.example",
+        "rahul@orbit.example"
+      ],
+      "cc": [],
+      "in_reply_to": "msg_orbit_001_4",
+      "subject": "Re: Onboarding flow, first pass (wireframes)",
+      "body_text": "Good. Closing this thread, see you Monday.\n\nAditya"
+    }
+  ]
+}

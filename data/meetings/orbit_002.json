@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_002",
+    "title": "Orbit standup 1",
+    "started_at": "2026-09-14T10:00:00+05:30",
+    "ended_at": "2026-09-14T10:04:33+05:30",
+    "audio_uri": "data/meetings/orbit_002.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 8400,
+      "speaker_id": "spk_aditya",
+      "text": "Morning. Standup. Same shape as always: what you did, what's next, blockers. Then decisions since last time, then stale commitments. Priya, go."
+    },
+    {
+      "start_ms": 8700,
+      "end_ms": 14700,
+      "speaker_id": "spk_priya",
+      "text": "Okay. Done: the payments service API spec went out Thursday the 10th, Rahul has it."
+    },
+    {
+      "start_ms": 15037,
+      "end_ms": 17337,
+      "speaker_id": "spk_rahul",
+      "text": "Got it, already stubbed."
+    },
+    {
+      "start_ms": 17711,
+      "end_ms": 24411,
+      "speaker_id": "spk_priya",
+      "text": "In progress: the UPI flow. And... this is where I have bad news. It's going to slip."
+    },
+    {
+      "start_ms": 24822,
+      "end_ms": 26822,
+      "speaker_id": "spk_aditya",
+      "text": "How much?"
+    },
+    {
+      "start_ms": 27270,
+      "end_ms": 37670,
+      "speaker_id": "spk_priya",
+      "text": "The Razorpay sandbox doesn't fire the UPI collect callbacks reliably. I lost Thursday and Friday on webhook signature verification before I realised it was their side, not mine."
+    },
+    {
+      "start_ms": 38155,
+      "end_ms": 44155,
+      "speaker_id": "spk_priya",
+      "text": "So I need to move it to Friday. Friday the 25th, instead of the 24th."
+    },
+    {
+      "start_ms": 44677,
+      "end_ms": 49477,
+      "speaker_id": "spk_aditya",
+      "text": "One day. Okay. Is the 25th real, or is that hopeful?"
+    },
+    {
+      "start_ms": 50036,
+      "end_ms": 58436,
+      "speaker_id": "spk_priya",
+      "text": "It's real. I have a workaround, I poll their status API instead of waiting for the callback. It's ugly but it works."
+    },
+    {
+      "start_ms": 59032,
+      "end_ms": 63232,
+      "speaker_id": "spk_aditya",
+      "text": "Fine. UPI flow moves to the 25th. Noted. Blockers?"
+    },
+    {
+      "start_ms": 63865,
+      "end_ms": 67465,
+      "speaker_id": "spk_priya",
+      "text": "No. The sandbox keys came on time, thanks."
+    },
+    {
+      "start_ms": 68135,
+      "end_ms": 70135,
+      "speaker_id": "spk_aditya",
+      "text": "Rahul."
+    },
+    {
+      "start_ms": 70842,
+      "end_ms": 76142,
+      "speaker_id": "spk_rahul",
+      "text": "Done: the offline mode spike. Finished it Friday, so ahead of the 18th."
+    },
+    {
+      "start_ms": 76886,
+      "end_ms": 78886,
+      "speaker_id": "spk_aditya",
+      "text": "Nice. Verdict?"
+    },
+    {
+      "start_ms": 79667,
+      "end_ms": 88067,
+      "speaker_id": "spk_rahul",
+      "text": "SQLite plus a sync queue works, like I hoped. Writes queue locally, replay on reconnect, a hundred records in under a second."
+    },
+    {
+      "start_ms": 88385,
+      "end_ms": 94085,
+      "speaker_id": "spk_rahul",
+      "text": "The hard part is conflicts. When two agents edit the same inspection while offline."
+    },
+    {
+      "start_ms": 94440,
+      "end_ms": 98940,
+      "speaker_id": "spk_priya",
+      "text": "Is that actually likely? Two people on the same record?"
+    },
+    {
+      "start_ms": 99332,
+      "end_ms": 102932,
+      "speaker_id": "spk_rahul",
+      "text": "Meridian says agents share territories, so yeah, sometimes."
+    },
+    {
+      "start_ms": 103361,
+      "end_ms": 111061,
+      "speaker_id": "spk_rahul",
+      "text": "So, new commitment from me: I'll bring a sync conflict resolution proposal to the design review on Wednesday the 16th."
+    },
+    {
+      "start_ms": 111527,
+      "end_ms": 113527,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Shell?"
+    },
+    {
+      "start_ms": 114030,
+      "end_ms": 120330,
+      "speaker_id": "spk_rahul",
+      "text": "Shell's on track for tomorrow. Tab bar is in, four tabs, it's ugly but it navigates."
+    },
+    {
+      "start_ms": 120870,
+      "end_ms": 122870,
+      "speaker_id": "spk_aditya",
+      "text": "Blockers?"
+    },
+    {
+      "start_ms": 123447,
+      "end_ms": 133147,
+      "speaker_id": "spk_rahul",
+      "text": "One question, not a blocker. Does offline mode need to cover payments too, or just the forms and inspections? It changes the queue design a lot."
+    },
+    {
+      "start_ms": 133761,
+      "end_ms": 139061,
+      "speaker_id": "spk_priya",
+      "text": "From my side I'd really rather it didn't. Offline payments is a nightmare."
+    },
+    {
+      "start_ms": 139712,
+      "end_ms": 148412,
+      "speaker_id": "spk_aditya",
+      "text": "I don't know yet. I asked Meridian on Friday and they didn't have an answer. Park it, I'll chase them. It stays open."
+    },
+    {
+      "start_ms": 149100,
+      "end_ms": 153700,
+      "speaker_id": "spk_rahul",
+      "text": "Okay. I'll design the queue so it can go either way."
+    },
+    {
+      "start_ms": 154425,
+      "end_ms": 156425,
+      "speaker_id": "spk_aditya",
+      "text": "Sana."
+    },
+    {
+      "start_ms": 157187,
+      "end_ms": 161787,
+      "speaker_id": "spk_sana",
+      "text": "Onboarding screens. Three of five done, on track for the 19th."
+    },
+    {
+      "start_ms": 162586,
+      "end_ms": 170586,
+      "speaker_id": "spk_sana",
+      "text": "I'm changing the tour to three cards instead of five, like Aditya asked on the thread. The agents won't read five."
+    },
+    {
+      "start_ms": 170922,
+      "end_ms": 172922,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Blockers?"
+    },
+    {
+      "start_ms": 173295,
+      "end_ms": 183695,
+      "speaker_id": "spk_sana",
+      "text": "Not a blocker, but Meridian sent over an accessibility checklist after your call. It's stricter than I expected. Minimum touch targets, screen reader order, that kind of thing."
+    },
+    {
+      "start_ms": 184105,
+      "end_ms": 188605,
+      "speaker_id": "spk_aditya",
+      "text": "Yeah, that's from their compliance people. Does it affect us?"
+    },
+    {
+      "start_ms": 189052,
+      "end_ms": 198752,
+      "speaker_id": "spk_sana",
+      "text": "Maybe. I want to check the tab bar against it on their five inch devices. I'll have the navigation accessibility review done for Wednesday's design review."
+    },
+    {
+      "start_ms": 199236,
+      "end_ms": 203836,
+      "speaker_id": "spk_rahul",
+      "text": "Wait, is the tab bar at risk? I just built it."
+    },
+    {
+      "start_ms": 204357,
+      "end_ms": 208957,
+      "speaker_id": "spk_sana",
+      "text": "I don't know yet. Let me check before I say anything."
+    },
+    {
+      "start_ms": 209515,
+      "end_ms": 215215,
+      "speaker_id": "spk_aditya",
+      "text": "Fair. Wednesday, then. Okay, me. The Meridian requirements call happened on Friday the 11th."
+    },
+    {
+      "start_ms": 215810,
+      "end_ms": 224210,
+      "speaker_id": "spk_aditya",
+      "text": "Three things came out of it. One, the pilot starts October 20th, three hundred agents. So the 16th really is the date."
+    },
+    {
+      "start_ms": 224842,
+      "end_ms": 232542,
+      "speaker_id": "spk_aditya",
+      "text": "Two, decision: the pilot is Android only. iOS moves to November. Their devices are all Android, so there's no point."
+    },
+    {
+      "start_ms": 233211,
+      "end_ms": 235511,
+      "speaker_id": "spk_sana",
+      "text": "Good, one less thing."
+    },
+    {
+      "start_ms": 236217,
+      "end_ms": 241917,
+      "speaker_id": "spk_aditya",
+      "text": "Three, receipts. An in-app receipt is fine, no printing. Priya, that was your question."
+    },
+    {
+      "start_ms": 242660,
+      "end_ms": 245560,
+      "speaker_id": "spk_priya",
+      "text": "Perfect. That saves me a week."
+    },
+    {
+      "start_ms": 246340,
+      "end_ms": 257140,
+      "speaker_id": "spk_aditya",
+      "text": "Decisions since kickoff: the Android-only one, nothing else. Stale commitments: everything from kickoff is either done or has a date. The UPI flow is the only one that moved."
+    },
+    {
+      "start_ms": 257457,
+      "end_ms": 261757,
+      "speaker_id": "spk_aditya",
+      "text": "And the offline payments question stays open. That's on me."
+    },
+    {
+      "start_ms": 262111,
+      "end_ms": 267811,
+      "speaker_id": "spk_aditya",
+      "text": "Anything else? No? Okay. Design review Wednesday at ten. Bring the accessibility thing, Sana."
+    },
+    {
+      "start_ms": 268202,
+      "end_ms": 270202,
+      "speaker_id": "spk_sana",
+      "text": "Will do."
+    },
+    {
+      "start_ms": 270630,
+      "end_ms": 272630,
+      "speaker_id": "spk_rahul",
+      "text": "Bye."
+    }
+  ]
+}

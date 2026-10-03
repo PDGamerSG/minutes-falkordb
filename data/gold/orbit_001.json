@@ -1,0 +1,173 @@
+{
+  "meeting_id": "mtg_orbit_001",
+  "items": [
+    {
+      "kind": "fact",
+      "subject": "Orbit",
+      "predicate": "customer",
+      "object": "Meridian Bank",
+      "speaker_id": "spk_aditya",
+      "segment_index": 5
+    },
+    {
+      "kind": "decision",
+      "subject": "October release",
+      "predicate": "scope_includes",
+      "object": "payments",
+      "speaker_id": "spk_aditya",
+      "segment_index": 8
+    },
+    {
+      "kind": "decision",
+      "subject": "October release",
+      "predicate": "scope_includes",
+      "object": "offline mode",
+      "speaker_id": "spk_aditya",
+      "segment_index": 8
+    },
+    {
+      "kind": "decision",
+      "subject": "October release",
+      "predicate": "scope_includes",
+      "object": "onboarding",
+      "speaker_id": "spk_aditya",
+      "segment_index": 8
+    },
+    {
+      "kind": "decision",
+      "subject": "analytics dashboard",
+      "predicate": "status",
+      "object": "deferred to November",
+      "speaker_id": "spk_aditya",
+      "segment_index": 10
+    },
+    {
+      "kind": "decision",
+      "subject": "October release",
+      "predicate": "due",
+      "object": "2026-10-16",
+      "speaker_id": "spk_aditya",
+      "segment_index": 12
+    },
+    {
+      "kind": "decision",
+      "subject": "payments service",
+      "predicate": "owner",
+      "object": "Priya",
+      "speaker_id": "spk_aditya",
+      "segment_index": 15
+    },
+    {
+      "kind": "decision",
+      "subject": "offline mode",
+      "predicate": "owner",
+      "object": "Rahul",
+      "speaker_id": "spk_aditya",
+      "segment_index": 15
+    },
+    {
+      "kind": "decision",
+      "subject": "onboarding",
+      "predicate": "owner",
+      "object": "Sana",
+      "speaker_id": "spk_aditya",
+      "segment_index": 15
+    },
+    {
+      "kind": "decision",
+      "subject": "payments service",
+      "predicate": "uses_vendor",
+      "object": "Razorpay",
+      "speaker_id": "spk_aditya",
+      "segment_index": 20
+    },
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "due",
+      "object": "2026-09-24",
+      "speaker_id": "spk_priya",
+      "segment_index": 23
+    },
+    {
+      "kind": "commitment",
+      "subject": "Razorpay sandbox keys",
+      "predicate": "due",
+      "object": "2026-09-09",
+      "speaker_id": "spk_aditya",
+      "segment_index": 24
+    },
+    {
+      "kind": "commitment",
+      "subject": "payments service API spec",
+      "predicate": "due",
+      "object": "2026-09-10",
+      "speaker_id": "spk_priya",
+      "segment_index": 25
+    },
+    {
+      "kind": "decision",
+      "subject": "offline mode",
+      "predicate": "uses_pattern",
+      "object": "SQLite cache with sync queue",
+      "speaker_id": "spk_aditya",
+      "segment_index": 32
+    },
+    {
+      "kind": "commitment",
+      "subject": "offline mode spike",
+      "predicate": "due",
+      "object": "2026-09-18",
+      "speaker_id": "spk_rahul",
+      "segment_index": 34
+    },
+    {
+      "kind": "commitment",
+      "subject": "app shell",
+      "predicate": "due",
+      "object": "2026-09-15",
+      "speaker_id": "spk_rahul",
+      "segment_index": 36
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit navigation",
+      "predicate": "uses_pattern",
+      "object": "bottom tab bar",
+      "speaker_id": "spk_aditya",
+      "segment_index": 40
+    },
+    {
+      "kind": "commitment",
+      "subject": "onboarding screens",
+      "predicate": "due",
+      "object": "2026-09-19",
+      "speaker_id": "spk_sana",
+      "segment_index": 44
+    },
+    {
+      "kind": "decision",
+      "subject": "October release",
+      "predicate": "scope_includes",
+      "object": "Android first",
+      "speaker_id": "spk_aditya",
+      "segment_index": 48
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit standup",
+      "predicate": "decided",
+      "object": "Mondays 10:00",
+      "speaker_id": "spk_aditya",
+      "segment_index": 51
+    },
+    {
+      "kind": "commitment",
+      "subject": "Meridian requirements call",
+      "predicate": "due",
+      "object": "2026-09-11",
+      "speaker_id": "spk_aditya",
+      "segment_index": 53
+    }
+  ]
+}

@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_006",
+    "title": "Orbit retro",
+    "started_at": "2026-09-30T10:00:00+05:30",
+    "ended_at": "2026-09-30T10:05:55+05:30",
+    "audio_uri": "data/meetings/orbit_006.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 10400,
+      "speaker_id": "spk_aditya",
+      "text": "Retro. Not the release retro, we haven't shipped. The three-week retro, because a lot happened. Format: where we are, what went well, what didn't, lessons. Then November, briefly."
+    },
+    {
+      "start_ms": 10700,
+      "end_ms": 13000,
+      "speaker_id": "spk_aditya",
+      "text": "Where we are. Priya."
+    },
+    {
+      "start_ms": 13337,
+      "end_ms": 23437,
+      "speaker_id": "spk_priya",
+      "text": "The UPI flow is done. Delivered Monday the 28th, one-time and mandates, tested against the Razorpay sandbox. The PayU swap is in progress, on track for tomorrow."
+    },
+    {
+      "start_ms": 23811,
+      "end_ms": 25811,
+      "speaker_id": "spk_aditya",
+      "text": "Rahul."
+    },
+    {
+      "start_ms": 26222,
+      "end_ms": 37322,
+      "speaker_id": "spk_rahul",
+      "text": "Drawer merged on the 23rd. Offline mode demoed end to end on Monday the 28th, on the Meridian devices, sync and conflicts, it held up. The Razorpay SDK is gone."
+    },
+    {
+      "start_ms": 37770,
+      "end_ms": 39770,
+      "speaker_id": "spk_aditya",
+      "text": "Sana."
+    },
+    {
+      "start_ms": 40255,
+      "end_ms": 48255,
+      "speaker_id": "spk_sana",
+      "text": "Onboarding is built, Rahul finished it Friday. The consent screen was delivered Monday the 28th. Everything has been through the checklist."
+    },
+    {
+      "start_ms": 48777,
+      "end_ms": 55777,
+      "speaker_id": "spk_aditya",
+      "text": "And I did the Kestrel call this morning with Sana. More on that later. So. What went well."
+    },
+    {
+      "start_ms": 56336,
+      "end_ms": 64036,
+      "speaker_id": "spk_rahul",
+      "text": "Offline mode, honestly. The spike paid for itself. Deciding local-first on day one meant I never had to rethink it."
+    },
+    {
+      "start_ms": 64632,
+      "end_ms": 73332,
+      "speaker_id": "spk_sana",
+      "text": "The checklist as a baseline. Once we said Meridian's checklist is the bar, every review got shorter. Nobody argued about button sizes again."
+    },
+    {
+      "start_ms": 73965,
+      "end_ms": 81665,
+      "speaker_id": "spk_priya",
+      "text": "Putting the payment provider behind an interface. If I hadn't, the PayU switch would have been three weeks, not one."
+    },
+    {
+      "start_ms": 82335,
+      "end_ms": 87635,
+      "speaker_id": "spk_aditya",
+      "text": "Agreed on all three. What didn't go well. I'll start: the Razorpay decision."
+    },
+    {
+      "start_ms": 88342,
+      "end_ms": 99342,
+      "speaker_id": "spk_rahul",
+      "text": "Yeah. Can we talk about that properly? And actually, before that, I want to make sure I understand the drawer thing. Why did we choose the side drawer again?"
+    },
+    {
+      "start_ms": 100086,
+      "end_ms": 106786,
+      "speaker_id": "spk_sana",
+      "text": "Because the tab bar couldn't fit five sections, right? You wanted room for the Kestrel screens later."
+    },
+    {
+      "start_ms": 107567,
+      "end_ms": 114267,
+      "speaker_id": "spk_priya",
+      "text": "No, that's not it. Kestrel didn't exist when we decided the drawer. It was Meridian's accessibility checklist."
+    },
+    {
+      "start_ms": 114585,
+      "end_ms": 121285,
+      "speaker_id": "spk_priya",
+      "text": "Fifty-six dp minimum touch targets on their five inch devices. The tab bar came out at forty-eight."
+    },
+    {
+      "start_ms": 121640,
+      "end_ms": 130040,
+      "speaker_id": "spk_priya",
+      "text": "We reversed the kickoff decision at the design review on the 16th, because of Meridian's accessibility checklist. Discoverability lost to the contract."
+    },
+    {
+      "start_ms": 130432,
+      "end_ms": 137832,
+      "speaker_id": "spk_sana",
+      "text": "Oh. Yes. Sorry, I was conflating it with the Kestrel conversation. You're right, it was the fifty-six dp rule."
+    },
+    {
+      "start_ms": 138261,
+      "end_ms": 146661,
+      "speaker_id": "spk_rahul",
+      "text": "See, this is exactly my point. Two weeks, and we already have two different stories for one decision. Imagine in six months."
+    },
+    {
+      "start_ms": 147127,
+      "end_ms": 151127,
+      "speaker_id": "spk_aditya",
+      "text": "Which is a lesson. Hold that thought. Razorpay first."
+    },
+    {
+      "start_ms": 151630,
+      "end_ms": 160330,
+      "speaker_id": "spk_aditya",
+      "text": "We chose Razorpay at kickoff because it was the fastest UPI integration and we'd used it before. We never asked Meridian's compliance team."
+    },
+    {
+      "start_ms": 160870,
+      "end_ms": 165470,
+      "speaker_id": "spk_aditya",
+      "text": "Business said no preference, and we took that as the answer."
+    },
+    {
+      "start_ms": 166047,
+      "end_ms": 172047,
+      "speaker_id": "spk_priya",
+      "text": "And I want to be fair to past us. No preference sounded like an answer."
+    },
+    {
+      "start_ms": 172661,
+      "end_ms": 181761,
+      "speaker_id": "spk_aditya",
+      "text": "It did. It wasn't. So, lesson one: confirm vendor constraints with the customer's compliance team before choosing a vendor. Not the business side. Compliance."
+    },
+    {
+      "start_ms": 182412,
+      "end_ms": 184412,
+      "speaker_id": "spk_rahul",
+      "text": "Agreed."
+    },
+    {
+      "start_ms": 185100,
+      "end_ms": 192000,
+      "speaker_id": "spk_aditya",
+      "text": "What else didn't go well. Priya, the UPI flow slips. Not blaming. Just, what do we learn?"
+    },
+    {
+      "start_ms": 192725,
+      "end_ms": 200725,
+      "speaker_id": "spk_priya",
+      "text": "Two slips. The 24th to the 25th was Razorpay's sandbox callbacks. The 25th to the 28th was their KYC for mandates."
+    },
+    {
+      "start_ms": 201487,
+      "end_ms": 206487,
+      "speaker_id": "spk_priya",
+      "text": "Neither was code. Both were vendor lead times I didn't know about."
+    },
+    {
+      "start_ms": 207286,
+      "end_ms": 216986,
+      "speaker_id": "spk_priya",
+      "text": "What I'd do differently: the second time it slipped, we should have cut mandates from the release right then, instead of giving it a new date."
+    },
+    {
+      "start_ms": 217322,
+      "end_ms": 220622,
+      "speaker_id": "spk_priya",
+      "text": "We got lucky the KYC came through."
+    },
+    {
+      "start_ms": 220995,
+      "end_ms": 231095,
+      "speaker_id": "spk_aditya",
+      "text": "I said that in the email and then didn't do it. So, lesson two: a commitment that slips twice gets a scope cut, not a third date."
+    },
+    {
+      "start_ms": 231505,
+      "end_ms": 234105,
+      "speaker_id": "spk_rahul",
+      "text": "That's going to hurt someday."
+    },
+    {
+      "start_ms": 234552,
+      "end_ms": 236552,
+      "speaker_id": "spk_aditya",
+      "text": "That's the point."
+    },
+    {
+      "start_ms": 237036,
+      "end_ms": 245036,
+      "speaker_id": "spk_sana",
+      "text": "Can I add one? The drawer confusion just now. We make decisions in meetings and the rationale lives in someone's head."
+    },
+    {
+      "start_ms": 245557,
+      "end_ms": 253557,
+      "speaker_id": "spk_aditya",
+      "text": "Yes. Lesson three: record the rationale with every decision, in the meeting, in the notes. Not the decision alone. The why."
+    },
+    {
+      "start_ms": 254115,
+      "end_ms": 256415,
+      "speaker_id": "spk_rahul",
+      "text": "And who said it."
+    },
+    {
+      "start_ms": 257010,
+      "end_ms": 265010,
+      "speaker_id": "spk_aditya",
+      "text": "And who said it. Rahul, that's what the decision log is for, issue forty-two. The three lessons go in there too."
+    },
+    {
+      "start_ms": 265642,
+      "end_ms": 269642,
+      "speaker_id": "spk_rahul",
+      "text": "On it. Friday, like I said in the email."
+    },
+    {
+      "start_ms": 270311,
+      "end_ms": 277011,
+      "speaker_id": "spk_aditya",
+      "text": "Those are the three. Vendor constraints from compliance. Two slips means a cut. Rationale with every decision."
+    },
+    {
+      "start_ms": 277717,
+      "end_ms": 282517,
+      "speaker_id": "spk_priya",
+      "text": "Is don't trust a sandbox a lesson or just a scar?"
+    },
+    {
+      "start_ms": 283260,
+      "end_ms": 285860,
+      "speaker_id": "spk_aditya",
+      "text": "A scar. Okay. November, briefly."
+    },
+    {
+      "start_ms": 286640,
+      "end_ms": 297740,
+      "speaker_id": "spk_aditya",
+      "text": "Kestrel call this morning. A hundred and twenty drivers, iOS, pilot starts November 16th. And I asked about compliance first. They have no vendor mandate, PayU is fine with them."
+    },
+    {
+      "start_ms": 298057,
+      "end_ms": 302657,
+      "speaker_id": "spk_aditya",
+      "text": "Decision: the Kestrel pilot uses PayU too. One provider, one integration."
+    },
+    {
+      "start_ms": 303011,
+      "end_ms": 312111,
+      "speaker_id": "spk_sana",
+      "text": "Their onboarding is different, though. Drivers get a vehicle check screen, not PIN setup. I'll explore a Kestrel onboarding variant by Wednesday, October 7th."
+    },
+    {
+      "start_ms": 312502,
+      "end_ms": 319202,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Decision: the November release scope is iOS and the Kestrel pilot. Nothing else until October ships."
+    },
+    {
+      "start_ms": 319630,
+      "end_ms": 323930,
+      "speaker_id": "spk_rahul",
+      "text": "iOS means I need a Mac that isn't from 2019."
+    },
+    {
+      "start_ms": 324395,
+      "end_ms": 331395,
+      "speaker_id": "spk_aditya",
+      "text": "Put it in the budget request. Code freeze stays October 9th, release stays the 16th. No changes there."
+    },
+    {
+      "start_ms": 331897,
+      "end_ms": 335197,
+      "speaker_id": "spk_priya",
+      "text": "PayU integration tomorrow, October 1st. Still on."
+    },
+    {
+      "start_ms": 335736,
+      "end_ms": 344136,
+      "speaker_id": "spk_aditya",
+      "text": "Good. I'll write up the retro notes with all three lessons and the rationale, and send them tonight, so by October 1st."
+    },
+    {
+      "start_ms": 344712,
+      "end_ms": 346712,
+      "speaker_id": "spk_sana",
+      "text": "With the rationale."
+    },
+    {
+      "start_ms": 347325,
+      "end_ms": 351625,
+      "speaker_id": "spk_aditya",
+      "text": "With the rationale. Thanks, everyone. A good three weeks, mostly."
+    },
+    {
+      "start_ms": 352275,
+      "end_ms": 354275,
+      "speaker_id": "spk_rahul",
+      "text": "Mostly."
+    }
+  ]
+}

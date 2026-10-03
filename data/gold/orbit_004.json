@@ -1,0 +1,77 @@
+{
+  "meeting_id": "mtg_orbit_004",
+  "items": [
+    {
+      "kind": "fact",
+      "subject": "Orbit standup",
+      "predicate": "uses_pattern",
+      "object": "done, next, blockers, decisions since last, stale commitments",
+      "speaker_id": "spk_aditya",
+      "segment_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "onboarding screens",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_sana",
+      "segment_index": 1
+    },
+    {
+      "kind": "commitment",
+      "subject": "offline mode demo",
+      "predicate": "due",
+      "object": "2026-09-28",
+      "speaker_id": "spk_rahul",
+      "segment_index": 8
+    },
+    {
+      "kind": "commitment",
+      "subject": "Meridian test devices request",
+      "predicate": "due",
+      "object": "2026-09-23",
+      "speaker_id": "spk_aditya",
+      "segment_index": 13
+    },
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "due",
+      "object": "2026-09-28",
+      "speaker_id": "spk_priya",
+      "segment_index": 16,
+      "confirms": {
+        "subject": "UPI flow",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "payments service staging deploy",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_priya",
+      "segment_index": 25,
+      "confirms": {
+        "subject": "payments service staging deploy",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "drawer mockup sign-off",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_aditya",
+      "segment_index": 30
+    },
+    {
+      "kind": "decision",
+      "subject": "code freeze",
+      "predicate": "due",
+      "object": "2026-10-09",
+      "speaker_id": "spk_aditya",
+      "segment_index": 33
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "thread_id": "thr_orbit_002",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "due",
+      "object": "2026-09-28",
+      "speaker_id": "spk_priya",
+      "message_index": 0,
+      "supersedes": {
+        "subject": "UPI flow",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "fact",
+      "subject": "Razorpay merchant KYC",
+      "predicate": "due",
+      "object": "2026-09-24",
+      "speaker_id": "spk_priya",
+      "message_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "payments service staging deploy",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_priya",
+      "message_index": 0
+    },
+    {
+      "kind": "decision",
+      "subject": "UPI autopay mandates",
+      "predicate": "status",
+      "object": "cut from October release if the UPI flow slips again",
+      "speaker_id": "spk_aditya",
+      "message_index": 1
+    }
+  ]
+}

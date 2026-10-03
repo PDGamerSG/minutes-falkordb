@@ -1,0 +1,66 @@
+{
+  "meeting_id": "mtg_orbit_003",
+  "items": [
+    {
+      "kind": "decision",
+      "subject": "Orbit navigation",
+      "predicate": "uses_pattern",
+      "object": "side drawer",
+      "speaker_id": "spk_aditya",
+      "segment_index": 14,
+      "supersedes": {
+        "subject": "Orbit navigation",
+        "predicate": "uses_pattern"
+      },
+      "reverses_meeting": "mtg_orbit_001"
+    },
+    {
+      "kind": "commitment",
+      "subject": "side drawer",
+      "predicate": "due",
+      "object": "2026-09-23",
+      "speaker_id": "spk_rahul",
+      "segment_index": 17
+    },
+    {
+      "kind": "commitment",
+      "subject": "drawer mockup sign-off",
+      "predicate": "due",
+      "object": "2026-09-18",
+      "speaker_id": "spk_aditya",
+      "segment_index": 18
+    },
+    {
+      "kind": "decision",
+      "subject": "Orbit",
+      "predicate": "requires",
+      "object": "Meridian accessibility checklist",
+      "speaker_id": "spk_aditya",
+      "segment_index": 22,
+      "follows_precedent": {
+        "subject": "Orbit navigation",
+        "predicate": "uses_pattern"
+      }
+    },
+    {
+      "kind": "decision",
+      "subject": "onboarding buttons",
+      "predicate": "uses_pattern",
+      "object": "56dp full width",
+      "speaker_id": "spk_aditya",
+      "segment_index": 28,
+      "follows_precedent": {
+        "subject": "Orbit navigation",
+        "predicate": "uses_pattern"
+      }
+    },
+    {
+      "kind": "decision",
+      "subject": "offline mode",
+      "predicate": "uses_pattern",
+      "object": "last-write-wins per field",
+      "speaker_id": "spk_aditya",
+      "segment_index": 38
+    }
+  ]
+}

@@ -1,0 +1,1201 @@
+"""The seam between the API and the substrate.
+
+``FakeHive`` is a complete in-memory implementation (tests, model-free demos). ``RealHive``
+delegates to the ``hiveboard`` package (memory, board, skills, events, analytics, tenancy) and
+adds the read-only listing queries the HTTP API needs (meetings, threads, facts with joins,
+chat turns). Both expose the same method names: hiveboard's, minus the ``db`` argument.
+
+Event conventions: the hive layer publishes ``task.*``, ``skill.*`` and (RealHive only)
+``fact.*``/``episode.*`` events itself; the pipeline publishes memory events for the FakeHive.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from collections import defaultdict
+from collections.abc import Callable, Iterable
+from typing import Any
+
+from ingest.fakes import EventListener, MemoryHive, cosine_distance, new_id, now_ms
+
+log = logging.getLogger(__name__)
+
+AGENT_SPECS: list[tuple[str, str, list[str]]] = [
+    ("fact_agent", "FactAgent", ["extract"]),
+    ("followup_agent", "FollowUpAgent", ["followup"]),
+    ("scheduler_agent", "SchedulerAgent", ["schedule"]),
+    ("standup_agent", "StandupAgent", ["standup"]),
+    ("answer_agent", "AnswerAgent", ["answer"]),
+]
+
+TASK_STATES = ("submitted", "working", "input_required", "completed", "failed")
+
+
+class HiveNotFound(KeyError):
+    """A node the caller named does not exist."""
+
+
+class HiveConflict(RuntimeError):
+    """The operation is not allowed in the node's current state."""
+
+
+def _strip_embedding(d: dict[str, Any] | None) -> dict[str, Any] | None:
+    if d is None:
+        return None
+    return {k: v for k, v in d.items() if k != "embedding"}
+
+
+# =============================================================================== FakeHive
+class FakeHive(MemoryHive):
+    """In-memory Hive Board: memory (inherited) + tenancy, board, skills, analytics, chat turns."""
+
+    publishes_memory_events = False
+    publishes_board_events = True
+    kind = "fake"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._tenants: dict[str, dict[str, Any]] = {}
+        self._snapshots: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        self._agents: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._tasks: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._skills: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._turns: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+        self._ro_password = "fake-ro"
+
+    # -- tenancy -----------------------------------------------------------------------------
+    def ping(self) -> bool:
+        return True
+
+    def db_version(self) -> str:
+        return "fake"
+
+    def list_tenants(self) -> list[str]:
+        return sorted(set(self._tenants) | set(self.tenants()))
+
+    def create_tenant(self, slug: str, display_name: str) -> dict[str, Any]:
+        self.store(slug)
+        self._tenants[slug] = {"slug": slug, "display_name": display_name, "created_at": now_ms()}
+        return self.tenant_info(slug)
+
+    def delete_tenant(self, slug: str) -> None:
+        self.drop_tenant(slug)
+        for bag in (self._tenants, self._snapshots, self._agents, self._tasks, self._skills, self._turns):
+            bag.pop(slug, None)
+
+    def ensure_schema(self, tenant: str) -> dict[str, int]:
+        self.store(tenant)
+        return {"indexes_created": 0, "indexes_existing": 33, "constraints_created": 0, "constraints_existing": 14}
+
+    def load_udfs(self) -> None:
+        return None
+
+    def counts(self, tenant: str) -> dict[str, int]:
+        store = self.store(tenant)
+        facts = list(store.facts.values())
+        return {
+            "episodes": len(store.episodes),
+            "facts": sum(1 for f in facts if f["kind"] == "fact"),
+            "decisions": sum(1 for f in facts if f["kind"] == "decision"),
+            "commitments": sum(1 for f in facts if f["kind"] == "commitment"),
+            "tasks": len(self._tasks.get(tenant, {})),
+            "skills": len(self._skills.get(tenant, {})),
+            "entities": len(store.entities),
+            "meetings": len(store.meetings),
+            "threads": len(store.threads),
+        }
+
+    def acl_info(self, tenant: str) -> dict[str, Any]:
+        rw, ro = f"team_{tenant}_rw", f"team_{tenant}_ro"
+        return {
+            "rw_user": rw,
+            "ro_user": ro,
+            "rules": [
+                f"user {rw} on #<sha256> ~team_{tenant} ~commons resetchannels -@all +graph.query +graph.ro_query +ping +info",
+                f"user {ro} on #<sha256> ~team_{tenant} ~commons resetchannels -@all +graph.ro_query +ping +info",
+            ],
+        }
+
+    def tenant_info(self, tenant: str) -> dict[str, Any]:
+        meta = self._tenants.get(tenant, {})
+        counts = self.counts(tenant)
+        return {
+            "slug": tenant,
+            "display_name": meta.get("display_name") or tenant.capitalize(),
+            "graph": f"team_{tenant}",
+            "usage_mb": round(0.01 * (counts["episodes"] + counts["facts"] + counts["decisions"] + counts["commitments"]), 3),
+            "counts": counts,
+            "acl": self.acl_info(tenant),
+        }
+
+    def acl_probe(self, tenant: str, target: str) -> dict[str, Any]:
+        return {
+            "allowed": tenant == target,
+            "user": f"team_{tenant}_ro",
+            "target_graph": f"team_{target}",
+            "command": f"GRAPH.RO_QUERY team_{target} \"MATCH (n) RETURN count(n)\"",
+            "error": None if tenant == target else f"NOPERM No permissions to access a key (team_{target}) as team_{tenant}_ro",
+        }
+
+    def snapshot(self, tenant: str, label: str) -> dict[str, Any]:
+        taken = now_ms()
+        rec = {"id": new_id("snap"), "name": f"team_{tenant}__snap_{taken}", "label": label, "taken_at": taken, "exists": True}
+        self._snapshots[tenant].insert(0, rec)
+        return rec
+
+    def belief_at_result(self, tenant: str, t: int, entity_id: str | None = None) -> dict[str, Any]:
+        return {"rows": self.belief_at(tenant, t, entity_id), "cypher": "-- FakeHive (31_belief_at_time.cypher in production)"}
+
+    def list_snapshots(self, tenant: str) -> list[dict[str, Any]]:
+        return [dict(s) for s in self._snapshots.get(tenant, [])]
+
+    # -- memory lookups: missing nodes are 404s, not 500s --------------------------------------
+    def why(self, tenant: str, node_id: str) -> dict[str, Any]:
+        try:
+            return super().why(tenant, node_id)
+        except KeyError as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def supersede_fact(self, tenant: str, old_id: str, new_fact: dict[str, Any]) -> dict[str, Any]:
+        old = self.store(tenant).facts.get(old_id)
+        if old is None:
+            raise HiveNotFound(f"fact {old_id!r} not found")
+        if old.get("status") != "active":
+            raise HiveConflict(f"fact {old_id!r} is {old.get('status')!r}; only active facts can be superseded")
+        return super().supersede_fact(tenant, old_id, new_fact)
+
+    def retract_fact(self, tenant: str, fact_id: str, reason: str) -> None:
+        try:
+            super().retract_fact(tenant, fact_id, reason)
+        except KeyError as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None) -> dict[str, Any]:
+        try:
+            return super().insert_fact_in_chain(tenant, fact, before_id, after_id)
+        except KeyError as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def confirm_fact(self, tenant: str, fact_id: str, episode_id: str) -> None:
+        try:
+            super().confirm_fact(tenant, fact_id, episode_id)
+        except KeyError as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    # -- extra memory writes -----------------------------------------------------------------
+    def update_fact_due(self, tenant: str, fact_id: str, due_at: int | None) -> dict[str, Any]:
+        with self._lock:
+            fact = self.store(tenant).facts.get(fact_id)
+            if fact is None:
+                raise HiveNotFound(fact_id)
+            fact["due_at"] = due_at
+            return self.enrich_fact(tenant, fact)
+
+    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        turn = {"id": new_id("turn"), "session_id": session_id, "role": role, "text": text, "t": now_ms(), "meta": meta or {}}
+        self._turns[tenant][session_id].append(turn)
+        return turn
+
+    def get_turns(self, tenant: str, session_id: str) -> list[dict[str, Any]]:
+        return [dict(t) for t in self._turns.get(tenant, {}).get(session_id, [])]
+
+    def run_ro_cypher(self, tenant: str, query: str, params: dict[str, Any] | None = None, timeout_ms: int = 3000) -> dict[str, Any]:
+        """The fake has no Cypher engine; free-form reads degrade to a full-text scan of the query words."""
+        words = [w for w in query.replace("'", " ").replace('"', " ").split() if w[0].isalpha() and len(w) > 3 and w.upper() != w]
+        hits = []
+        for word in words[:5]:
+            hits.extend(_strip_embedding(h) for h in self.fulltext(tenant, word, "Fact", k=5))
+        return {"rows": hits[:10], "cypher": query, "note": "FakeHive: full-text approximation, no Cypher executed"}
+
+    # -- board -------------------------------------------------------------------------------
+    def register_agent(self, tenant: str, agent_id: str, name: str, capabilities: list[str], model: str) -> None:
+        with self._lock:
+            self.store(tenant)
+            existing = self._agents[tenant].get(agent_id, {})
+            self._agents[tenant][agent_id] = {
+                **existing,
+                "id": agent_id,
+                "name": name,
+                "model": model,
+                "capabilities": sorted(set(existing.get("capabilities", [])) | set(capabilities)),
+                "last_seen": now_ms(),
+                "created_at": existing.get("created_at") or now_ms(),
+            }
+
+    def touch_agent(self, tenant: str, agent_id: str) -> None:
+        agent = self._agents.get(tenant, {}).get(agent_id)
+        if agent:
+            agent["last_seen"] = now_ms()
+
+    def _task_view(self, task: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in task.items() if k not in {"claims", "handoffs", "artifacts", "used_skills"}}
+
+    def submit_task(
+        self,
+        tenant: str,
+        kind: str,
+        payload: dict[str, Any],
+        requires: list[str],
+        about_ids: Iterable[str] = (),
+        priority: int = 5,
+    ) -> str:
+        now = now_ms()
+        task = {
+            "id": new_id("task"),
+            "kind": kind,
+            "status": "submitted",
+            "version": 0,
+            "owner_agent": None,
+            "priority": int(priority),
+            "payload": dict(payload or {}),
+            "requires": list(requires),
+            "about": list(about_ids),
+            "created_at": now,
+            "updated_at": now,
+            "failure_reason": None,
+            "question": None,
+            "claims": [],
+            "handoffs": [],
+            "artifacts": [],
+            "used_skills": [],
+        }
+        with self._lock:
+            self._tasks[tenant][task["id"]] = task
+        self.publish(tenant, "task.submitted", {"task_id": task["id"], "kind": kind, "requires": list(requires), "about": list(about_ids), "priority": priority})
+        return task["id"]
+
+    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int) -> int | None:
+        with self._lock:
+            task = self._tasks.get(tenant, {}).get(task_id)
+            if task is None or agent_id not in self._agents.get(tenant, {}):
+                return None
+            if task["status"] != "submitted" or task["version"] != expected_version:
+                return None
+            now = now_ms()
+            task.update({"status": "working", "version": expected_version + 1, "owner_agent": agent_id, "updated_at": now})
+            task["claims"].append({"t": now, "type": "claimed", "agent": agent_id})
+            version = task["version"]
+        self.publish(tenant, "task.claimed", {"task_id": task_id, "agent_id": agent_id, "version": version})
+        return version
+
+    def next_open_task(self, tenant: str, agent_id: str) -> dict[str, Any] | None:
+        agent = self._agents.get(tenant, {}).get(agent_id)
+        if agent is None:
+            return None
+        caps = set(agent["capabilities"])
+        with self._lock:
+            candidates = [
+                t
+                for t in self._tasks.get(tenant, {}).values()
+                if t["status"] == "submitted"
+                and (t["owner_agent"] is None or t["owner_agent"] == agent_id)
+                and set(t["requires"]) <= caps
+            ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda t: (t["created_at"], -t["priority"]))
+        return self._task_view(candidates[0])
+
+    def handoff(
+        self,
+        tenant: str,
+        task_id: str,
+        from_agent: str,
+        to_agent: str,
+        expected_version: int,
+        summary: str,
+        subgraph_ids: list[str],
+    ) -> int | None:
+        with self._lock:
+            task = self._tasks.get(tenant, {}).get(task_id)
+            if task is None or task["owner_agent"] != from_agent or task["version"] != expected_version:
+                return None
+            if to_agent not in self._agents.get(tenant, {}):
+                return None
+            now = now_ms()
+            task.update({"owner_agent": to_agent, "status": "submitted", "version": expected_version + 1, "updated_at": now})
+            task["handoffs"].append({"t": now, "type": "handed_off", "agent": from_agent, "to_agent": to_agent, "summary": summary, "subgraph_ids": list(subgraph_ids)})
+            version = task["version"]
+        self.publish(tenant, "task.handed_off", {"task_id": task_id, "from": from_agent, "to": to_agent, "version": version, "summary": summary, "subgraph_ids": list(subgraph_ids)})
+        return version
+
+    def complete(self, tenant: str, task_id: str, agent_id: str, artifact: dict[str, Any] | None = None) -> None:
+        with self._lock:
+            task = self._tasks.get(tenant, {}).get(task_id)
+            if task is None or task["status"] != "working" or task["owner_agent"] != agent_id:
+                raise HiveNotFound(f"task {task_id!r} is not a working task owned by {agent_id!r}")
+            now = now_ms()
+            art = None
+            if artifact is not None:
+                art = {"id": artifact.get("id") or new_id("art"), "kind": artifact.get("kind"), "uri": artifact.get("uri"), "text": artifact.get("text"), "created_at": now}
+                task["artifacts"].append({"t": now, "type": "artifact", "artifact": art})
+            task.update({"status": "completed", "version": task["version"] + 1, "updated_at": now})
+            version = task["version"]
+        self.publish(tenant, "task.completed", {"task_id": task_id, "agent_id": agent_id, "artifact": art, "version": version})
+
+    def _set_state(self, tenant: str, task_id: str, agent_id: str, status: str, note: str) -> int:
+        with self._lock:
+            task = self._tasks.get(tenant, {}).get(task_id)
+            if task is None or task["owner_agent"] != agent_id:
+                raise HiveNotFound(f"task {task_id!r} is not owned by {agent_id!r}")
+            task.update({"status": status, "version": task["version"] + 1, "updated_at": now_ms()})
+            if status == "failed":
+                task["failure_reason"] = note
+            else:
+                task["question"] = note
+            return task["version"]
+
+    def fail(self, tenant: str, task_id: str, agent_id: str, reason: str) -> None:
+        version = self._set_state(tenant, task_id, agent_id, "failed", reason)
+        self.publish(tenant, "task.failed", {"task_id": task_id, "agent_id": agent_id, "reason": reason, "version": version})
+
+    def need_input(self, tenant: str, task_id: str, agent_id: str, question: str) -> None:
+        version = self._set_state(tenant, task_id, agent_id, "input_required", question)
+        self.publish(tenant, "task.input_required", {"task_id": task_id, "agent_id": agent_id, "question": question, "version": version})
+
+    def list_tasks(self, tenant: str, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        tasks = [self._task_view(t) for t in self._tasks.get(tenant, {}).values() if status in (None, "", t["status"])]
+        tasks.sort(key=lambda t: -t["created_at"])
+        return tasks[:limit]
+
+    def get_task(self, tenant: str, task_id: str) -> dict[str, Any] | None:
+        task = self._tasks.get(tenant, {}).get(task_id)
+        return self._task_view(task) if task else None
+
+    def list_agents(self, tenant: str) -> list[dict[str, Any]]:
+        working = {t["owner_agent"] for t in self._tasks.get(tenant, {}).values() if t["status"] == "working"}
+        out = []
+        for agent in sorted(self._agents.get(tenant, {}).values(), key=lambda a: a["id"]):
+            out.append({**agent, "state": "working" if agent["id"] in working else "idle"})
+        return out
+
+    def task_trace(self, tenant: str, task_id: str) -> dict[str, Any]:
+        task = self._tasks.get(tenant, {}).get(task_id)
+        if task is None:
+            raise HiveNotFound(f"task {task_id!r} does not exist")
+        events = [*task["claims"], *task["handoffs"], *task["artifacts"], *task["used_skills"]]
+        if task["status"] in ("completed", "failed", "input_required"):
+            events.append({"t": task["updated_at"], "type": task["status"], "agent": task["owner_agent"], "reason": task.get("failure_reason"), "question": task.get("question")})
+        events.sort(key=lambda e: e.get("t") or 0)
+        return {"task": self._task_view(task), "events": events, "about": task["about"], "cypher": "-- FakeHive (23_task_trace.cypher in production)"}
+
+    # -- skills ------------------------------------------------------------------------------
+    def learn_skill(
+        self,
+        tenant: str,
+        goal: str,
+        steps: list[dict[str, Any]],
+        learned_from: list[str],
+        embedding: list[float] | None,
+        version: int = 1,
+    ) -> str:
+        skill = {
+            "id": new_id("skl"),
+            "goal": goal,
+            "version": int(version),
+            "runs": 0,
+            "success_rate": 0.0,
+            "status": "active",
+            "embedding": embedding,
+            "created_at": now_ms(),
+            "steps": [
+                {"id": s.get("id") or new_id("stp"), "order": int(s.get("order", i)), "tool": s["tool"], "args_template": s.get("args_template", "{}"), "guard": s.get("guard")}
+                for i, s in enumerate(steps)
+            ],
+            "learned_from": list(learned_from),
+            "ran": [],
+            "used_by": [],
+        }
+        with self._lock:
+            self._skills[tenant][skill["id"]] = skill
+            self.store(tenant).extra.setdefault("skills", {})[skill["id"]] = skill
+        self.publish(tenant, "skill.learned", {"skill_id": skill["id"], "goal": goal, "steps": len(skill["steps"]), "learned_from": list(learned_from)})
+        return skill["id"]
+
+    def _skill_view(self, skill: dict[str, Any], distance: float | None = None) -> dict[str, Any]:
+        view = {k: v for k, v in skill.items() if k not in {"embedding", "ran", "used_by"}}
+        view["has_embedding"] = skill.get("embedding") is not None
+        if distance is not None:
+            view["distance"] = round(distance, 6)
+            view["similarity"] = round(max(0.0, min(1.0, 1 - distance)), 6)
+        return view
+
+    def retrieve_skill(self, tenant: str, goal_embedding: list[float], k: int = 3) -> list[dict[str, Any]]:
+        scored = []
+        for skill in self._skills.get(tenant, {}).values():
+            if skill["status"] != "active":
+                continue
+            distance = cosine_distance(goal_embedding, skill.get("embedding"))
+            scored.append((-(skill["success_rate"]), distance, skill))
+        scored.sort(key=lambda row: (row[0], row[1]))
+        return [self._skill_view(s, d) for _, d, s in scored[:k]]
+
+    def record_outcome(self, tenant: str, skill_id: str, agent_id: str, ok: bool, task_id: str | None = None) -> dict[str, Any]:
+        with self._lock:
+            skill = self._skills.get(tenant, {}).get(skill_id)
+            if skill is None:
+                raise HiveNotFound(f"skill {skill_id!r} does not exist")
+            runs = skill["runs"]
+            skill["success_rate"] = (skill["success_rate"] * runs + (1.0 if ok else 0.0)) / (runs + 1)
+            skill["runs"] = runs + 1
+            skill["ran"].append({"agent": agent_id, "ok": ok, "at": now_ms(), "task_id": task_id})
+            if task_id:
+                skill["used_by"].append(task_id)
+                task = self._tasks.get(tenant, {}).get(task_id)
+                if task is not None:
+                    task["used_skills"].append({"t": now_ms(), "type": "skill_used", "skill": {"id": skill_id, "goal": skill["goal"]}})
+            view = self._skill_view(skill)
+        self.publish(tenant, "skill.ran", {"skill_id": skill_id, "agent_id": agent_id, "ok": ok, "task_id": task_id, "runs": view["runs"], "success_rate": view["success_rate"]})
+        return view
+
+    def deprecate_skill(self, tenant: str, old_id: str, new_id_: str) -> None:
+        with self._lock:
+            old = self._skills.get(tenant, {}).get(old_id)
+            if old is None or new_id_ not in self._skills.get(tenant, {}):
+                raise HiveNotFound(f"skills {old_id!r}/{new_id_!r} do not exist")
+            old["status"] = "deprecated"
+            old["deprecated_by"] = new_id_
+
+    def skill_pagerank(self, tenant: str) -> list[dict[str, Any]]:
+        skills = list(self._skills.get(tenant, {}).values())
+        total_uses = sum(len(s["used_by"]) for s in skills) or 1
+        rows = [
+            {"id": s["id"], "goal": s["goal"], "runs": s["runs"], "success_rate": s["success_rate"], "score": round(0.15 + 0.85 * len(s["used_by"]) / total_uses, 6)}
+            for s in skills
+        ]
+        rows.sort(key=lambda r: -r["score"])
+        return rows
+
+    def list_skills(self, tenant: str, status: str | None = None) -> list[dict[str, Any]]:
+        skills = [self._skill_view(s) for s in self._skills.get(tenant, {}).values() if status in (None, s["status"])]
+        skills.sort(key=lambda s: -s["created_at"])
+        return skills
+
+    def get_skill(self, tenant: str, skill_id: str) -> dict[str, Any]:
+        skill = self._skills.get(tenant, {}).get(skill_id)
+        if skill is None:
+            raise HiveNotFound(f"skill {skill_id!r} does not exist")
+        return self._skill_view(skill)
+
+    def publish_to_commons(self, tenant: str, skill_id: str) -> str:
+        self.get_skill(tenant, skill_id)
+        return f"{skill_id}@{tenant}"
+
+    # -- analytics ---------------------------------------------------------------------------
+    def _entity_episode_ids(self, store: Any, entity_name: str) -> set[str]:
+        name = entity_name.lower()
+        entity_ids = {eid for eid, e in store.entities.items() if e["name"].lower() == name or name in e["name"].lower()}
+        episode_ids: set[str] = set()
+        for episode_id, eids in store.mentions.items():
+            if entity_ids & set(eids):
+                episode_ids.add(episode_id)
+        for fact in store.facts.values():
+            if fact["subject"].lower() == name or entity_ids & set(fact.get("entity_ids", [])):
+                if fact.get("episode_id"):
+                    episode_ids.add(fact["episode_id"])
+        for episode in store.episodes.values():
+            if name in str(episode.get("text", "")).lower():
+                episode_ids.add(episode["id"])
+        return episode_ids
+
+    def who_knows(self, tenant: str, entity_name: str) -> dict[str, Any]:
+        store = self.store(tenant)
+        counts: dict[str, dict[str, Any]] = {}
+        for episode_id in self._entity_episode_ids(store, entity_name):
+            episode = store.episodes.get(episode_id)
+            if not episode:
+                continue
+            participants = [(episode.get("speaker_id"), "SENT_BY" if episode.get("source_kind") == "email" else "SPOKEN_BY")]
+            participants += [(pid, "SENT_TO") for pid in [*episode.get("to_ids", []), *episode.get("cc_ids", [])]]
+            for pid, via in participants:
+                if not pid:
+                    continue
+                person = store.persons.get(pid, {"id": pid, "name": pid})
+                rec = counts.setdefault(pid, {"person": {"id": pid, "name": person.get("name")}, "mentions": 0, "last_at": 0, "via": set()})
+                rec["mentions"] += 1
+                rec["last_at"] = max(rec["last_at"], episode.get("t_occurred") or 0)
+                rec["via"].add(via)
+        rows = [{**r, "via": sorted(r["via"])} for r in counts.values()]
+        rows.sort(key=lambda r: (-r["mentions"], -r["last_at"]))
+        return {"rows": rows, "cypher": "-- FakeHive (50_who_knows.cypher in production)"}
+
+    def open_commitments(self, tenant: str, person_id: str | None = None) -> dict[str, Any]:
+        rows = []
+        for fact in self.active_facts(tenant):
+            if fact["kind"] != "commitment":
+                continue
+            owner_id = fact.get("owner_id") or fact.get("speaker_id")
+            if person_id and owner_id != person_id:
+                continue
+            owner = self.get_person(tenant, owner_id)
+            rows.append({**fact, "owner": {"id": owner_id, "name": owner.get("name") if owner else None}})
+        rows.sort(key=lambda r: (r.get("due_at") is None, r.get("due_at") or 0))
+        return {"rows": rows, "cypher": "-- FakeHive (51_open_commitments.cypher in production)"}
+
+    def contradictions(self, tenant: str) -> dict[str, Any]:
+        by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for fact in self.active_facts(tenant):
+            by_key[fact["key"]].append(fact)
+        rows = []
+        for key, facts in by_key.items():
+            for i in range(len(facts)):
+                for j in range(i + 1, len(facts)):
+                    if facts[i]["object"] != facts[j]["object"]:
+                        rows.append({"key": key, "facts": [facts[i], facts[j]]})
+        return {"rows": rows, "cypher": "-- FakeHive (52_contradictions.cypher in production)"}
+
+    def entity_clusters(self, tenant: str) -> dict[str, Any]:
+        store = self.store(tenant)
+        parent: dict[str, str] = {eid: eid for eid in store.entities}
+
+        def find(x: str) -> str:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        for eids in store.mentions.values():
+            known = [e for e in eids if e in parent]
+            for a, b in zip(known, known[1:]):
+                parent[find(a)] = find(b)
+        groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for eid, entity in store.entities.items():
+            groups[find(eid)].append({"id": eid, "name": entity["name"], "type": entity["type"]})
+        rows = [{"component": i, "entities": sorted(ents, key=lambda e: e["name"])} for i, ents in enumerate(sorted(groups.values(), key=lambda g: -len(g)))]
+        return {"rows": rows, "cypher": "-- FakeHive (61_wcc_entities.cypher in production)"}
+
+    def stale_decisions(self, tenant: str, older_than_ms: int) -> dict[str, Any]:
+        cutoff = now_ms() - int(older_than_ms)
+        rows = [{**f, "age_ms": now_ms() - f["valid_from"]} for f in self.active_facts(tenant) if f["kind"] == "decision" and f["valid_from"] < cutoff]
+        return {"rows": rows, "cypher": "-- FakeHive (53_stale_decisions.cypher in production)"}
+
+
+# =============================================================================== RealHive
+class RealHive:
+    """Adapter over the ``hiveboard`` package plus the API's own read-only listing queries."""
+
+    publishes_memory_events = True
+    publishes_board_events = True
+    kind = "falkordb"
+
+    def __init__(self, db: Any, *, rw_password: str, ro_password: str) -> None:
+        from hiveboard import analytics, board, events, memory, schema, skills, tenancy
+
+        self.db = db
+        self._memory, self._board, self._skills = memory, board, skills
+        self._events, self._analytics, self._tenancy, self._schema = events, analytics, tenancy, schema
+        self.rw_password = rw_password
+        self.ro_password = ro_password
+        self._listeners: dict[str, list[EventListener]] = defaultdict(list)
+        self._subscriber_threads: dict[str, threading.Thread] = {}
+        self._lock = threading.RLock()
+        self._stopping = threading.Event()
+
+    @classmethod
+    def connect(cls, url: str, *, admin_user: str | None, admin_password: str | None, rw_password: str, ro_password: str) -> RealHive:
+        from hiveboard.db import HiveDB
+
+        db = HiveDB(url, admin_user=admin_user, admin_password=admin_password)
+        hive = cls(db, rw_password=rw_password, ro_password=ro_password)
+        for tenant in db.list_tenants():
+            db.configure_ro(tenant, ro_password)
+        return hive
+
+    # -- helpers -----------------------------------------------------------------------------
+    @staticmethod
+    def _rows(result: Any) -> list[dict[str, Any]]:
+        return [dict(r) if isinstance(r, dict) else r for r in result]
+
+    @staticmethod
+    def _with_cypher(result: Any) -> dict[str, Any]:
+        return {"rows": [dict(r) if isinstance(r, dict) else r for r in result], "cypher": getattr(result, "cypher", "")}
+
+    def _ro(self, tenant: str, query: str, params: dict[str, Any] | None = None) -> Any:
+        return self.db.ro(tenant).ro_query(query, params or {}, timeout=3000)
+
+    def _rw(self, tenant: str, query: str, params: dict[str, Any] | None = None) -> Any:
+        return self.db.graph(tenant).query(query, params or {})
+
+    @staticmethod
+    def _props(node: Any) -> dict[str, Any] | None:
+        from hiveboard.records import props
+
+        return props(node)
+
+    @staticmethod
+    def _brief(node: Any, *fields: str) -> dict[str, Any] | None:
+        from hiveboard.records import brief
+
+        return brief(node, *fields)
+
+    def _norm_fact(self, rec: dict[str, Any] | None) -> dict[str, Any] | None:
+        """hiveboard fact record -> the API shape (adds ``speaker_id``, ``entity_ids``, ``source``)."""
+        if rec is None:
+            return None
+        out = dict(rec)
+        speaker = out.get("speaker") or {}
+        out.setdefault("speaker_id", speaker.get("id"))
+        out.setdefault("entity_ids", [e["id"] for e in out.get("entities") or [] if e and e.get("id")])
+        out.setdefault("kind", "commitment" if "Commitment" in out.get("labels", []) else "decision" if "Decision" in out.get("labels", []) else "fact")
+        return out
+
+    # -- tenancy -----------------------------------------------------------------------------
+    def ping(self) -> bool:
+        return bool(self.db.ping())
+
+    def db_version(self) -> str:
+        try:
+            return str(self.db.server_version())
+        except Exception as exc:  # noqa: BLE001
+            log.warning("server_version failed: %s", exc)
+            return "unknown"
+
+    def list_tenants(self) -> list[str]:
+        return list(self.db.list_tenants())
+
+    def create_tenant(self, slug: str, display_name: str) -> dict[str, Any]:
+        info = self._tenancy.create_tenant(self.db, slug, display_name, self.rw_password, self.ro_password)
+        self.db.configure_ro(slug, self.ro_password)
+        return {**self.tenant_info(slug), "schema": info.get("schema")}
+
+    def delete_tenant(self, slug: str) -> None:
+        self._tenancy.delete_tenant(self.db, slug)
+
+    def ensure_schema(self, tenant: str) -> dict[str, int]:
+        return dict(self._schema.ensure_schema(self.db, tenant))
+
+    def load_udfs(self) -> None:
+        self._schema.load_udfs(self.db)
+
+    def counts(self, tenant: str) -> dict[str, int]:
+        counts: dict[str, int] = {"episodes": 0, "facts": 0, "decisions": 0, "commitments": 0, "tasks": 0, "skills": 0, "entities": 0, "meetings": 0, "threads": 0}
+        for key, label in (("episodes", "Episode"), ("tasks", "Task"), ("skills", "Skill"), ("entities", "Entity"), ("meetings", "Meeting"), ("threads", "EmailThread")):
+            res = self._ro(tenant, f"MATCH (n:{label}) RETURN count(n)")
+            counts[key] = int(res.result_set[0][0]) if res.result_set else 0
+        res = self._ro(tenant, "MATCH (f:Fact) RETURN f.kind, count(f)")
+        for kind, n in res.result_set:
+            key = {"fact": "facts", "decision": "decisions", "commitment": "commitments"}.get(kind or "fact", "facts")
+            counts[key] += int(n)
+        return counts
+
+    def tenant_info(self, tenant: str) -> dict[str, Any]:
+        registry = {row["slug"]: row for row in self._tenancy.list_registered_tenants(self.db)}
+        meta = registry.get(tenant, {})
+        try:
+            usage = float(self.db.usage(tenant).get("total_mb", 0.0))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("usage failed for %s: %s", tenant, exc)
+            usage = 0.0
+        acl = self._tenancy.acl_rules(self.db, tenant)
+        return {
+            "slug": tenant,
+            "display_name": meta.get("display_name") or tenant.capitalize(),
+            "graph": acl.get("graph") or f"team_{tenant}",
+            "usage_mb": round(usage, 3),
+            "counts": self.counts(tenant),
+            "acl": {"rw_user": acl.get("rw_user"), "ro_user": acl.get("ro_user"), "rules": acl.get("rules", []), "isolation": acl.get("isolation")},
+        }
+
+    def acl_probe(self, tenant: str, target: str) -> dict[str, Any]:
+        from falkordb import FalkorDB
+
+        user = self.db.ro_user(tenant)
+        target_graph = self.db.graph_name(target)
+        command = f'GRAPH.RO_QUERY {target_graph} "MATCH (n) RETURN count(n)"'
+        try:
+            client = FalkorDB(host=self.db.host, port=self.db.port, username=user, password=self.ro_password)
+            res = client.select_graph(target_graph).ro_query("MATCH (n) RETURN count(n)", timeout=2000)
+            value = res.result_set[0][0] if res.result_set else None
+            return {"allowed": True, "user": user, "target_graph": target_graph, "command": command, "result": value, "error": None}
+        except Exception as exc:  # noqa: BLE001 - the denial is the point
+            return {"allowed": False, "user": user, "target_graph": target_graph, "command": command, "error": str(exc)}
+
+    def snapshot(self, tenant: str, label: str) -> dict[str, Any]:
+        name = self._tenancy.snapshot(self.db, tenant, label)
+        snaps = [s for s in self.list_snapshots(tenant) if s.get("name") == name]
+        return snaps[0] if snaps else {"name": name, "label": label, "taken_at": now_ms()}
+
+    def list_snapshots(self, tenant: str) -> list[dict[str, Any]]:
+        return [dict(s) for s in self._tenancy.list_snapshots(self.db, tenant)]
+
+    # -- memory writes (pipeline surface) ----------------------------------------------------
+    def remember_person(self, tenant: str, person: dict[str, Any]) -> str:
+        return self._memory.remember_person(self.db, tenant, person)
+
+    def remember_meeting(self, tenant: str, meeting: dict[str, Any]) -> str:
+        return self._memory.remember_meeting(self.db, tenant, meeting)
+
+    def remember_thread(self, tenant: str, thread: dict[str, Any]) -> str:
+        return self._memory.remember_thread(self.db, tenant, thread)
+
+    def remember_episodes(self, tenant: str, meeting_id: str, episodes: list[dict[str, Any]]) -> int:
+        return self._memory.remember_episodes(self.db, tenant, meeting_id, episodes)
+
+    def remember_email_episodes(self, tenant: str, thread_id: str, episodes: list[dict[str, Any]]) -> int:
+        return self._memory.remember_email_episodes(self.db, tenant, thread_id, episodes)
+
+    def upsert_entities(self, tenant: str, entities: list[dict[str, Any]]) -> dict[str, str]:
+        return dict(self._memory.upsert_entities(self.db, tenant, entities))
+
+    def remember_entities(self, tenant: str, entities: list[dict[str, Any]]) -> int:
+        return self._memory.remember_entities(self.db, tenant, entities)
+
+    def link_mentions(self, tenant: str, episode_id: str, entity_ids: list[str]) -> int:
+        return self._memory.link_mentions(self.db, tenant, episode_id, entity_ids)
+
+    def remember_fact(self, tenant: str, fact: dict[str, Any], supersede: bool = False) -> dict[str, Any]:
+        result = self._memory.remember_fact(self.db, tenant, fact, supersede=supersede)
+        precedents = fact.get("precedent_ids") or []
+        if precedents and not result.get("existing"):
+            self._rw(
+                tenant,
+                "MATCH (new:Fact {id: $id}) UNWIND $olds AS oid MATCH (old:Fact {id: oid}) "
+                "MERGE (old)-[p:PRECEDENT_FOR]->(new) SET p.at = $now RETURN count(p)",
+                {"id": result["id"], "olds": list(precedents), "now": now_ms()},
+            )
+        return result
+
+    def supersede_fact(self, tenant: str, old_id: str, new_fact: dict[str, Any]) -> dict[str, Any]:
+        return self._memory.supersede_fact(self.db, tenant, old_id, new_fact)
+
+    def retract_fact(self, tenant: str, fact_id: str, reason: str) -> None:
+        self._memory.retract_fact(self.db, tenant, fact_id, reason)
+
+    def facts_by_key(self, tenant: str, key: str) -> list[dict[str, Any]]:
+        res = self._ro(
+            tenant,
+            "MATCH (f:Fact {key: $key}) OPTIONAL MATCH (f)-[:SUPERSEDES]->(o:Fact) "
+            "RETURN f, collect(o.id) ORDER BY f.valid_from ASC, f.created_at ASC",
+            {"key": key.lower()},
+        )
+        rows = []
+        for f, supersedes in res.result_set:
+            rec = self._props(f) or {}
+            rec["supersedes"] = [s for s in supersedes if s]
+            rows.append(rec)
+        return rows
+
+    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None) -> dict[str, Any]:
+        """Late import of an earlier statement: ingest it as already-superseded between two chain members."""
+        result = self._memory.remember_fact(self.db, tenant, fact)
+        new_fact_id = result["id"]
+        now = now_ms()
+        self._rw(
+            tenant,
+            "MATCH (new:Fact {id: $new_id}), (before:Fact {id: $before_id}) "
+            "SET new.status = 'superseded', new.valid_to = before.valid_from, new.expired_at = $now "
+            "MERGE (before)-[s:SUPERSEDES]->(new) SET s.at = $now RETURN new.id",
+            {"new_id": new_fact_id, "before_id": before_id, "now": now},
+        )
+        if after_id:
+            self._rw(
+                tenant,
+                "MATCH (new:Fact {id: $new_id}), (after:Fact {id: $after_id}) "
+                "OPTIONAL MATCH (before:Fact {id: $before_id})-[old:SUPERSEDES]->(after) DELETE old "
+                "WITH new, after SET after.valid_to = new.valid_from "
+                "MERGE (new)-[s:SUPERSEDES]->(after) SET s.at = $now RETURN after.id",
+                {"new_id": new_fact_id, "after_id": after_id, "before_id": before_id, "now": now},
+            )
+        return {"id": new_fact_id, "superseded": [after_id] if after_id else [], "superseded_by": before_id}
+
+    def confirm_fact(self, tenant: str, fact_id: str, episode_id: str) -> None:
+        self._rw(
+            tenant,
+            "MATCH (f:Fact {id: $fid}), (ep:Episode {id: $eid}) MERGE (f)-[c:CONFIRMED_BY]->(ep) SET c.at = $now RETURN f.id",
+            {"fid": fact_id, "eid": episode_id, "now": now_ms()},
+        )
+
+    def update_fact_due(self, tenant: str, fact_id: str, due_at: int | None) -> dict[str, Any]:
+        res = self._rw(tenant, "MATCH (f:Fact {id: $id}) SET f.due_at = $due RETURN f", {"id": fact_id, "due": due_at})
+        if not res.result_set:
+            raise HiveNotFound(fact_id)
+        return self.get_fact(tenant, fact_id) or {}
+
+    # -- memory reads ------------------------------------------------------------------------
+    def active_facts(self, tenant: str, entity_id: str | None = None, key: str | None = None) -> list[dict[str, Any]]:
+        return [self._norm_fact(r) for r in self._memory.active_facts(self.db, tenant, entity_id=entity_id, key=key)]
+
+    def belief_at(self, tenant: str, t: int, entity_id: str | None = None) -> list[dict[str, Any]]:
+        return self.belief_at_result(tenant, t, entity_id)["rows"]
+
+    def belief_at_result(self, tenant: str, t: int, entity_id: str | None = None) -> dict[str, Any]:
+        rows = self._memory.belief_at(self.db, tenant, t, entity_id=entity_id)
+        return {"rows": [self._norm_fact(r) for r in rows], "cypher": getattr(rows, "cypher", "")}
+
+    def why(self, tenant: str, node_id: str) -> dict[str, Any]:
+        from hiveboard.errors import NotFound
+
+        try:
+            return self._memory.why(self.db, tenant, node_id)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def recall(self, tenant: str, query_embedding: list[float], k: int = 8, now: int | None = None, label: str = "Fact") -> dict[str, Any]:
+        return self._memory.recall(self.db, tenant, query_embedding, k=k, now=now, label=label)
+
+    def fulltext(self, tenant: str, text: str, label: str = "Episode", k: int = 10) -> list[dict[str, Any]]:
+        return self._rows(self._memory.fulltext(self.db, tenant, text, label=label, k=k))
+
+    def list_persons(self, tenant: str) -> list[dict[str, Any]]:
+        res = self._ro(tenant, "MATCH (p:Person) RETURN p ORDER BY p.name")
+        return [self._props(row[0]) for row in res.result_set]
+
+    def get_person(self, tenant: str, person_id: str | None) -> dict[str, Any] | None:
+        if not person_id:
+            return None
+        res = self._ro(tenant, "MATCH (p:Person {id: $id}) RETURN p", {"id": person_id})
+        return self._props(res.result_set[0][0]) if res.result_set else None
+
+    def list_meetings(self, tenant: str) -> list[dict[str, Any]]:
+        res = self._ro(
+            tenant,
+            "MATCH (m:Meeting) OPTIONAL MATCH (m)-[:HAS_EPISODE]->(ep:Episode) "
+            "OPTIONAL MATCH (f:Fact)-[:DERIVED_FROM]->(ep) "
+            "RETURN m, count(DISTINCT ep), count(DISTINCT f) ORDER BY m.started_at",
+        )
+        return [{**(self._props(m) or {}), "episodes": int(eps), "facts": int(facts)} for m, eps, facts in res.result_set]
+
+    def get_meeting(self, tenant: str, meeting_id: str) -> dict[str, Any] | None:
+        res = self._ro(tenant, "MATCH (m:Meeting {id: $id}) RETURN m", {"id": meeting_id})
+        return self._props(res.result_set[0][0]) if res.result_set else None
+
+    def meeting_episodes(self, tenant: str, meeting_id: str) -> list[dict[str, Any]]:
+        res = self._ro(
+            tenant,
+            "MATCH (m:Meeting {id: $id})-[:HAS_EPISODE]->(ep:Episode) OPTIONAL MATCH (ep)-[:SPOKEN_BY]->(p:Person) "
+            "RETURN ep, p ORDER BY ep.seq",
+            {"id": meeting_id},
+        )
+        out = []
+        for ep, person in res.result_set:
+            rec = self._props(ep) or {}
+            rec["container_id"] = meeting_id
+            rec["container_kind"] = "meeting"
+            rec["speaker_id"] = person.properties.get("id") if person is not None else rec.get("speaker_id")
+            rec["speaker"] = self._brief(person)
+            out.append(rec)
+        return out
+
+    def list_threads(self, tenant: str) -> list[dict[str, Any]]:
+        res = self._ro(
+            tenant,
+            "MATCH (t:EmailThread) OPTIONAL MATCH (t)-[:HAS_EPISODE]->(ep:Episode) "
+            "OPTIONAL MATCH (f:Fact)-[:DERIVED_FROM]->(ep) "
+            "RETURN t, count(DISTINCT ep), count(DISTINCT f) ORDER BY t.started_at",
+        )
+        return [{**(self._props(t) or {}), "messages": int(msgs), "facts": int(facts)} for t, msgs, facts in res.result_set]
+
+    def get_thread(self, tenant: str, thread_id: str) -> dict[str, Any] | None:
+        res = self._ro(tenant, "MATCH (t:EmailThread {id: $id}) RETURN t", {"id": thread_id})
+        return self._props(res.result_set[0][0]) if res.result_set else None
+
+    def thread_messages(self, tenant: str, thread_id: str) -> list[dict[str, Any]]:
+        res = self._ro(
+            tenant,
+            "MATCH (t:EmailThread {id: $id})-[:HAS_EPISODE]->(ep:Episode) "
+            "OPTIONAL MATCH (ep)-[:SENT_BY]->(s:Person) "
+            "OPTIONAL MATCH (ep)-[r:SENT_TO]->(p:Person) "
+            "OPTIONAL MATCH (ep)-[:REPLIES_TO]->(prev:Episode) "
+            "RETURN ep, s, collect({id: p.id, name: p.name, email: p.email, cc: r.cc}), prev.id ORDER BY ep.seq",
+            {"id": thread_id},
+        )
+        out = []
+        for ep, sender, recipients, prev_id in res.result_set:
+            rec = self._props(ep) or {}
+            rec["container_id"] = thread_id
+            rec["container_kind"] = "thread"
+            rec["speaker_id"] = sender.properties.get("id") if sender is not None else rec.get("sender_id")
+            rec["sender"] = self._brief(sender, "id", "name", "email")
+            people = [r for r in recipients if r and r.get("id")]
+            rec["to_ids"] = [r["id"] for r in people if not r.get("cc")]
+            rec["cc_ids"] = [r["id"] for r in people if r.get("cc")]
+            rec["to"] = [{"id": r["id"], "name": r.get("name"), "email": r.get("email")} for r in people if not r.get("cc")]
+            rec["cc"] = [{"id": r["id"], "name": r.get("name"), "email": r.get("email")} for r in people if r.get("cc")]
+            rec["in_reply_to_episode_id"] = prev_id
+            out.append(rec)
+        return out
+
+    def get_episode(self, tenant: str, episode_id: str) -> dict[str, Any] | None:
+        res = self._ro(
+            tenant,
+            "MATCH (ep:Episode {id: $id}) OPTIONAL MATCH (c)-[:HAS_EPISODE]->(ep) "
+            "OPTIONAL MATCH (ep)-[:SPOKEN_BY|SENT_BY]->(p:Person) RETURN ep, c, p",
+            {"id": episode_id},
+        )
+        if not res.result_set:
+            return None
+        ep, container, person = res.result_set[0]
+        rec = self._props(ep) or {}
+        if container is not None:
+            rec["container_id"] = container.properties.get("id")
+            rec["container_kind"] = "thread" if "EmailThread" in container.labels else "meeting"
+        rec["speaker_id"] = person.properties.get("id") if person is not None else rec.get("speaker_id") or rec.get("sender_id")
+        return rec
+
+    def list_entities(self, tenant: str) -> list[dict[str, Any]]:
+        res = self._ro(tenant, "MATCH (e:Entity) RETURN e ORDER BY e.name")
+        return [self._props(row[0]) for row in res.result_set]
+
+    _FACT_QUERY = (
+        "MATCH (f:Fact) WHERE ($id IS NULL OR f.id = $id) AND ($status IS NULL OR f.status = $status) "
+        "AND ($kind IS NULL OR f.kind = $kind) "
+        "OPTIONAL MATCH (f)-[:ABOUT]->(en:Entity) WITH f, collect(DISTINCT en) AS entities "
+        "WHERE $entity IS NULL OR any(x IN entities WHERE x.id = $entity OR toLower(x.name) = toLower($entity)) "
+        "OPTIONAL MATCH (f)-[:STATED_BY]->(p:Person) OPTIONAL MATCH (f)-[:DERIVED_FROM]->(ep:Episode) "
+        "OPTIONAL MATCH (c)-[:HAS_EPISODE]->(ep) OPTIONAL MATCH (f)-[:SUPERSEDES]->(o:Fact) "
+        "RETURN f, entities, p, ep, c, collect(DISTINCT o.id) ORDER BY f.valid_from ASC LIMIT $limit"
+    )
+
+    def _fact_rows(self, tenant: str, **params: Any) -> list[dict[str, Any]]:
+        from hiveboard.memory import _source
+
+        args = {"id": None, "status": "active", "kind": None, "entity": None, "limit": 500, **params}
+        res = self._ro(tenant, self._FACT_QUERY, args)
+        rows = []
+        for f, entities, speaker, ep, container, supersedes in res.result_set:
+            rec = self._props(f) or {}
+            rec["entities"] = [self._brief(e, "id", "name", "type") for e in entities]
+            rec["entity_ids"] = [e["id"] for e in rec["entities"] if e]
+            rec["speaker"] = self._brief(speaker)
+            rec["speaker_id"] = speaker.properties.get("id") if speaker is not None else None
+            rec["episode_id"] = ep.properties.get("id") if ep is not None else None
+            is_meeting = container is not None and "Meeting" in container.labels
+            is_thread = container is not None and "EmailThread" in container.labels
+            rec["meeting"] = self._brief(container, "id", "title") if is_meeting else None
+            rec["thread"] = self._brief(container, "id", "subject") if is_thread else None
+            rec["source"] = _source(ep, container if is_meeting else None, container if is_thread else None)
+            rec["supersedes"] = [s for s in supersedes if s]
+            rows.append(self._norm_fact(rec))
+        return rows
+
+    def list_facts(self, tenant: str, status: str | None = "active", entity: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+        return self._fact_rows(tenant, status=None if status in (None, "all") else status, entity=entity, kind=kind)
+
+    def get_fact(self, tenant: str, fact_id: str) -> dict[str, Any] | None:
+        rows = self._fact_rows(tenant, id=fact_id, status=None, limit=1)
+        return rows[0] if rows else None
+
+    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        import json
+
+        turn = {"id": new_id("turn"), "session_id": session_id, "role": role, "text": text, "t": now_ms(), "meta": json.dumps(meta or {}, default=str)}
+        self._rw(
+            tenant,
+            "MERGE (s:ChatSession {id: $sid}) ON CREATE SET s.created_at = $t "
+            "CREATE (t:Turn {id: $id, session_id: $sid, role: $role, text: $text, t: $t, meta: $meta}) "
+            "MERGE (s)-[:HAS_TURN]->(t) RETURN t.id",
+            {"sid": session_id, **turn},
+        )
+        turn["meta"] = meta or {}
+        return turn
+
+    def get_turns(self, tenant: str, session_id: str) -> list[dict[str, Any]]:
+        import json
+
+        res = self._ro(tenant, "MATCH (t:Turn {session_id: $sid}) RETURN t ORDER BY t.t", {"sid": session_id})
+        out = []
+        for (node,) in res.result_set:
+            rec = self._props(node) or {}
+            if isinstance(rec.get("meta"), str):
+                try:
+                    rec["meta"] = json.loads(rec["meta"])
+                except json.JSONDecodeError:
+                    rec["meta"] = {}
+            out.append(rec)
+        return out
+
+    def run_ro_cypher(self, tenant: str, query: str, params: dict[str, Any] | None = None, timeout_ms: int = 3000) -> dict[str, Any]:
+        from hiveboard.records import row_value
+
+        res = self.db.ro(tenant).ro_query(query, params or {}, timeout=timeout_ms)
+        header = [h[1] if isinstance(h, (list, tuple)) and len(h) > 1 else str(h) for h in (res.header or [])]
+        rows = []
+        for row in res.result_set:
+            values = [row_value(v) for v in row]
+            rows.append(dict(zip(header, values)) if header and len(header) == len(values) else {"row": values})
+        return {"rows": rows, "cypher": query}
+
+    # -- events ------------------------------------------------------------------------------
+    def publish(self, tenant: str, event: str, payload: dict[str, Any]) -> None:
+        self._events.publish(self.db, tenant, event, payload)
+
+    def add_listener(self, tenant: str, fn: EventListener) -> None:
+        with self._lock:
+            self._listeners[tenant].append(fn)
+            if tenant not in self._subscriber_threads:
+                thread = threading.Thread(target=self._pump, args=(tenant,), name=f"events-{tenant}", daemon=True)
+                self._subscriber_threads[tenant] = thread
+                thread.start()
+
+    def remove_listener(self, tenant: str, fn: EventListener) -> None:
+        with self._lock:
+            if fn in self._listeners.get(tenant, []):
+                self._listeners[tenant].remove(fn)
+
+    def _pump(self, tenant: str) -> None:
+        while not self._stopping.is_set():
+            try:
+                for event in self._events.subscribe(self.db, tenant, idle_timeout=2.0):
+                    with self._lock:
+                        listeners = list(self._listeners.get(tenant, []))
+                    for fn in listeners:
+                        try:
+                            fn(event)
+                        except Exception as exc:  # noqa: BLE001
+                            log.warning("event listener failed: %s", exc)
+                    if self._stopping.is_set():
+                        return
+            except Exception as exc:  # noqa: BLE001
+                log.warning("event subscription for %s dropped (%s); reconnecting", tenant, exc)
+                time.sleep(1.0)
+
+    def close(self) -> None:
+        self._stopping.set()
+        self.db.close()
+
+    # -- board -------------------------------------------------------------------------------
+    def register_agent(self, tenant: str, agent_id: str, name: str, capabilities: list[str], model: str) -> None:
+        self._board.register_agent(self.db, tenant, agent_id, name, capabilities, model)
+
+    def touch_agent(self, tenant: str, agent_id: str) -> None:
+        self._rw(tenant, "MATCH (a:Agent {id: $id}) SET a.last_seen = $now RETURN a.id", {"id": agent_id, "now": now_ms()})
+
+    def submit_task(self, tenant: str, kind: str, payload: dict[str, Any], requires: list[str], about_ids: Iterable[str] = (), priority: int = 5) -> str:
+        return self._board.submit_task(self.db, tenant, kind, payload, list(requires), list(about_ids), priority)
+
+    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int) -> int | None:
+        return self._board.claim(self.db, tenant, task_id, agent_id, expected_version)
+
+    def next_open_task(self, tenant: str, agent_id: str) -> dict[str, Any] | None:
+        return self._board.next_open_task(self.db, tenant, agent_id)
+
+    def handoff(self, tenant: str, task_id: str, from_agent: str, to_agent: str, expected_version: int, summary: str, subgraph_ids: list[str]) -> int | None:
+        return self._board.handoff(self.db, tenant, task_id, from_agent, to_agent, expected_version, summary, list(subgraph_ids))
+
+    def complete(self, tenant: str, task_id: str, agent_id: str, artifact: dict[str, Any] | None = None) -> None:
+        from hiveboard.errors import NotFound
+
+        try:
+            self._board.complete(self.db, tenant, task_id, agent_id, artifact)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def fail(self, tenant: str, task_id: str, agent_id: str, reason: str) -> None:
+        from hiveboard.errors import NotFound
+
+        try:
+            self._board.fail(self.db, tenant, task_id, agent_id, reason)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def need_input(self, tenant: str, task_id: str, agent_id: str, question: str) -> None:
+        self._board.need_input(self.db, tenant, task_id, agent_id, question)
+
+    def list_tasks(self, tenant: str, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        return self._rows(self._board.list_tasks(self.db, tenant, status=status or None, limit=limit))
+
+    def get_task(self, tenant: str, task_id: str) -> dict[str, Any] | None:
+        from hiveboard.errors import NotFound
+
+        try:
+            return self._board.task_trace(self.db, tenant, task_id)["task"]
+        except NotFound:
+            return None
+
+    def list_agents(self, tenant: str) -> list[dict[str, Any]]:
+        return self._rows(self._board.list_agents(self.db, tenant))
+
+    def task_trace(self, tenant: str, task_id: str) -> dict[str, Any]:
+        from hiveboard.errors import NotFound
+
+        try:
+            return self._board.task_trace(self.db, tenant, task_id)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    # -- skills ------------------------------------------------------------------------------
+    def learn_skill(self, tenant: str, goal: str, steps: list[dict[str, Any]], learned_from: list[str], embedding: list[float] | None, version: int = 1) -> str:
+        return self._skills.learn_skill(self.db, tenant, goal, steps, list(learned_from), embedding, version)
+
+    def retrieve_skill(self, tenant: str, goal_embedding: list[float], k: int = 3) -> list[dict[str, Any]]:
+        return self._rows(self._skills.retrieve_skill(self.db, tenant, goal_embedding, k=k))
+
+    def record_outcome(self, tenant: str, skill_id: str, agent_id: str, ok: bool, task_id: str | None = None) -> dict[str, Any]:
+        from hiveboard.errors import NotFound
+
+        try:
+            self._skills.record_outcome(self.db, tenant, skill_id, agent_id, ok, task_id)
+            return self.get_skill(tenant, skill_id)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def deprecate_skill(self, tenant: str, old_id: str, new_id_: str) -> None:
+        self._skills.deprecate_skill(self.db, tenant, old_id, new_id_)
+
+    def skill_pagerank(self, tenant: str) -> list[dict[str, Any]]:
+        try:
+            return self._rows(self._skills.skill_pagerank(self.db, tenant))
+        except Exception as exc:  # noqa: BLE001 - algo.pageRank needs at least one edge on some builds
+            log.warning("skill_pagerank failed: %s", exc)
+            return []
+
+    def list_skills(self, tenant: str, status: str | None = None) -> list[dict[str, Any]]:
+        return self._rows(self._skills.list_skills(self.db, tenant, status=status))
+
+    def get_skill(self, tenant: str, skill_id: str) -> dict[str, Any]:
+        from hiveboard.errors import NotFound
+
+        try:
+            return dict(self._skills.get_skill(self.db, tenant, skill_id))
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+
+    def publish_to_commons(self, tenant: str, skill_id: str) -> str:
+        return self._skills.publish_to_commons(self.db, tenant, skill_id)
+
+    # -- analytics ---------------------------------------------------------------------------
+    def who_knows(self, tenant: str, entity_name: str) -> dict[str, Any]:
+        return self._with_cypher(self._analytics.who_knows(self.db, tenant, entity_name))
+
+    def open_commitments(self, tenant: str, person_id: str | None = None) -> dict[str, Any]:
+        result = self._analytics.open_commitments(self.db, tenant, person_id)
+        return {"rows": [self._norm_fact(r) for r in result], "cypher": getattr(result, "cypher", "")}
+
+    def contradictions(self, tenant: str) -> dict[str, Any]:
+        return self._with_cypher(self._analytics.contradictions(self.db, tenant))
+
+    def entity_clusters(self, tenant: str) -> dict[str, Any]:
+        try:
+            return self._with_cypher(self._analytics.entity_clusters(self.db, tenant))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("entity_clusters failed: %s", exc)
+            return {"rows": [], "cypher": "", "error": str(exc)}
+
+    def stale_decisions(self, tenant: str, older_than_ms: int) -> dict[str, Any]:
+        return self._with_cypher(self._analytics.stale_decisions(self.db, tenant, older_than_ms))
+
+
+def build_hive(settings: Any) -> Any:
+    """Connect the real substrate (or the fake when ``HIVE_BACKEND=fake``)."""
+    import os
+
+    if os.environ.get("HIVE_BACKEND", "").lower() == "fake":
+        return FakeHive()
+    return RealHive.connect(
+        settings.falkordb_url,
+        admin_user=settings.falkordb_admin_user,
+        admin_password=settings.falkordb_admin_password,
+        rw_password=settings.tenant_rw_password,
+        ro_password=settings.tenant_ro_password,
+    )
+
+
+def register_default_agents(hive: Any, tenant: str, model: str) -> None:
+    """Register the five agents (idempotent)."""
+    for agent_id, name, caps in AGENT_SPECS:
+        hive.register_agent(tenant, agent_id, name, caps, model)
+
+
+ListenerFn = Callable[[dict[str, Any]], None]

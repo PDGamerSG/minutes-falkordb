@@ -1,0 +1,24 @@
+[project]
+name = "minutes-api"
+version = "0.1.0"
+description = "Minutes HTTP API: FastAPI + agent workers over the Hive Board substrate"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "hiveboard",
+  "ingest",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sse-starlette>=2.1",
+  "pydantic>=2.8",
+  "pydantic-settings>=2.4",
+  "httpx>=0.27",
+  "openai>=1.40",
+  "google-genai>=1.0",
+  "falkordb>=1.0.10",
+  "python-multipart>=0.0.9",
+]
+
+# Flat layout (apps/api/main.py, routes/, agents/, ...): imported as the namespace package
+# `apps.api` from the repo root, so nothing is built or installed; only the dependencies are.
+[tool.uv]
+package = false

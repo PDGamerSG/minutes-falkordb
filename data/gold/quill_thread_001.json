@@ -1,0 +1,37 @@
+{
+  "thread_id": "thr_quill_001",
+  "items": [
+    {
+      "kind": "commitment",
+      "subject": "launch post",
+      "predicate": "due",
+      "object": "2026-09-29",
+      "speaker_id": "spk_omar",
+      "message_index": 0,
+      "supersedes": {
+        "subject": "launch post",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "decision",
+      "subject": "newsletter",
+      "predicate": "scope_includes",
+      "object": "launch post leads the September 29 issue",
+      "speaker_id": "spk_tara",
+      "message_index": 1
+    },
+    {
+      "kind": "commitment",
+      "subject": "interview outlines",
+      "predicate": "due",
+      "object": "2026-09-24",
+      "speaker_id": "spk_omar",
+      "message_index": 2,
+      "confirms": {
+        "subject": "interview outlines",
+        "predicate": "due"
+      }
+    }
+  ]
+}

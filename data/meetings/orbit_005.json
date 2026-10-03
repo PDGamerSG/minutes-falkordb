@@ -1,0 +1,340 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_005",
+    "title": "Orbit customer call recap (Meridian)",
+    "started_at": "2026-09-23T10:00:00+05:30",
+    "ended_at": "2026-09-23T10:05:41+05:30",
+    "audio_uri": "data/meetings/orbit_005.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 9400,
+      "speaker_id": "spk_aditya",
+      "text": "Okay, recap of the Meridian call. Priya and I were on it. Rahul, Sana, you need to hear this before you write any more code."
+    },
+    {
+      "start_ms": 9700,
+      "end_ms": 11700,
+      "speaker_id": "spk_rahul",
+      "text": "That sounds ominous."
+    },
+    {
+      "start_ms": 12037,
+      "end_ms": 19737,
+      "speaker_id": "spk_aditya",
+      "text": "A bit. Good news first. Meridian is sending two rugged test devices, arriving Friday the 25th. Rahul, those are yours."
+    },
+    {
+      "start_ms": 20111,
+      "end_ms": 22111,
+      "speaker_id": "spk_rahul",
+      "text": "Finally. Thank you."
+    },
+    {
+      "start_ms": 22522,
+      "end_ms": 31922,
+      "speaker_id": "spk_aditya",
+      "text": "Second. The offline payments question is closed. Offline mode is for forms and inspections only. Payments require connectivity, full stop. That's their compliance team's position."
+    },
+    {
+      "start_ms": 32370,
+      "end_ms": 34370,
+      "speaker_id": "spk_priya",
+      "text": "Thank god."
+    },
+    {
+      "start_ms": 34855,
+      "end_ms": 39455,
+      "speaker_id": "spk_rahul",
+      "text": "Great, that simplifies the queue. I'll strip the payment branch out."
+    },
+    {
+      "start_ms": 39977,
+      "end_ms": 50777,
+      "speaker_id": "spk_aditya",
+      "text": "Now the hard part. Meridian's compliance team joined the call. New people. Farah leads it, you've seen her on the drawer thread. They have requirements we didn't know about."
+    },
+    {
+      "start_ms": 51336,
+      "end_ms": 53336,
+      "speaker_id": "spk_sana",
+      "text": "Such as?"
+    },
+    {
+      "start_ms": 53932,
+      "end_ms": 62632,
+      "speaker_id": "spk_aditya",
+      "text": "Every payment attempt, successful or not, goes into an audit log retained for seven years. And all data stays in India. Data residency."
+    },
+    {
+      "start_ms": 63265,
+      "end_ms": 71965,
+      "speaker_id": "spk_priya",
+      "text": "The audit log is fine, I log everything already, I just need to not delete it. Residency is fine too, we're in Mumbai."
+    },
+    {
+      "start_ms": 72635,
+      "end_ms": 74935,
+      "speaker_id": "spk_aditya",
+      "text": "And then, the vendor."
+    },
+    {
+      "start_ms": 75642,
+      "end_ms": 83042,
+      "speaker_id": "spk_rahul",
+      "text": "What about the vendor? Payments go through Razorpay. I've got their SDK wired into the shell already, that's done."
+    },
+    {
+      "start_ms": 83786,
+      "end_ms": 90086,
+      "speaker_id": "spk_aditya",
+      "text": "That's the thing. Meridian's compliance team mandates PayU. They have an existing merchant agreement with PayU."
+    },
+    {
+      "start_ms": 90867,
+      "end_ms": 96867,
+      "speaker_id": "spk_aditya",
+      "text": "And they won't onboard a second payment provider. Not for a pilot, not for anything."
+    },
+    {
+      "start_ms": 97185,
+      "end_ms": 102485,
+      "speaker_id": "spk_rahul",
+      "text": "Wait. What? We decided Razorpay at kickoff. It's been Razorpay for two weeks."
+    },
+    {
+      "start_ms": 102840,
+      "end_ms": 109540,
+      "speaker_id": "spk_aditya",
+      "text": "We decided Razorpay because it was fastest for us. Nobody asked their compliance team. That's on me."
+    },
+    {
+      "start_ms": 109932,
+      "end_ms": 113932,
+      "speaker_id": "spk_priya",
+      "text": "I pushed for Razorpay, so it's on me too."
+    },
+    {
+      "start_ms": 114361,
+      "end_ms": 124061,
+      "speaker_id": "spk_priya",
+      "text": "For the record, I did ask on the 11th whether they had a vendor preference, and the answer was no preference. Compliance wasn't on that call."
+    },
+    {
+      "start_ms": 124527,
+      "end_ms": 129127,
+      "speaker_id": "spk_sana",
+      "text": "So the business side said one thing and compliance says another."
+    },
+    {
+      "start_ms": 129630,
+      "end_ms": 133230,
+      "speaker_id": "spk_aditya",
+      "text": "Yes. And compliance wins, it's their payment licence."
+    },
+    {
+      "start_ms": 133770,
+      "end_ms": 138970,
+      "speaker_id": "spk_rahul",
+      "text": "Can we push back? Is there any world where they accept Razorpay?"
+    },
+    {
+      "start_ms": 139547,
+      "end_ms": 145247,
+      "speaker_id": "spk_aditya",
+      "text": "I asked. Farah said no, twice, politely. PayU, or no payments in the pilot."
+    },
+    {
+      "start_ms": 145861,
+      "end_ms": 155261,
+      "speaker_id": "spk_priya",
+      "text": "Okay. So, what it costs. The UPI flow is behind an interface, I did that on purpose. Swapping the provider underneath is about a week."
+    },
+    {
+      "start_ms": 155912,
+      "end_ms": 160512,
+      "speaker_id": "spk_priya",
+      "text": "The polling workaround goes away, at least. PayU's callbacks apparently work."
+    },
+    {
+      "start_ms": 161200,
+      "end_ms": 164700,
+      "speaker_id": "spk_aditya",
+      "text": "A week on top of the 28th?"
+    },
+    {
+      "start_ms": 165425,
+      "end_ms": 176525,
+      "speaker_id": "spk_priya",
+      "text": "No. The 28th still holds for the flow itself, tested against the Razorpay sandbox because that's what I have. PayU sandbox integration I can have done by Thursday, October 1st."
+    },
+    {
+      "start_ms": 177287,
+      "end_ms": 179887,
+      "speaker_id": "spk_aditya",
+      "text": "That's eight days before freeze."
+    },
+    {
+      "start_ms": 180686,
+      "end_ms": 186686,
+      "speaker_id": "spk_priya",
+      "text": "It is. It's doable. Mandates I'm less sure about on PayU, I'll know by Monday."
+    },
+    {
+      "start_ms": 187022,
+      "end_ms": 196722,
+      "speaker_id": "spk_aditya",
+      "text": "Alright. Decision: the payments service uses PayU. This supersedes the kickoff decision on Razorpay. Rationale, Meridian's compliance team mandates it and they won't onboard another provider."
+    },
+    {
+      "start_ms": 197095,
+      "end_ms": 204095,
+      "speaker_id": "spk_rahul",
+      "text": "Okay. I'll pull the Razorpay SDK out of the shell by Friday the 25th. It's two files, mostly."
+    },
+    {
+      "start_ms": 204505,
+      "end_ms": 207605,
+      "speaker_id": "spk_sana",
+      "text": "Does PayU need anything from me?"
+    },
+    {
+      "start_ms": 208052,
+      "end_ms": 216252,
+      "speaker_id": "spk_priya",
+      "text": "Yes, actually. PayU requires an explicit consent screen before storing a payment instrument. Their copy, their checkbox. Can you design that?"
+    },
+    {
+      "start_ms": 216736,
+      "end_ms": 222036,
+      "speaker_id": "spk_sana",
+      "text": "Sure. Payment consent screen by Monday the 28th, checked against the checklist, obviously."
+    },
+    {
+      "start_ms": 222557,
+      "end_ms": 226157,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Now the other new thing. Kestrel Logistics."
+    },
+    {
+      "start_ms": 226715,
+      "end_ms": 228715,
+      "speaker_id": "spk_rahul",
+      "text": "Who?"
+    },
+    {
+      "start_ms": 229310,
+      "end_ms": 240410,
+      "speaker_id": "spk_aditya",
+      "text": "Second customer. A logistics company, a hundred and twenty drivers. They saw the Meridian demo and want the same app for delivery inspections. Meridian's CTO introduced them on the call."
+    },
+    {
+      "start_ms": 241042,
+      "end_ms": 245642,
+      "speaker_id": "spk_sana",
+      "text": "Oh, so that's who Kestrel is. I kept hearing the name."
+    },
+    {
+      "start_ms": 246311,
+      "end_ms": 256711,
+      "speaker_id": "spk_aditya",
+      "text": "They want a pilot starting November 16th, and they need iOS, their drivers are on iPhones. So iOS in November is now a real thing, not a maybe."
+    },
+    {
+      "start_ms": 257417,
+      "end_ms": 263417,
+      "speaker_id": "spk_priya",
+      "text": "Does Kestrel also have a compliance team with a vendor mandate? Asking for a friend."
+    },
+    {
+      "start_ms": 264160,
+      "end_ms": 272560,
+      "speaker_id": "spk_aditya",
+      "text": "Ha. I don't know. I'm doing a Kestrel discovery call on Wednesday the 30th, and this time I'm asking about compliance first."
+    },
+    {
+      "start_ms": 273340,
+      "end_ms": 278640,
+      "speaker_id": "spk_sana",
+      "text": "Can I join that? Their onboarding will be different. Drivers aren't bank agents."
+    },
+    {
+      "start_ms": 278957,
+      "end_ms": 280957,
+      "speaker_id": "spk_aditya",
+      "text": "Yes, join."
+    },
+    {
+      "start_ms": 281311,
+      "end_ms": 285311,
+      "speaker_id": "spk_rahul",
+      "text": "So to be clear, nothing about Kestrel changes October."
+    },
+    {
+      "start_ms": 285702,
+      "end_ms": 289702,
+      "speaker_id": "spk_aditya",
+      "text": "Nothing. October is Meridian, Android, PayU. Kestrel is November."
+    },
+    {
+      "start_ms": 290130,
+      "end_ms": 301230,
+      "speaker_id": "spk_aditya",
+      "text": "Let me read it back. Closed: offline is forms and inspections only. New requirements: seven year audit log, India data residency. Vendor: PayU replaces Razorpay. New customer: Kestrel, November, iOS."
+    },
+    {
+      "start_ms": 301695,
+      "end_ms": 312495,
+      "speaker_id": "spk_aditya",
+      "text": "Dates. Razorpay out of the shell the 25th, Rahul. Consent screen the 28th, Sana. UPI flow the 28th, Priya. PayU integration October 1st, Priya. Kestrel call the 30th, me."
+    },
+    {
+      "start_ms": 312997,
+      "end_ms": 318297,
+      "speaker_id": "spk_priya",
+      "text": "Correct. I'll email Razorpay's account manager tomorrow so they hear it from us."
+    },
+    {
+      "start_ms": 318836,
+      "end_ms": 329636,
+      "speaker_id": "spk_rahul",
+      "text": "One more thing. Can we write down why we picked Razorpay in the first place? Because in a month someone's going to ask, and I don't want to guess."
+    },
+    {
+      "start_ms": 330212,
+      "end_ms": 337212,
+      "speaker_id": "spk_aditya",
+      "text": "It's in the kickoff notes. Fastest UPI SDK, prior experience. Which turned out to be the wrong question."
+    },
+    {
+      "start_ms": 337825,
+      "end_ms": 340725,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. That's it. Retro next Wednesday."
+    }
+  ]
+}

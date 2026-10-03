@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_nimbus_001",
+    "subject": "Events pipeline: moving to Friday the 25th",
+    "started_at": "2026-09-22T16:40:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_dev",
+      "name": "Dev",
+      "email": "dev@nimbus.example"
+    },
+    {
+      "id": "spk_meera",
+      "name": "Meera",
+      "email": "meera@nimbus.example"
+    },
+    {
+      "id": "spk_anika",
+      "name": "Anika",
+      "email": "anika@nimbus.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_nimbus_001_1",
+      "sent_at": "2026-09-22T16:40:00+05:30",
+      "from": "dev@nimbus.example",
+      "to": [
+        "meera@nimbus.example"
+      ],
+      "cc": [
+        "anika@nimbus.example"
+      ],
+      "in_reply_to": null,
+      "subject": "Events pipeline: moving to Friday the 25th",
+      "body_text": "Meera,\n\nI said the 23rd was real. It isn't. The schema registry is up and it rejected Monday's load, correctly, because the source team added two nullable columns over the weekend. Fixing the models is a day.\n\nI'm moving the events pipeline from Wednesday the 23rd to Friday the 25th. The registry did its job, which is the only good news here.\n\nDev"
+    },
+    {
+      "id": "msg_nimbus_001_2",
+      "sent_at": "2026-09-22T17:05:00+05:30",
+      "from": "meera@nimbus.example",
+      "to": [
+        "dev@nimbus.example"
+      ],
+      "cc": [
+        "anika@nimbus.example"
+      ],
+      "in_reply_to": "msg_nimbus_001_1",
+      "subject": "Re: Events pipeline: moving to Friday the 25th",
+      "body_text": "Acknowledged. The 25th. Anika, that pushes the Lumen dashboard; tell me a date you believe.\n\nMeera"
+    },
+    {
+      "id": "msg_nimbus_001_3",
+      "sent_at": "2026-09-22T17:30:00+05:30",
+      "from": "anika@nimbus.example",
+      "to": [
+        "meera@nimbus.example"
+      ],
+      "cc": [
+        "dev@nimbus.example"
+      ],
+      "in_reply_to": "msg_nimbus_001_2",
+      "subject": "Re: Events pipeline: moving to Friday the 25th",
+      "body_text": "The Lumen dashboard moves to Tuesday the 29th. I need two working days after the pipeline lands, and I'm not promising a weekend.\n\nAnika"
+    },
+    {
+      "id": "msg_nimbus_001_4",
+      "sent_at": "2026-09-22T17:41:00+05:30",
+      "from": "meera@nimbus.example",
+      "to": [
+        "dev@nimbus.example",
+        "anika@nimbus.example"
+      ],
+      "cc": [],
+      "in_reply_to": "msg_nimbus_001_3",
+      "subject": "Re: Events pipeline: moving to Friday the 25th",
+      "body_text": "Fine. Both moves noted. Nothing else moves without a reason I can give finance.\n\nMeera"
+    }
+  ]
+}

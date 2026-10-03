@@ -1,0 +1,292 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_orbit_004",
+    "title": "Orbit standup 2",
+    "started_at": "2026-09-21T10:00:00+05:30",
+    "ended_at": "2026-09-21T10:04:28+05:30",
+    "audio_uri": "data/meetings/orbit_004.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "role": "lead"
+    },
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "role": "backend"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "role": "mobile"
+    },
+    {
+      "id": "spk_sana",
+      "name": "Sana",
+      "role": "design"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 7400,
+      "speaker_id": "spk_aditya",
+      "text": "Standup. Same shape: done, next, blockers. Then decisions since last standup, then stale commitments. Sana, you first this time."
+    },
+    {
+      "start_ms": 7700,
+      "end_ms": 15700,
+      "speaker_id": "spk_sana",
+      "text": "Done: onboarding screens, all five, delivered Saturday the 19th with the fifty-six dp buttons. They're in Figma, Rahul has the link."
+    },
+    {
+      "start_ms": 16037,
+      "end_ms": 18937,
+      "speaker_id": "spk_rahul",
+      "text": "Yep. Started building them this morning."
+    },
+    {
+      "start_ms": 19311,
+      "end_ms": 26311,
+      "speaker_id": "spk_sana",
+      "text": "Next: the payment screens review against the checklist, and I'm helping Rahul with the drawer states. Blockers: none."
+    },
+    {
+      "start_ms": 26722,
+      "end_ms": 28722,
+      "speaker_id": "spk_aditya",
+      "text": "Good. Rahul."
+    },
+    {
+      "start_ms": 29170,
+      "end_ms": 37170,
+      "speaker_id": "spk_rahul",
+      "text": "Done: tab bar is out, drawer is in on my branch. It should merge tomorrow, so on track for the 23rd."
+    },
+    {
+      "start_ms": 37655,
+      "end_ms": 43355,
+      "speaker_id": "spk_rahul",
+      "text": "The offline sync queue is working on a real device now, replay and all."
+    },
+    {
+      "start_ms": 43877,
+      "end_ms": 45877,
+      "speaker_id": "spk_aditya",
+      "text": "Conflicts?"
+    },
+    {
+      "start_ms": 46436,
+      "end_ms": 56136,
+      "speaker_id": "spk_rahul",
+      "text": "Last-write-wins per field is in, with the toast Sana wanted. Next: I want to demo the whole offline flow end to end next Monday, the 28th."
+    },
+    {
+      "start_ms": 56732,
+      "end_ms": 59232,
+      "speaker_id": "spk_aditya",
+      "text": "Put it down. Blockers?"
+    },
+    {
+      "start_ms": 59865,
+      "end_ms": 70265,
+      "speaker_id": "spk_rahul",
+      "text": "Yes, actually. Test devices. I'm testing on my Pixel, which is not a five inch rugged thing you use with gloves. I need two of Meridian's actual devices."
+    },
+    {
+      "start_ms": 70935,
+      "end_ms": 75235,
+      "speaker_id": "spk_sana",
+      "text": "I can lend you my old Moto, it's five inch."
+    },
+    {
+      "start_ms": 75942,
+      "end_ms": 80942,
+      "speaker_id": "spk_rahul",
+      "text": "It's not rugged and it doesn't come with gloves, but sure, thanks."
+    },
+    {
+      "start_ms": 81686,
+      "end_ms": 87686,
+      "speaker_id": "spk_aditya",
+      "text": "I have the Meridian call on Wednesday. I'll ask them for two test devices then."
+    },
+    {
+      "start_ms": 88467,
+      "end_ms": 90467,
+      "speaker_id": "spk_rahul",
+      "text": "Thanks."
+    },
+    {
+      "start_ms": 90785,
+      "end_ms": 92785,
+      "speaker_id": "spk_aditya",
+      "text": "Priya."
+    },
+    {
+      "start_ms": 93140,
+      "end_ms": 103240,
+      "speaker_id": "spk_priya",
+      "text": "Okay. UPI flow. You've all seen my email from Thursday: it's Monday the 28th now, not the 25th. I'm confirming that here so it's on the record."
+    },
+    {
+      "start_ms": 103632,
+      "end_ms": 109632,
+      "speaker_id": "spk_aditya",
+      "text": "I saw it. That's the second slip, Priya. The 25th was supposed to be real."
+    },
+    {
+      "start_ms": 110061,
+      "end_ms": 119161,
+      "speaker_id": "spk_priya",
+      "text": "I know. And the flow itself is done, the polling works, the one-time path works. What moved is UPI autopay, the mandates Meridian wants."
+    },
+    {
+      "start_ms": 119627,
+      "end_ms": 125627,
+      "speaker_id": "spk_priya",
+      "text": "Razorpay's merchant KYC for mandates is five business days, not three like they told me."
+    },
+    {
+      "start_ms": 126130,
+      "end_ms": 132830,
+      "speaker_id": "spk_priya",
+      "text": "It unlocks Thursday the 24th at the earliest, and I need two days to test mandates properly."
+    },
+    {
+      "start_ms": 133370,
+      "end_ms": 137370,
+      "speaker_id": "spk_aditya",
+      "text": "So the date isn't your code, it's their KYC."
+    },
+    {
+      "start_ms": 137947,
+      "end_ms": 144647,
+      "speaker_id": "spk_priya",
+      "text": "Mostly. The 28th is honest. I'm not going to say the 25th and then email you again."
+    },
+    {
+      "start_ms": 145261,
+      "end_ms": 155661,
+      "speaker_id": "spk_aditya",
+      "text": "Okay. The UPI flow is Monday the 28th. That's the last move. If it slips again we cut mandates from the release, like I said in the email."
+    },
+    {
+      "start_ms": 156312,
+      "end_ms": 161312,
+      "speaker_id": "spk_priya",
+      "text": "Agreed. If KYC isn't through by Thursday, I'll say so on Thursday."
+    },
+    {
+      "start_ms": 162000,
+      "end_ms": 171100,
+      "speaker_id": "spk_priya",
+      "text": "Also, repeating from the email so it's on the record: payments service deployed to staging by Friday the 25th, with the one-time UPI flow."
+    },
+    {
+      "start_ms": 171825,
+      "end_ms": 176825,
+      "speaker_id": "spk_priya",
+      "text": "So Rahul can test against a real endpoint instead of my branch."
+    },
+    {
+      "start_ms": 177587,
+      "end_ms": 180187,
+      "speaker_id": "spk_rahul",
+      "text": "That would help a lot."
+    },
+    {
+      "start_ms": 180986,
+      "end_ms": 182986,
+      "speaker_id": "spk_aditya",
+      "text": "Blockers?"
+    },
+    {
+      "start_ms": 183322,
+      "end_ms": 188622,
+      "speaker_id": "spk_priya",
+      "text": "Only the KYC thing, and the offline payments question, which is still open."
+    },
+    {
+      "start_ms": 188995,
+      "end_ms": 197695,
+      "speaker_id": "spk_aditya",
+      "text": "Right. Me. Meridian signed off the drawer mockup on Friday the 18th, no changes. Farah from their compliance team replied on the thread."
+    },
+    {
+      "start_ms": 198105,
+      "end_ms": 200105,
+      "speaker_id": "spk_sana",
+      "text": "Oh, good."
+    },
+    {
+      "start_ms": 200552,
+      "end_ms": 211652,
+      "speaker_id": "spk_aditya",
+      "text": "Decisions since last standup. From the design review: the side drawer replaces the tab bar, Meridian's checklist is the baseline, fifty-six dp buttons, last-write-wins per field. Nothing new since Wednesday."
+    },
+    {
+      "start_ms": 212136,
+      "end_ms": 220136,
+      "speaker_id": "spk_aditya",
+      "text": "One new decision today, though. Code freeze is Friday, October 9th. One week before release. Nothing merges after that except fixes."
+    },
+    {
+      "start_ms": 220657,
+      "end_ms": 224657,
+      "speaker_id": "spk_rahul",
+      "text": "Eleven days from the UPI flow to freeze. Tight."
+    },
+    {
+      "start_ms": 225215,
+      "end_ms": 229515,
+      "speaker_id": "spk_aditya",
+      "text": "It is. That's why the 28th is the last move."
+    },
+    {
+      "start_ms": 230110,
+      "end_ms": 239810,
+      "speaker_id": "spk_aditya",
+      "text": "Stale commitments. The offline payments question has been open since the 14th. I'm closing it on Wednesday on the Meridian call, one way or the other."
+    },
+    {
+      "start_ms": 240442,
+      "end_ms": 242442,
+      "speaker_id": "spk_priya",
+      "text": "Please."
+    },
+    {
+      "start_ms": 243111,
+      "end_ms": 250811,
+      "speaker_id": "spk_aditya",
+      "text": "Everything else has a date or is done. Rahul, your drawer is due the 23rd, you said tomorrow, so fine."
+    },
+    {
+      "start_ms": 251517,
+      "end_ms": 259217,
+      "speaker_id": "spk_aditya",
+      "text": "The Meridian call is Wednesday the 23rd at nine, Priya's joining. We'll do a recap at ten for you two."
+    },
+    {
+      "start_ms": 259960,
+      "end_ms": 261960,
+      "speaker_id": "spk_sana",
+      "text": "Okay."
+    },
+    {
+      "start_ms": 262740,
+      "end_ms": 265040,
+      "speaker_id": "spk_aditya",
+      "text": "Anything else? No? Go."
+    },
+    {
+      "start_ms": 265357,
+      "end_ms": 267357,
+      "speaker_id": "spk_rahul",
+      "text": "Bye."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--package", "minutes-api", "uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8080"],
+      "port": 8080
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/web", "dev", "-p", "3001"],
+      "port": 3001
+    }
+  ]
+}

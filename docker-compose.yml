@@ -1,0 +1,47 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest   # 6.0.x; validated on 6.0.1. Fallback: falkordb/falkordb:v4.22.0
+    container_name: minutes-falkordb
+    ports:
+      - "6379:6379"   # database
+      - "3000:3000"   # FalkorDB Browser
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data
+    environment:
+      - FALKORDB_ARGS=TIMEOUT_DEFAULT 3000 TIMEOUT_MAX 10000 MAX_QUEUED_QUERIES 500
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: minutes-api
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - FALKORDB_URL=falkor://falkordb:6379
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./data:/app/data:ro
+
+  web:
+    build:
+      context: ./apps/web
+    container_name: minutes-web
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    ports:
+      - "3001:3000"
+
+volumes:
+  falkordb_data:

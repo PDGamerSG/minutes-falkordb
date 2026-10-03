@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "thread": {
+    "id": "thr_orbit_002",
+    "subject": "UPI flow: moving to Monday the 28th",
+    "started_at": "2026-09-17T14:02:00+05:30"
+  },
+  "people": [
+    {
+      "id": "spk_priya",
+      "name": "Priya",
+      "email": "priya@orbit.example"
+    },
+    {
+      "id": "spk_aditya",
+      "name": "Aditya",
+      "email": "aditya@orbit.example"
+    },
+    {
+      "id": "spk_rahul",
+      "name": "Rahul",
+      "email": "rahul@orbit.example"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_orbit_002_1",
+      "sent_at": "2026-09-17T14:02:00+05:30",
+      "from": "priya@orbit.example",
+      "to": [
+        "aditya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": null,
+      "subject": "UPI flow: moving to Monday the 28th",
+      "body_text": "Aditya,\n\nQuick heads-up on the UPI flow, as promised yesterday: I'm not waiting for Monday.\n\nI submitted the Razorpay merchant KYC for UPI autopay mandates this morning. Their support just confirmed it takes five business days for sandbox mandate activation, not three. That puts the unlock on Thursday the 24th at the earliest, and I need two full days after that to test mandates against real callbacks.\n\nSo I'm moving the UPI flow from Friday the 25th to Monday the 28th. The one-time UPI path already works and will be on staging by Friday the 25th regardless; this move is only about mandates.\n\nRahul, cc'ing you because your shell tests against staging, not against my branch, so your dates don't change.\n\nPriya"
+    },
+    {
+      "id": "msg_orbit_002_2",
+      "sent_at": "2026-09-17T14:35:00+05:30",
+      "from": "aditya@orbit.example",
+      "to": [
+        "priya@orbit.example"
+      ],
+      "cc": [
+        "rahul@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_002_1",
+      "subject": "Re: UPI flow: moving to Monday the 28th",
+      "body_text": "Priya,\n\nAcknowledged. The UPI flow is Monday the 28th. Noted on the board.\n\nThat is the second move on this one (24th, 25th, now 28th). Decision: if it moves again, we cut UPI autopay mandates from the October release and ship one-time UPI only. I would rather ship less than ship late.\n\nThanks for not waiting for Monday.\n\nAditya\n\nOn Thu, 17 Sep 2026 at 14:02, Priya <priya@orbit.example> wrote:\n> So I'm moving the UPI flow from Friday the 25th to Monday the 28th."
+    },
+    {
+      "id": "msg_orbit_002_3",
+      "sent_at": "2026-09-17T15:10:00+05:30",
+      "from": "rahul@orbit.example",
+      "to": [
+        "priya@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_002_1",
+      "subject": "Re: UPI flow: moving to Monday the 28th",
+      "body_text": "Fine by me. I test against staging, so the 25th is the date I care about.\n\nIf mandates do get cut, tell me early so I can hide the autopay toggle rather than ship a dead button.\n\nRahul"
+    },
+    {
+      "id": "msg_orbit_002_4",
+      "sent_at": "2026-09-17T15:18:00+05:30",
+      "from": "priya@orbit.example",
+      "to": [
+        "rahul@orbit.example"
+      ],
+      "cc": [
+        "aditya@orbit.example"
+      ],
+      "in_reply_to": "msg_orbit_002_3",
+      "subject": "Re: UPI flow: moving to Monday the 28th",
+      "body_text": "Will do. You'll know on Thursday the 24th either way; that's when the KYC unlocks, or doesn't.\n\nPriya"
+    }
+  ]
+}

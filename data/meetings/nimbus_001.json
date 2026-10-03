@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "meeting": {
+    "id": "mtg_nimbus_001",
+    "title": "Nimbus warehouse migration kickoff",
+    "started_at": "2026-09-08T10:00:00+05:30",
+    "ended_at": "2026-09-08T10:02:46+05:30",
+    "audio_uri": "data/meetings/nimbus_001.wav"
+  },
+  "speakers": [
+    {
+      "id": "spk_meera",
+      "name": "Meera",
+      "role": "data lead"
+    },
+    {
+      "id": "spk_dev",
+      "name": "Dev",
+      "role": "data engineer"
+    },
+    {
+      "id": "spk_anika",
+      "name": "Anika",
+      "role": "analyst"
+    }
+  ],
+  "segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 7000,
+      "speaker_id": "spk_meera",
+      "text": "Okay, Nimbus kickoff for the warehouse migration. Dev, Anika, this should be short. Three decisions and some dates."
+    },
+    {
+      "start_ms": 7300,
+      "end_ms": 11600,
+      "speaker_id": "spk_dev",
+      "text": "Short is good. I've got a pipeline failing at eleven."
+    },
+    {
+      "start_ms": 11937,
+      "end_ms": 20337,
+      "speaker_id": "spk_meera",
+      "text": "First, the warehouse. We've been on the Postgres replica for reporting for two years and it's dying. Options are BigQuery or Snowflake."
+    },
+    {
+      "start_ms": 20711,
+      "end_ms": 29811,
+      "speaker_id": "spk_dev",
+      "text": "BigQuery. We're already on GCP, the events land in GCS anyway, and the free tier covers our volume for months. Snowflake is another contract."
+    },
+    {
+      "start_ms": 30222,
+      "end_ms": 35522,
+      "speaker_id": "spk_anika",
+      "text": "Does BigQuery change anything for the Lumen dashboard? Sales lives in that thing."
+    },
+    {
+      "start_ms": 35970,
+      "end_ms": 39970,
+      "speaker_id": "spk_dev",
+      "text": "The connector exists. You repoint the queries, that's it."
+    },
+    {
+      "start_ms": 40455,
+      "end_ms": 47155,
+      "speaker_id": "spk_meera",
+      "text": "Decision: the warehouse moves to BigQuery. Rationale, we're on GCP already and it's cheaper at our volume."
+    },
+    {
+      "start_ms": 47677,
+      "end_ms": 50577,
+      "speaker_id": "spk_meera",
+      "text": "Second, transformations. Dev, you wanted dbt."
+    },
+    {
+      "start_ms": 51136,
+      "end_ms": 58136,
+      "speaker_id": "spk_dev",
+      "text": "Yes. dbt for all the transformation models. Version controlled, tested. No more SQL living inside the dashboard tool."
+    },
+    {
+      "start_ms": 58732,
+      "end_ms": 64432,
+      "speaker_id": "spk_anika",
+      "text": "Fine by me, as long as I can still write the sales models myself."
+    },
+    {
+      "start_ms": 65065,
+      "end_ms": 67665,
+      "speaker_id": "spk_dev",
+      "text": "You can. That's the point."
+    },
+    {
+      "start_ms": 68335,
+      "end_ms": 73635,
+      "speaker_id": "spk_meera",
+      "text": "Decision: transformations are dbt models in the repo. Rationale, tests and version control."
+    },
+    {
+      "start_ms": 74342,
+      "end_ms": 78842,
+      "speaker_id": "spk_meera",
+      "text": "Third, the nightly job. When does the events load run?"
+    },
+    {
+      "start_ms": 79586,
+      "end_ms": 85886,
+      "speaker_id": "spk_dev",
+      "text": "Two a.m. IST. The source finishes writing around one, and nobody opens the dashboard before eight."
+    },
+    {
+      "start_ms": 86667,
+      "end_ms": 91267,
+      "speaker_id": "spk_meera",
+      "text": "Okay. Decision: the nightly events job runs at two a.m. IST."
+    },
+    {
+      "start_ms": 91585,
+      "end_ms": 95385,
+      "speaker_id": "spk_meera",
+      "text": "Dates. Dev, the events pipeline on BigQuery. When?"
+    },
+    {
+      "start_ms": 95740,
+      "end_ms": 99740,
+      "speaker_id": "spk_dev",
+      "text": "Events pipeline on BigQuery done by Friday, September 18th."
+    },
+    {
+      "start_ms": 100132,
+      "end_ms": 103232,
+      "speaker_id": "spk_meera",
+      "text": "The 18th. Anika, the Lumen dashboard?"
+    },
+    {
+      "start_ms": 103661,
+      "end_ms": 108961,
+      "speaker_id": "spk_anika",
+      "text": "I need the pipeline first. Lumen dashboard rebuilt on BigQuery by the 25th."
+    },
+    {
+      "start_ms": 109427,
+      "end_ms": 114427,
+      "speaker_id": "spk_meera",
+      "text": "And I'll send the migration plan to finance by Friday the 11th."
+    },
+    {
+      "start_ms": 114930,
+      "end_ms": 118530,
+      "speaker_id": "spk_dev",
+      "text": "Can we also settle retention? Finance will ask."
+    },
+    {
+      "start_ms": 119070,
+      "end_ms": 124070,
+      "speaker_id": "spk_meera",
+      "text": "Raw events are retained thirteen months, same as today. That's not changing."
+    },
+    {
+      "start_ms": 124647,
+      "end_ms": 129247,
+      "speaker_id": "spk_anika",
+      "text": "Sales also asked whether the dashboard goes down during the migration."
+    },
+    {
+      "start_ms": 129861,
+      "end_ms": 134161,
+      "speaker_id": "spk_meera",
+      "text": "No. We run both until the 25th, then cut over."
+    },
+    {
+      "start_ms": 134812,
+      "end_ms": 142212,
+      "speaker_id": "spk_dev",
+      "text": "One blocker. The source team keeps changing the events schema without telling us. It bit us twice in August."
+    },
+    {
+      "start_ms": 142900,
+      "end_ms": 148600,
+      "speaker_id": "spk_meera",
+      "text": "Raise it with them. If it happens again, we talk about a schema registry."
+    },
+    {
+      "start_ms": 149325,
+      "end_ms": 151325,
+      "speaker_id": "spk_dev",
+      "text": "Will do."
+    },
+    {
+      "start_ms": 152087,
+      "end_ms": 159487,
+      "speaker_id": "spk_meera",
+      "text": "Okay. BigQuery, dbt, two a.m. Pipeline the 18th, dashboard the 25th, plan the 11th. Weekly sync Tuesdays at ten."
+    },
+    {
+      "start_ms": 160286,
+      "end_ms": 162286,
+      "speaker_id": "spk_anika",
+      "text": "Tuesdays. Fine."
+    },
+    {
+      "start_ms": 162622,
+      "end_ms": 165522,
+      "speaker_id": "spk_dev",
+      "text": "Done. Going to fix my pipeline."
+    }
+  ]
+}

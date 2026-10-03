@@ -1,0 +1,89 @@
+{
+  "meeting_id": "mtg_orbit_002",
+  "items": [
+    {
+      "kind": "fact",
+      "subject": "Orbit standup",
+      "predicate": "uses_pattern",
+      "object": "done, next, blockers, decisions since last, stale commitments",
+      "speaker_id": "spk_aditya",
+      "segment_index": 0
+    },
+    {
+      "kind": "commitment",
+      "subject": "payments service API spec",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_priya",
+      "segment_index": 1
+    },
+    {
+      "kind": "commitment",
+      "subject": "UPI flow",
+      "predicate": "due",
+      "object": "2026-09-25",
+      "speaker_id": "spk_priya",
+      "segment_index": 6,
+      "supersedes": {
+        "subject": "UPI flow",
+        "predicate": "due"
+      }
+    },
+    {
+      "kind": "commitment",
+      "subject": "offline mode spike",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_rahul",
+      "segment_index": 12
+    },
+    {
+      "kind": "commitment",
+      "subject": "sync conflict resolution proposal",
+      "predicate": "due",
+      "object": "2026-09-16",
+      "speaker_id": "spk_rahul",
+      "segment_index": 18
+    },
+    {
+      "kind": "commitment",
+      "subject": "navigation accessibility review",
+      "predicate": "due",
+      "object": "2026-09-16",
+      "speaker_id": "spk_sana",
+      "segment_index": 32
+    },
+    {
+      "kind": "commitment",
+      "subject": "Meridian requirements call",
+      "predicate": "status",
+      "object": "completed",
+      "speaker_id": "spk_aditya",
+      "segment_index": 35
+    },
+    {
+      "kind": "fact",
+      "subject": "Meridian pilot start",
+      "predicate": "due",
+      "object": "2026-10-20",
+      "speaker_id": "spk_aditya",
+      "segment_index": 36
+    },
+    {
+      "kind": "decision",
+      "subject": "iOS build",
+      "predicate": "status",
+      "object": "deferred to November",
+      "speaker_id": "spk_aditya",
+      "segment_index": 37
+    },
+    {
+      "kind": "fact",
+      "subject": "payment receipts",
+      "predicate": "uses_pattern",
+      "object": "in-app only",
+      "speaker_id": "spk_aditya",
+      "segment_index": 39
+    }
+  ]
+}
