@@ -168,16 +168,20 @@ export function TimelinePage({ team }: { team: string }) {
     return events.filter((e) => e.t <= t).slice(-8).reverse();
   }, [events, t]);
 
+  // Optional text filter (e.g. "upi", "vendor") applied to both lists, for comparing one subject over time.
+  const [filter, setFilter] = useState("");
   const diff = useMemo(() => {
-    const atT = belief.data?.facts ?? [];
-    const now = nowFacts.data ?? [];
+    const needle = filter.trim().toLowerCase();
+    const keep = (f: Fact) => !needle || `${f.subject} ${f.predicate} ${f.object} ${f.text}`.toLowerCase().includes(needle);
+    const atT = (belief.data?.facts ?? []).filter(keep);
+    const now = (nowFacts.data ?? []).filter(keep);
     const nowIds = new Set(now.map((f) => f.id));
     const atIds = new Set(atT.map((f) => f.id));
     return {
       atT: atT.map((f) => ({ f, marker: nowIds.has(f.id) ? undefined : ("gone" as const) })),
       now: now.map((f) => ({ f, marker: atIds.has(f.id) ? undefined : ("new" as const) })),
     };
-  }, [belief.data, nowFacts.data]);
+  }, [belief.data, nowFacts.data, filter]);
 
   const loading = timeline.loading && !timeline.data;
 
@@ -274,11 +278,20 @@ export function TimelinePage({ team }: { team: string }) {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter facts (e.g. UPI, vendor, navigation)" className="h-8 max-w-sm text-xs" aria-label="Filter facts" />
+        {filter && (
+          <Button size="xs" variant="ghost" onClick={() => setFilter("")}>
+            clear
+          </Button>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Section
           title={
             <span>
-              Believed at T <span className="font-mono text-xs text-muted-foreground tabular">{belief.data ? `(${belief.data.facts.length})` : ""}</span>
+              Believed at T <span className="font-mono text-xs text-muted-foreground tabular">{belief.data ? `(${diff.atT.length}${filter ? ` of ${belief.data.facts.length}` : ""})` : ""}</span>
             </span>
           }
           description="Active at the selected time. Orange: superseded or retracted since."
@@ -295,7 +308,7 @@ export function TimelinePage({ team }: { team: string }) {
         <Section
           title={
             <span>
-              Now <span className="font-mono text-xs text-muted-foreground tabular">{nowFacts.data ? `(${nowFacts.data.length})` : ""}</span>
+              Now <span className="font-mono text-xs text-muted-foreground tabular">{nowFacts.data ? `(${diff.now.length}${filter ? ` of ${nowFacts.data.length}` : ""})` : ""}</span>
             </span>
           }
           description="Active facts right now. Green: created after T."

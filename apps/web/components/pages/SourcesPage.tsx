@@ -26,6 +26,8 @@ function speakerStyle(idx: number): React.CSSProperties {
 }
 
 // ---------- import panel (shared by both tabs) ----------
+const STAT_KEYS = ["episodes", "entities", "facts", "decisions", "commitments", "superseded", "duplicates", "refinements", "dropped"] as const;
+
 function ImportPanel({
   tenant,
   kind,
@@ -52,7 +54,10 @@ function ImportPanel({
         if (stop) return;
         setJob(j);
         if (j.status === "done") {
-          toast.success(`${kind === "meeting" ? "Meeting" : "Thread"} ingested: ${j.stats.episodes} episodes, ${j.stats.facts} facts`);
+          const errs = Array.isArray(j.stats.errors) ? j.stats.errors.length : 0;
+          const msg = `${kind === "meeting" ? "Meeting" : "Thread"} ingested: ${j.stats.episodes} episodes, ${j.stats.facts} facts`;
+          if (errs > 0) toast.warning(`${msg} (${errs} extraction error${errs === 1 ? "" : "s"})`);
+          else toast.success(msg);
           onDone();
           return;
         }
@@ -132,13 +137,25 @@ function ImportPanel({
           </div>
           {job && (
             <dl className="grid grid-cols-3 gap-x-3 gap-y-1 sm:grid-cols-6">
-              {(Object.keys(job.stats) as Array<keyof Job["stats"]>).map((k) => (
+              {STAT_KEYS.filter((k) => typeof job.stats[k] === "number").map((k) => (
                 <div key={k}>
                   <dt className="text-[10px] tracking-wide text-muted-foreground uppercase">{k}</dt>
-                  <dd className="font-semibold tabular">{fmtNum(job.stats[k])}</dd>
+                  <dd className="font-semibold tabular">{fmtNum(job.stats[k] as number)}</dd>
                 </div>
               ))}
             </dl>
+          )}
+          {job && Array.isArray(job.stats.errors) && job.stats.errors.length > 0 && (
+            <details className="rounded-md border border-(--state-failed)/30 bg-(--state-failed)/5 px-2 py-1">
+              <summary className="cursor-pointer text-(--state-failed)">
+                {job.stats.errors.length} extraction error{job.stats.errors.length === 1 ? "" : "s"} (episodes kept, facts for those episodes skipped)
+              </summary>
+              <ul className="mt-1 space-y-1 font-mono text-[10px] break-words text-muted-foreground">
+                {job.stats.errors.slice(0, 5).map((e, i) => (
+                  <li key={i}>{String(e).slice(0, 240)}</li>
+                ))}
+              </ul>
+            </details>
           )}
           {job?.error && <ErrorNote error={job.error} />}
         </div>
@@ -152,7 +169,10 @@ function MeetingDetail({ tenant, meeting, seekTo }: { tenant: string; meeting: M
   const { data: episodes, error, loading } = useResource(() => api.meetings.episodes(tenant, meeting.id), [tenant, meeting.id]);
   const { data: hasAudio } = useResource(() => api.meetings.hasAudio(tenant, meeting.id), [tenant, meeting.id]);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // The clicked/playing episode, scoped to the deep link it was set under so a new `t` wins.
+  const [active, setActive] = useState<{ id: string; seek: number | null; meeting: string } | null>(null);
+  const activeId = active && active.seek === seekTo && active.meeting === meeting.id ? active.id : null;
+  const setActiveId = useCallback((id: string) => setActive({ id, seek: seekTo, meeting: meeting.id }), [seekTo, meeting.id]);
 
   const speakers = useMemo(() => {
     const ids: string[] = [];
@@ -256,12 +276,21 @@ function MeetingDetail({ tenant, meeting, seekTo }: { tenant: string; meeting: M
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <Button size="xs" variant="ghost" className="-ml-1 font-mono text-[11px] text-muted-foreground tabular" onClick={() => playAt(e.t_start)} disabled={!hasAudio} />
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="-ml-1 font-mono text-[11px] text-muted-foreground tabular"
+                          onClick={() => {
+                            // Without audio, "play at" highlights the transcript segment.
+                            setActiveId(e.id);
+                            if (hasAudio) playAt(e.t_start);
+                          }}
+                        />
                       }
                     >
                       <Play className="size-3" /> {fmtClock(e.t_start)}
                     </TooltipTrigger>
-                    <TooltipContent>{hasAudio ? `Play at ${fmtClock(e.t_start)}` : "No audio for this meeting"}</TooltipContent>
+                    <TooltipContent>{hasAudio ? `Play at ${fmtClock(e.t_start)}` : "No audio for this meeting: highlights the transcript segment"}</TooltipContent>
                   </Tooltip>
                 </div>
                 <div className="min-w-0">
@@ -317,11 +346,11 @@ function MeetingsTab({ tenant, selectedId, title, seekTo, onSelect }: { tenant: 
               <TableBody>
                 {data.map((m) => (
                   <TableRow key={m.id} data-state={m.id === selectedId ? "selected" : undefined} className="cursor-pointer" onClick={() => onSelect(m.id)}>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <div className="flex items-center gap-2">
                         <Mic className="size-3.5 shrink-0 text-muted-foreground" />
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{m.title}</div>
+                          <div className="font-medium break-words">{m.title}</div>
                           <div className="text-[11px] text-muted-foreground tabular">
                             {fmtDateTime(m.started_at)} · {fmtDuration(m.ended_at != null ? m.ended_at - m.started_at : null)}
                           </div>
@@ -411,11 +440,11 @@ function EmailTab({ tenant, selectedId, title, messageId, onSelect }: { tenant: 
               <TableBody>
                 {data.map((t) => (
                   <TableRow key={t.id} data-state={t.id === selectedId ? "selected" : undefined} className="cursor-pointer" onClick={() => onSelect(t.id)}>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <div className="flex items-center gap-2">
                         <Mail className="size-3.5 shrink-0 text-muted-foreground" />
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{t.subject}</div>
+                          <div className="font-medium break-words">{t.subject}</div>
                           <div className="text-[11px] text-muted-foreground tabular">{fmtDateTime(t.started_at)}</div>
                         </div>
                       </div>

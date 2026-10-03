@@ -1,6 +1,6 @@
 "use client";
 
-import type { Fact, WhyResponse } from "@/lib/types";
+import type { Fact, GraphNode, WhyResponse } from "@/lib/types";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CypherBlock } from "@/components/CypherBlock";
@@ -37,8 +37,18 @@ export function HistoryList({ history, currentId, className }: { history: Fact[]
   );
 }
 
+/** The API returns the fact record itself as `node` ({id, kind, labels, text, status, ...}); mocks use {id, label, props}. */
+function normalizeNode(raw: WhyResponse["node"] | Record<string, unknown>): GraphNode {
+  const r = raw as Record<string, unknown>;
+  if (typeof r.label === "string" && r.props && typeof r.props === "object") return raw as GraphNode;
+  const labels = Array.isArray(r.labels) ? (r.labels as string[]) : [];
+  const kind = typeof r.kind === "string" ? r.kind : null;
+  const label = labels.find((l) => l !== "Fact") ?? (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : labels[0]) ?? "Node";
+  return { id: String(r.id ?? ""), label, props: r };
+}
+
 export function WhyPanel({ tenant, why, showGraph = true, className }: { tenant: string; why: WhyResponse; showGraph?: boolean; className?: string }) {
-  const node = why.node;
+  const node = normalizeNode(why.node);
   const text = (node.props?.text as string | undefined) ?? (node.props?.name as string | undefined) ?? node.id;
   const prov: Provenance | null = why.source
     ? fromSourceRef(why.source, why.speaker?.name)

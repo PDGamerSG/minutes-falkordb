@@ -71,12 +71,15 @@ function fmtProp(key: string, v: unknown): string {
   return JSON.stringify(v);
 }
 
+/** /why/{id} explains facts (provenance and supersession); other nodes have no Why. */
+const WHY_LABELS = new Set(["Fact", "Decision", "Commitment"]);
+
 export function NodeColorDot({ label, className }: { label: string; className?: string }) {
   return (
     <span
       aria-hidden
       className={cn("inline-block size-2 shrink-0 rounded-full", className)}
-      style={{ background: `var(--node-${label.toLowerCase()}, var(--node-default))` }}
+      style={{ background: `var(--node-${String(label ?? "default").toLowerCase()}, var(--node-default))` }}
     />
   );
 }
@@ -152,7 +155,7 @@ export function GraphView({ subgraph, tenant, height = 320, className, panel = t
           <Skeleton className="h-full w-full rounded-none" />
         )}
         {!empty && (
-          <div className="pointer-events-none absolute bottom-1.5 left-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-muted-foreground">
+          <div className="pointer-events-none absolute right-2 bottom-1.5 left-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-muted-foreground">
             {labelsPresent.map((l) => (
               <span key={l} className="inline-flex items-center gap-1">
                 <NodeColorDot label={l} />
@@ -191,7 +194,7 @@ export function GraphView({ subgraph, tenant, height = 320, className, panel = t
               ))}
             </dl>
           </div>
-          {tenant && (
+          {tenant && WHY_LABELS.has(selected.label) && (
             <div className="border-t p-2">
               <Button size="sm" variant="outline" className="w-full" onClick={() => openWhy(tenant, selected.id)}>
                 <Search /> Why

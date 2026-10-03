@@ -66,6 +66,8 @@ export type JobStats = {
   decisions: number;
   commitments: number;
   superseded: number;
+  // The API adds pipeline details (container_id, source_kind, duplicates, errors, ...).
+  [extra: string]: unknown;
 };
 
 export type Job = {
@@ -105,6 +107,8 @@ export type EmailMessage = {
   sent_at: number;
   text: string;
   in_reply_to: string | null;
+  /** Original message id from the export (msg_*); `id` is the Episode id. Why/chat sources carry this one. */
+  message_id?: string | null;
 };
 
 // ---------- Memory ----------
@@ -128,8 +132,10 @@ export type Fact = {
   due_at?: number | null;
   /** Present when the API has the email-format delta applied. */
   source?: SourceRef;
-  /** Id of the fact this one supersedes, when known (not in contract; mock-only convenience). */
+  /** Id of the fact this one supersedes, when known. */
   supersedes?: string | null;
+  /** Commitment owner (open-commitments only). */
+  owner?: PersonRef | null;
 };
 
 export type GraphNode = { id: string; label: string; props: Record<string, unknown> };
@@ -192,6 +198,21 @@ export type ChatSource = {
   container_id?: string;
 };
 
+/** Raw utterance or email retrieved by episode recall and shown to the model as evidence. */
+export type ChatEpisode = {
+  episode_id: string;
+  kind: SourceKind;
+  speaker: string;
+  container_id: string;
+  text: string;
+  t: number;
+  meeting?: string;
+  t_start?: number | null;
+  thread?: string;
+  sent_at?: number | null;
+  score?: number;
+};
+
 export type ChatResponse = {
   answer: string;
   session_id: string;
@@ -199,6 +220,7 @@ export type ChatResponse = {
   cypher: string[];
   subgraph: Subgraph;
   sources: ChatSource[];
+  episodes?: ChatEpisode[];
   model: string;
   latency_ms: number;
 };
@@ -342,7 +364,8 @@ export type Skill = {
 
 // ---------- Bench ----------
 export type Engine = "6.0.1" | "4.22.0";
-export type BenchTarget = "local" | "railway";
+/** "local", "railway", or a harness label such as "local-p4" / "local-p8-q1000" (procs, queue size). */
+export type BenchTarget = string;
 
 export type BenchResult = {
   run_id: string;
@@ -360,6 +383,15 @@ export type BenchResult = {
   write_p99: number;
   errors: number;
   cas: { attempts: number; winners: number; losers: number };
+  // Optional fields written by newer harness runs (packages/hiveboard/bench/harness.py).
+  ops?: { total?: number; reads?: number; writes?: number; per_second?: number; read_ratio?: number };
+  cas_violations?: unknown[];
+  client?: { procs?: number; mode?: string; python?: string };
+  server?: { THREAD_COUNT?: number; MAX_QUEUED_QUERIES?: number; [k: string]: unknown };
+  cpu?: { server_cores_busy?: number; client_cores_busy?: number; [k: string]: unknown };
+  usage_mb?: number | Record<string, number>;
+  note?: string;
+  source?: string;
 };
 
 // ---------- Health ----------

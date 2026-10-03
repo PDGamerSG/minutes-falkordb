@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -268,6 +269,9 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+_RETRY_HINT = re.compile(r"(?:retry in|retryDelay['\"]?\s*:\s*['\"])\s*([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
+
+
 class GeminiBackend:
     """google-genai. Verified against gemma-4-26b-a4b-it on 2026-10-03: system instructions and JSON mode
     are accepted; `thinking_budget` is rejected but `thinking_level="minimal"` turns thinking off (2 s
@@ -280,6 +284,7 @@ class GeminiBackend:
     supports_json_mode = True
     THINKING_HEADROOM = 4096  # extra output tokens when thinking cannot be switched off
     MAX_TRANSIENT_RETRIES = 4
+    MAX_RETRY_WAIT_S = 25.0
 
     def __init__(self, model: str, api_key: str | None, *, timeout_s: float, think: bool) -> None:
         from google import genai
@@ -342,7 +347,14 @@ class GeminiBackend:
                 if code in (429, 500, 503) and transient_attempts < self.MAX_TRANSIENT_RETRIES:
                     transient_attempts += 1
                     self._active = (self._active + 1) % len(self._clients)
-                    time.sleep(min(2.0 * transient_attempts, 8.0))
+                    delay = min(2.0 * transient_attempts, 8.0)
+                    # Once every key has been tried, honour the server's retry hint (free-tier per-minute
+                    # quotas say "retry in 20s"); fixed short backoffs would give up before the window resets.
+                    if code == 429 and transient_attempts >= len(self._clients):
+                        hint = _RETRY_HINT.search(str(exc))
+                        if hint:
+                            delay = max(delay, min(float(hint.group(1)) + 0.5, self.MAX_RETRY_WAIT_S))
+                    time.sleep(delay)
                     continue
                 feature_attempts += 1
                 if use_minimal and "thinking" in message:

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Mail, Mic, Play } from "lucide-react";
-import type { ChatSource, SourceKind, SourceRef } from "@/lib/types";
+import type { ChatEpisode, ChatSource, SourceKind, SourceRef } from "@/lib/types";
 import { fmtClock, fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,20 @@ export function fromChatSource(s: ChatSource): Provenance {
     sent_at: s.sent_at ?? null,
     message_id: s.message_id ?? null,
     fact_id: s.fact_id,
+  };
+}
+
+export function fromChatEpisode(e: ChatEpisode): Provenance {
+  const kind: SourceKind = e.kind ?? (e.sent_at != null ? "email" : "utterance");
+  return {
+    kind,
+    speaker: e.speaker,
+    containerId: e.container_id ?? null,
+    containerTitle: kind === "email" ? (e.thread ?? null) : (e.meeting ?? null),
+    t_start: e.t_start ?? null,
+    sent_at: e.sent_at ?? e.t ?? null,
+    // The email drawer matches either the Episode id or the export's message id.
+    message_id: kind === "email" ? e.episode_id : null,
   };
 }
 

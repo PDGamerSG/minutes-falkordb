@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
@@ -21,8 +21,33 @@ const SERIES: Array<{ engine: Engine; key: "e601" | "e4220"; color: string; labe
   { engine: "6.0.1", key: "e601", color: "var(--chart-1)", label: "FalkorDB 6.0.1" },
   { engine: "4.22.0", key: "e4220", color: "var(--chart-3)", label: "FalkorDB 4.22.0" },
 ];
-const TARGETS: BenchTarget[] = ["local", "railway"];
 const PCTS = ["p50", "p95", "p99"] as const;
+
+// Harness runs report durations like 60.02 s; group them with the 60 s runs.
+const cfgKey = (r: Pick<BenchResult, "agents" | "tenants" | "duration_s">) => `${r.agents}x${r.tenants}x${Math.round(r.duration_s)}`;
+
+/** Client processes and queue size, from the run's metadata or its target label ("local-p8-q1000"). */
+function setupOf(target: BenchTarget, r?: BenchResult): { base: string; procs: number; queue: number | null } {
+  const base = target.split("-")[0] || target;
+  const procs = r?.client?.procs ?? Number(/-p(\d+)/.exec(target)?.[1] ?? 1);
+  const qMatch = /-q(\d+)/.exec(target);
+  const q = r?.server?.MAX_QUEUED_QUERIES ?? (qMatch ? Number(qMatch[1]) : null);
+  return { base, procs, queue: q != null && q !== 25 ? q : null };
+}
+
+function setupLabel(target: BenchTarget, r?: BenchResult): string {
+  const s = setupOf(target, r);
+  return [s.base, `${s.procs} client proc${s.procs === 1 ? "" : "s"}`, s.queue != null ? `MAX_QUEUED ${s.queue}` : null].filter(Boolean).join(" · ");
+}
+
+function compareTargets(a: BenchTarget, b: BenchTarget): number {
+  const sa = setupOf(a);
+  const sb = setupOf(b);
+  const rank = (x: string) => (x === "local" ? 0 : x === "railway" ? 1 : 2);
+  return rank(sa.base) - rank(sb.base) || sa.base.localeCompare(sb.base) || sb.procs - sa.procs || (sa.queue ?? 0) - (sb.queue ?? 0);
+}
+
+const opsPerSec = (r?: BenchResult) => (typeof r?.ops?.per_second === "number" ? r.ops.per_second : null);
 
 type Row = { pct: string; e601?: number; e4220?: number };
 
@@ -56,7 +81,7 @@ function LatencyTooltip({ active, payload, label }: { active?: boolean; payload?
   );
 }
 
-function LatencyChart({ title, subtitle, data }: { title: string; subtitle: string; data: Row[] }) {
+function LatencyChart({ title, subtitle, data }: { title: string; subtitle: ReactNode; data: Row[] }) {
   const has = data.some((d) => d.e601 != null || d.e4220 != null);
   return (
     <div className="rounded-lg border bg-card p-3">
@@ -167,11 +192,17 @@ function RunBenchDialog({ onDone }: { onDone: () => void }) {
 export function BenchPage() {
   const { data, error, loading, refetch } = useResource(() => api.bench.results(), []);
 
-  // Compare engines at the same load; default to the largest agent count present.
+  // Compare engines at the same load. Default: the largest load that has runs for both engines.
   const configs = useMemo(() => {
-    const set = new Map<string, { agents: number; tenants: number; duration_s: number }>();
-    for (const r of data ?? []) set.set(`${r.agents}x${r.tenants}x${r.duration_s}`, { agents: r.agents, tenants: r.tenants, duration_s: r.duration_s });
-    return [...set.entries()].sort((a, b) => b[1].agents - a[1].agents);
+    const set = new Map<string, { agents: number; tenants: number; duration_s: number; engines: Set<string> }>();
+    for (const r of data ?? []) {
+      const k = cfgKey(r);
+      const c = set.get(k) ?? { agents: r.agents, tenants: r.tenants, duration_s: Math.round(r.duration_s), engines: new Set<string>() };
+      c.engines.add(r.engine);
+      set.set(k, c);
+    }
+    const both = (c: { engines: Set<string> }) => (SERIES.every((x) => c.engines.has(x.engine)) ? 1 : 0);
+    return [...set.entries()].sort((a, b) => both(b[1]) - both(a[1]) || b[1].agents - a[1].agents || b[1].tenants - a[1].tenants);
   }, [data]);
   const [config, setConfig] = useState<string | null>(null);
   const activeConfig = config ?? configs[0]?.[0] ?? null;
@@ -183,12 +214,15 @@ export function BenchPage() {
     // Latest run per (engine, target) for the chosen config.
     const byKey = new Map<string, BenchResult>();
     for (const r of all) {
-      if (r.agents !== cfg.agents || r.tenants !== cfg.tenants || r.duration_s !== cfg.duration_s) continue;
+      if (cfgKey(r) !== activeConfig) continue;
       const k = `${r.engine}|${r.target}`;
       if (!byKey.has(k) || byKey.get(k)!.ts < r.ts) byKey.set(k, r);
     }
     return [...byKey.values()];
-  }, [data, cfg]);
+  }, [data, cfg, activeConfig]);
+
+  const targets = useMemo(() => [...new Set(selected.map((r) => r.target))].sort(compareTargets), [selected]);
+  const runFor = (engine: Engine, target: BenchTarget) => selected.find((r) => r.engine === engine && r.target === target);
 
   const headline = (op: "read" | "write", target: BenchTarget) => {
     const a = selected.find((r) => r.engine === "6.0.1" && r.target === target);
@@ -213,7 +247,7 @@ export function BenchPage() {
               <select aria-label="Load configuration" className="h-7 rounded-md border bg-background px-1.5 font-mono text-xs" value={activeConfig ?? ""} onChange={(e) => setConfig(e.target.value)}>
                 {configs.map(([k, c]) => (
                   <option key={k} value={k}>
-                    {c.agents} agents × {c.tenants} tenants · {c.duration_s}s
+                    {c.agents} agents × {c.tenants} tenants · {c.duration_s}s{c.engines.size < SERIES.length ? ` (${[...c.engines].join(", ")} only)` : ""}
                   </option>
                 ))}
               </select>
@@ -231,13 +265,13 @@ export function BenchPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {(["read", "write"] as const).flatMap((op) =>
-              TARGETS.map((target) => {
+              targets.map((target) => {
                 const h = headline(op, target);
                 return (
                   <Stat
                     key={`${op}-${target}`}
-                    label={`${op} p99 · ${target}`}
-                    value={h.va != null ? `${h.va.toFixed(h.va >= 100 ? 0 : 1)} ms` : "—"}
+                    label={`${op} p99 · ${setupLabel(target, runFor("6.0.1", target) ?? runFor("4.22.0", target))}`}
+                    value={h.va != null ? `${h.va.toFixed(h.va >= 100 ? 0 : 1)} ms` : h.vb != null ? `${h.vb.toFixed(h.vb >= 100 ? 0 : 1)} ms` : "—"}
                     sub={
                       h.vb != null ? (
                         <span className="tabular">
@@ -249,8 +283,10 @@ export function BenchPage() {
                             </span>
                           )}
                         </span>
+                      ) : h.va != null ? (
+                        "6.0.1 · no 4.22.0 run at this load"
                       ) : (
-                        "no 4.22.0 run"
+                        "4.22.0 · no 6.0.1 run at this load"
                       )
                     }
                   />
@@ -270,8 +306,25 @@ export function BenchPage() {
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">
-            {(["read", "write"] as const).flatMap((op) =>
-              TARGETS.map((target) => <LatencyChart key={`${op}-${target}`} title={`${op === "read" ? "Read" : "Write"} latency · ${target}`} subtitle={`p50 / p95 / p99 in ms · ${subtitle}`} data={rows(selected, target, op)} />),
+            {targets.flatMap((target) =>
+              (["read", "write"] as const).map((op) => {
+                const a = runFor("6.0.1", target);
+                const b = runFor("4.22.0", target);
+                const tput = [
+                  opsPerSec(a) != null ? `6.0.1 ${fmtNum(Math.round(opsPerSec(a)!))} ops/s` : null,
+                  opsPerSec(b) != null ? `4.22.0 ${fmtNum(Math.round(opsPerSec(b)!))} ops/s` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <LatencyChart
+                    key={`${op}-${target}`}
+                    title={`${op === "read" ? "Read" : "Write"} latency · ${setupLabel(target, a ?? b)}`}
+                    subtitle={`p50 / p95 / p99 in ms · ${subtitle}${tput ? ` · ${tput}` : ""}`}
+                    data={rows(selected, target, op)}
+                  />
+                );
+              }),
             )}
           </div>
 
@@ -287,6 +340,7 @@ export function BenchPage() {
                     <TableHead className="text-right">Winners</TableHead>
                     <TableHead className="text-right">Losers</TableHead>
                     <TableHead className="w-48">Share</TableHead>
+                    <TableHead className="text-right">Violations</TableHead>
                     <TableHead className="text-right">Errors</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -307,6 +361,7 @@ export function BenchPage() {
                             <div className="flex-1 rounded-r-sm bg-muted" />
                           </div>
                         </TableCell>
+                        <TableCell className={cn("text-right font-mono tabular", (r.cas_violations?.length ?? 0) > 0 && "text-(--state-failed)")}>{r.cas_violations ? r.cas_violations.length : "—"}</TableCell>
                         <TableCell className={cn("text-right font-mono tabular", r.errors > 0 && "text-(--state-failed)")}>{r.errors}</TableCell>
                       </TableRow>
                     );
@@ -328,6 +383,8 @@ export function BenchPage() {
                     <TableHead className="text-right">Agents</TableHead>
                     <TableHead className="text-right">Tenants</TableHead>
                     <TableHead className="text-right">s</TableHead>
+                    <TableHead className="text-right">Procs</TableHead>
+                    <TableHead className="text-right">Ops/s</TableHead>
                     <TableHead className="text-right">R p50</TableHead>
                     <TableHead className="text-right">R p95</TableHead>
                     <TableHead className="text-right">R p99</TableHead>
@@ -348,10 +405,12 @@ export function BenchPage() {
                         <TableCell className="text-xs">{r.target}</TableCell>
                         <TableCell className="text-right font-mono text-xs tabular">{r.agents}</TableCell>
                         <TableCell className="text-right font-mono text-xs tabular">{r.tenants}</TableCell>
-                        <TableCell className="text-right font-mono text-xs tabular">{r.duration_s}</TableCell>
+                        <TableCell className="text-right font-mono text-xs tabular">{Math.round(r.duration_s)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs tabular">{r.client?.procs ?? setupOf(r.target).procs}</TableCell>
+                        <TableCell className="text-right font-mono text-xs tabular">{opsPerSec(r) != null ? fmtNum(Math.round(opsPerSec(r)!)) : "—"}</TableCell>
                         {[r.read_p50, r.read_p95, r.read_p99, r.write_p50, r.write_p95, r.write_p99].map((v, i) => (
                           <TableCell key={i} className="text-right font-mono text-xs tabular">
-                            {v.toFixed(1)}
+                            {typeof v === "number" ? v.toFixed(1) : "—"}
                           </TableCell>
                         ))}
                         <TableCell className={cn("text-right font-mono text-xs tabular", r.errors > 0 && "text-(--state-failed)")}>{r.errors}</TableCell>

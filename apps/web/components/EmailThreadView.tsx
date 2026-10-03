@@ -39,8 +39,9 @@ export function EmailMessageCard({ m, highlighted, depth = 0 }: { m: EmailMessag
         )}
       </div>
       <p className="mt-2 whitespace-pre-wrap leading-relaxed">{m.text}</p>
-      <footer className="mt-2 flex gap-3 font-mono text-[10px] text-muted-foreground">
-        <span>{m.id}</span>
+      <footer className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] break-all text-muted-foreground">
+        <span>{m.message_id ?? m.id}</span>
+        {m.message_id && <span>{m.id}</span>}
         {m.in_reply_to && <span>↳ {m.in_reply_to}</span>}
       </footer>
     </article>
@@ -54,7 +55,7 @@ export function EmailThreadView({ messages, highlightId, className }: { messages
   return (
     <div className={cn("space-y-2", className)}>
       {messages.map((m) => (
-        <EmailMessageCard key={m.id} m={m} depth={depth.get(m.id) ?? 0} highlighted={highlightId === m.id} />
+        <EmailMessageCard key={m.id} m={m} depth={depth.get(m.id) ?? 0} highlighted={!!highlightId && (highlightId === m.id || highlightId === m.message_id)} />
       ))}
       {messages.length === 0 && <p className="text-sm text-muted-foreground">No messages.</p>}
     </div>

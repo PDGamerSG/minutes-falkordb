@@ -84,6 +84,11 @@ def _artifact_view(artifact: dict[str, Any] | None) -> dict[str, Any] | None:
                 for key in ("title", "simulated", "body", "skill_id"):
                     if key in payload:
                         out[key] = payload[key]
+                # hiveboard stores extra artifact fields as a JSON envelope in `text`; unwrap the human-readable text.
+                if isinstance(payload.get("text"), str):
+                    out["text"] = payload["text"]
+                if payload.get("uri") and not out.get("uri"):
+                    out["uri"] = payload["uri"]
         except json.JSONDecodeError:
             pass
     for key in ("title", "simulated"):

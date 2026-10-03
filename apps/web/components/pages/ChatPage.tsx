@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CypherBlock } from "@/components/CypherBlock";
 import { GraphView } from "@/components/GraphView";
 import { ErrorNote, Mono } from "@/components/Page";
-import { fromChatSource, SourceRow } from "@/components/SourceLink";
+import { fromChatEpisode, fromChatSource, SourceRow } from "@/components/SourceLink";
 
 type Msg = {
   id: string;
@@ -24,13 +24,13 @@ type Msg = {
   error?: string;
 };
 
-const SUGGESTIONS = [
-  "Why did we choose the bottom sheet for checkout?",
-  "When is the UPI flow due?",
-  "What is the QA sign-off date for payments?",
-  "Who knows about Meridian?",
-  "Which customer is the pilot?",
-];
+// Demo questions per seeded tenant (docs/demo-script.md, data/meetings/README.md); generic ones elsewhere.
+const SUGGESTIONS: Record<string, string[]> = {
+  orbit: ["When is the UPI flow due?", "Why did we choose the side drawer?", "Who knows about PayU?", "What did we decide about offline mode?", "What is still open for Priya?"],
+  nimbus: ["When is the events pipeline due?", "When is the Lumen dashboard due?", "Who knows about the schema registry?"],
+  quill: ["When is the newsletter sent?", "What did we decide last week?", "What is still open?"],
+};
+const GENERIC_SUGGESTIONS = ["What did we decide last week?", "What is still open?", "Who knows about the launch?"];
 
 const ROUTE_TONE: Record<string, string> = {
   template: "var(--node-fact)",
@@ -86,6 +86,24 @@ function WhySection({ tenant, r }: { tenant: string; r: ChatResponse }) {
           ))}
         </div>
       </section>
+
+      {r.episodes && r.episodes.length > 0 && (
+        <section>
+          <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Evidence episodes ({r.episodes.length})</h4>
+          <ol className="divide-y rounded-md border bg-card">
+            {r.episodes.map((e, i) => (
+              <li key={`${e.episode_id}-${i}`} className="px-2.5 py-1.5">
+                <SourceRow tenant={tenant} source={fromChatEpisode(e)} />
+                <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{e.text}</p>
+                <div className="mt-0.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
+                  <span>{e.episode_id}</span>
+                  {typeof e.score === "number" && <span className="tabular">score {e.score.toFixed(4)}</span>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section>
         <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Subgraph</h4>
@@ -145,11 +163,14 @@ export function ChatPage({ team }: { team: string }) {
 
   // Restore a session from the URL.
   useEffect(() => {
+    // loadedFor is set by send() for a session this page created, so its turns are already shown.
     if (!urlSession || loadedFor.current === urlSession) return;
-    loadedFor.current = urlSession;
+    let cancelled = false;
     api.chat
       .history(team, urlSession)
       .then((turns) => {
+        if (cancelled) return;
+        loadedFor.current = urlSession;
         if (!Array.isArray(turns) || turns.length === 0) return;
         setMsgs(
           turns.map((t, i) => ({
@@ -163,6 +184,9 @@ export function ChatPage({ team }: { team: string }) {
       .catch(() => {
         // unknown session: start fresh but keep the id so the server can attach
       });
+    return () => {
+      cancelled = true;
+    };
   }, [team, urlSession]);
 
   useEffect(() => {
@@ -225,7 +249,7 @@ export function ChatPage({ team }: { team: string }) {
           <div className="flex h-full flex-col items-start justify-end gap-2">
             <div className="text-xs text-muted-foreground">Try one of these:</div>
             <div className="flex flex-wrap gap-1.5">
-              {SUGGESTIONS.map((s) => (
+              {(SUGGESTIONS[team] ?? GENERIC_SUGGESTIONS).map((s) => (
                 <Button key={s} size="sm" variant="outline" onClick={() => void send(s)}>
                   {s}
                 </Button>

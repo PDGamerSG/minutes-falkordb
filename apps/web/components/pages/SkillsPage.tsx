@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Play, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
-import type { Skill } from "@/lib/types";
+import type { Skill, TaskTrace } from "@/lib/types";
 import { fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,60 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState, ErrorNote, PageHeader } from "@/components/Page";
 import { StateBadge } from "@/components/StateBadge";
 import { useOverlays } from "@/components/overlay-context";
+import { ArtifactView } from "@/components/ArtifactView";
 
-const STANDUP_GOAL = "Produce the weekly Orbit standup summary";
+/** Goal sent to /skills/run: the learned standup skill's own goal when there is one (vector match is then exact). */
+function standupGoal(team: string, skills: Skill[] | undefined): string {
+  const learned = skills?.find((s) => s.status !== "deprecated" && /standup/i.test(s.goal));
+  return learned?.goal ?? `Run the ${team} standup routine`;
+}
+
+/** Follows the run task on the board (poll the trace) and shows its artifact here. */
+function RunResult({ tenant, taskId }: { tenant: string; taskId: string }) {
+  const [trace, setTrace] = useState<TaskTrace | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let stop = false;
+    let timer = 0;
+    const started = Date.now();
+    const tick = async () => {
+      try {
+        const t = await api.board.trace(tenant, taskId);
+        if (stop) return;
+        setTrace(t);
+        if (t.task.status === "completed" || t.task.status === "failed") return;
+      } catch (e) {
+        if (!stop) setErr(e instanceof Error ? e.message : String(e));
+      }
+      if (!stop && Date.now() - started < 180_000) timer = window.setTimeout(tick, 1500);
+    };
+    timer = window.setTimeout(tick, 500);
+    return () => {
+      stop = true;
+      window.clearTimeout(timer);
+    };
+  }, [tenant, taskId]);
+
+  const status = trace?.task.status ?? "submitted";
+  const artifacts = (trace?.events ?? []).filter((e) => e.artifact).map((e) => e.artifact!);
+  const failure = (trace?.events ?? []).find((e) => e.type === "failed");
+  return (
+    <div className="space-y-2 rounded-lg border bg-card p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-medium">Last run</span>
+        <StateBadge state={status} size="xs" pulse={status === "submitted" || status === "working"} />
+        <span className="font-mono text-muted-foreground">{taskId}</span>
+        {trace?.task.owner_agent && <span className="text-muted-foreground">by {trace.task.owner_agent}</span>}
+      </div>
+      {err && !trace && <ErrorNote error={err} />}
+      {failure?.summary && <ErrorNote error={failure.summary} />}
+      {artifacts.map((a, i) => (
+        <ArtifactView key={i} artifact={a} className="max-h-[28rem] overflow-auto" />
+      ))}
+      {status !== "completed" && status !== "failed" && artifacts.length === 0 && <p className="text-xs text-muted-foreground">StandupAgent is running the skill’s steps…</p>}
+    </div>
+  );
+}
 
 function RateBar({ rate }: { rate: number }) {
   const tone = rate >= 0.75 ? "var(--fact-active)" : rate >= 0.5 ? "var(--fact-superseded)" : "var(--state-failed)";
@@ -86,6 +138,7 @@ export function SkillsPage({ team }: { team: string }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [runTask, setRunTask] = useState<string | null>(null);
 
   const outcome = async (skill: Skill, ok: boolean) => {
     setBusy(skill.id);
@@ -105,7 +158,8 @@ export function SkillsPage({ team }: { team: string }) {
   const run = async () => {
     setRunning(true);
     try {
-      const r = await api.skills.run(team, STANDUP_GOAL);
+      const r = await api.skills.run(team, standupGoal(team, data));
+      setRunTask(r.task_id);
       toast.success("Standup skill running", {
         description: `task ${r.task_id} submitted for StandupAgent`,
         action: { label: "Open board", onClick: () => router.push(`/t/${encodeURIComponent(team)}/board`) },
@@ -129,6 +183,7 @@ export function SkillsPage({ team }: { team: string }) {
         }
       />
       {error && !data && <ErrorNote error={error} />}
+      {runTask && <RunResult key={runTask} tenant={team} taskId={runTask} />}
       {loading && !data && <Skeleton className="h-64" />}
       {data && data.length === 0 && <EmptyState title="No skills learned yet" hint="The StandupAgent distils a routine after two meetings with a weekly cadence." />}
       {data && data.length > 0 && (

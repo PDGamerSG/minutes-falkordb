@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useEvents } from "@/lib/useEvents";
 import { useResource } from "@/lib/useResource";
-import { TASK_STATUSES, type Agent, type SSEEvent, type Task, type TaskStatus, type TraceEvent } from "@/lib/types";
+import { TASK_STATUSES, type Agent, type Fact, type SSEEvent, type Task, type TaskStatus, type TraceEvent } from "@/lib/types";
 import { fmtDateTime, fmtFull, fmtRelative, titleCase } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -28,12 +28,63 @@ const TRACE_TONE: Record<string, string> = {
   skill_used: "active",
 };
 
-function nextFridayIso(from = new Date()): string {
+/** The Friday after `from` (a Friday moves a week), as YYYY-MM-DD in UTC (due dates are UTC midnights). */
+function nextFridayIso(from: number = Date.now()): string {
   const d = new Date(from);
-  const day = d.getDay();
-  const delta = ((5 - day + 7) % 7) || 7;
-  d.setDate(d.getDate() + delta);
+  const delta = ((5 - d.getUTCDay() + 7) % 7) || 7;
+  d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
+}
+
+/** The commitment the demo button moves: the open "PayU integration | due" (the API's default target). */
+function demoTarget(commitments: Fact[] | undefined): Fact | undefined {
+  return commitments?.find((c) => /payu integration/i.test(c.subject) && c.predicate === "due" && c.due_at != null);
+}
+
+function OpenCommitments({ tenant, data, error, loading, flashIds }: { tenant: string; data?: Fact[]; error?: Error | null; loading: boolean; flashIds: Set<string> }) {
+  const { openWhy } = useOverlays();
+  const rows = (data ?? []).filter((c) => c.predicate === "due" || c.due_at != null);
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-medium">
+        Open commitments <span className="font-mono text-xs text-muted-foreground tabular">{data ? `(${rows.length})` : ""}</span>
+      </h2>
+      {error && !data && <ErrorNote error={error} />}
+      {loading && !data && <Skeleton className="h-16" />}
+      {data && rows.length === 0 && <EmptyState title="No open commitments" />}
+      {rows.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {rows.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => openWhy(tenant, c.id)}
+              className={cn("rounded-md border bg-card p-2.5 text-left text-xs transition-colors hover:bg-muted/60", flashIds.has(c.id) && "ring-2 ring-primary/40")}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{c.subject}</span>
+                <span className="font-mono tabular">{c.object}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <span>{c.owner?.name ?? c.speaker?.name ?? "—"}</span>
+                {c.supersedes && (
+                  <Badge variant="secondary" className="h-4 px-1.5 font-mono text-[10px]">
+                    SUPERSEDES
+                  </Badge>
+                )}
+                <span className="ml-auto font-mono text-[10px]">{c.id}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** The 25 throwaway agents the double-claim demo registers; shown as one summary card. */
+function isDemoClaimer(a: Agent): boolean {
+  return a.id.startsWith("demo_claimer") || (a.capabilities.length === 1 && a.capabilities[0] === "demo");
 }
 
 function agentName(agents: Agent[] | undefined, id: string | null | undefined) {
@@ -209,6 +260,7 @@ function EventLog({ events, status }: { events: SSEEvent[]; status: string }) {
 export function BoardPage({ team }: { team: string }) {
   const agents = useResource(() => api.board.agents(team), [team], { refreshMs: 30_000 });
   const tasks = useResource(() => api.board.tasks(team), [team], { refreshMs: 20_000 });
+  const commitments = useResource(() => api.analytics.openCommitments(team), [team], { refreshMs: 60_000 });
   const [openTask, setOpenTask] = useState<string | null>(null);
   const [traceVersion, setTraceVersion] = useState(0);
   const [flash, setFlash] = useState<Record<string, number>>({});
@@ -233,9 +285,14 @@ export function BoardPage({ team }: { team: string }) {
         if (id) setFlash((f) => ({ ...f, [id]: Date.now() }));
       } else if (e.event === "fact.superseded") {
         toast.info("fact.superseded", { description: `${String(e.payload.old_fact_id ?? "")} → ${String(e.payload.new_fact_id ?? "")}` });
+        commitments.refetch();
+        const id = typeof e.payload.new_fact_id === "string" ? e.payload.new_fact_id : null;
+        if (id) setFlash((f) => ({ ...f, [id]: Date.now() }));
+      } else if (e.event.startsWith("commitment.")) {
+        commitments.refetch();
       }
     },
-    [scheduleRefetch],
+    [scheduleRefetch, commitments],
   );
   const { status, events } = useEvents(team, onEvent);
 
@@ -259,12 +316,15 @@ export function BoardPage({ team }: { team: string }) {
   const supersede = async () => {
     setBusy("supersede");
     try {
-      const friday = nextFridayIso();
-      const r = await api.demo.supersede(team, { new_object: friday, speaker_id: "spk_priya" });
+      // "Move it to Friday": the Friday after the commitment's current due date (Thu Oct 1 -> Fri Oct 2).
+      const target = demoTarget(commitments.data);
+      const friday = nextFridayIso(target?.due_at ?? Date.now());
+      const r = await api.demo.supersede(team, { fact_id: target?.id, new_object: friday, speaker_id: "spk_priya" });
       toast.success("Moved it to Friday", {
         description: `${r.old_fact_id} superseded by ${r.new_fact_id} (due ${friday}). Scheduler wakes next.`,
       });
       scheduleRefetch();
+      commitments.refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Supersede failed");
     } finally {
@@ -313,7 +373,7 @@ export function BoardPage({ team }: { team: string }) {
         {agents.loading && !agents.data && <Skeleton className="h-16" />}
         {agents.data && (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {agents.data.map((a) => (
+            {agents.data.filter((a) => !isDemoClaimer(a)).map((a) => (
               <div key={a.id} className="rounded-md border bg-card p-2.5 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 font-medium">
@@ -334,10 +394,20 @@ export function BoardPage({ team }: { team: string }) {
                 </div>
               </div>
             ))}
+            {agents.data.some(isDemoClaimer) && (
+              <div className="flex items-center gap-2 rounded-md border border-dashed bg-card/50 p-2.5 text-xs text-muted-foreground">
+                <Shuffle className="size-3.5" />
+                <span>
+                  <span className="font-medium text-foreground tabular">{agents.data.filter(isDemoClaimer).length}</span> demo claimers (registered by “Induce double claim”)
+                </span>
+              </div>
+            )}
             {agents.data.length === 0 && <EmptyState title="No agents registered" className="sm:col-span-2 lg:col-span-3 xl:col-span-5" />}
           </div>
         )}
       </section>
+
+      <OpenCommitments tenant={team} data={commitments.data} error={commitments.error} loading={commitments.loading} flashIds={new Set(Object.keys(flash))} />
 
       <section>
         <h2 className="mb-2 text-sm font-medium">Tasks</h2>

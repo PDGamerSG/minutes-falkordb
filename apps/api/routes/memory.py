@@ -13,6 +13,7 @@ from ..state import AppContext, get_ctx
 router = APIRouter(prefix="/tenants/{tenant}", tags=["memory"])
 
 STATUSES = {"active", "superseded", "retracted", "all"}
+PROVENANCE_KEYS = ("speaker", "meeting", "thread", "source", "episode_id", "supersedes", "entities")
 KINDS = {"fact", "decision", "commitment"}
 
 
@@ -95,7 +96,12 @@ def why(tenant: str, node_id: str, ctx: AppContext = Depends(get_ctx)) -> dict[s
 def belief(tenant: str, t: int = Query(..., description="epoch ms"), entity: str | None = Query(None), ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
     ctx.ensure_tenant(tenant)
     result = ctx.hive.belief_at_result(tenant, int(t), entity)
-    return {"t": int(t), "entity": entity, "facts": [fact_view(f) for f in result["rows"]], "cypher": result.get("cypher", "")}
+    rows = result["rows"]
+    if rows and any(not (f.get("meeting") or f.get("thread") or f.get("source")) for f in rows):
+        # 31_belief_at_time returns the fact and its speaker only; add where it was said (meeting or thread) for display.
+        full = {f.get("id"): f for f in ctx.hive.list_facts(tenant, status="all")}
+        rows = [{**f, **{k: full[f["id"]].get(k) for k in PROVENANCE_KEYS if not f.get(k) and full.get(f.get("id"), {}).get(k)}} for f in rows]
+    return {"t": int(t), "entity": entity, "facts": [fact_view(f) for f in rows], "cypher": result.get("cypher", "")}
 
 
 @router.get("/timeline")
@@ -146,7 +152,9 @@ def who_knows(tenant: str, entity: str = Query(...), ctx: AppContext = Depends(g
 def open_commitments(tenant: str, person: str | None = Query(None), ctx: AppContext = Depends(get_ctx)) -> list[dict[str, Any]]:
     ctx.ensure_tenant(tenant)
     rows = ctx.hive.open_commitments(tenant, person)["rows"]
-    return [{**fact_view(r), "owner": r.get("owner")} for r in rows]
+    # 51_open_commitments carries no provenance; join the active commitments for speaker, source and SUPERSEDES.
+    full = {f.get("id"): f for f in ctx.hive.list_facts(tenant, status="active", kind="commitment")} if rows else {}
+    return [{**fact_view({**r, **full.get(r.get("id"), {})}), "owner": r.get("owner")} for r in rows]
 
 
 @router.get("/analytics/contradictions")

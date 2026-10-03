@@ -33,6 +33,33 @@ AGENT_SPECS: list[tuple[str, str, list[str]]] = [
 TASK_STATES = ("submitted", "working", "input_required", "completed", "failed")
 
 
+_CLOSED_STATUSES = {"completed", "complete", "done", "delivered", "shipped", "cancelled", "canceled", "dropped", "closed"}
+
+
+def drop_closed_commitments(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Open means not yet closed: drop `<subject> | status = completed` commitments and every commitment on the
+    same subject stated no later than that closing status (51_open_commitments returns all ACTIVE commitments,
+    and a due date stays active after the work is reported done)."""
+
+    def closing(row: dict[str, Any]) -> bool:
+        return (row.get("predicate") or "").lower() == "status" and (row.get("object") or "").strip().lower() in _CLOSED_STATUSES
+
+    closed_at: dict[str, int] = {}
+    for row in rows:
+        if closing(row):
+            subject = (row.get("subject") or "").strip().lower()
+            closed_at[subject] = max(closed_at.get(subject, 0), int(row.get("valid_from") or 0))
+    kept = []
+    for row in rows:
+        if closing(row):
+            continue
+        subject = (row.get("subject") or "").strip().lower()
+        if subject in closed_at and int(row.get("valid_from") or 0) <= closed_at[subject]:
+            continue
+        kept.append(row)
+    return kept
+
+
 class HiveNotFound(KeyError):
     """A node the caller named does not exist."""
 
@@ -543,7 +570,7 @@ class FakeHive(MemoryHive):
             owner = self.get_person(tenant, owner_id)
             rows.append({**fact, "owner": {"id": owner_id, "name": owner.get("name") if owner else None}})
         rows.sort(key=lambda r: (r.get("due_at") is None, r.get("due_at") or 0))
-        return {"rows": rows, "cypher": "-- FakeHive (51_open_commitments.cypher in production)"}
+        return {"rows": drop_closed_commitments(rows), "cypher": "-- FakeHive (51_open_commitments.cypher in production)"}
 
     def contradictions(self, tenant: str) -> dict[str, Any]:
         by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -1187,8 +1214,12 @@ class RealHive:
         return self._with_cypher(self._analytics.who_knows(self.db, tenant, entity_name))
 
     def open_commitments(self, tenant: str, person_id: str | None = None) -> dict[str, Any]:
-        result = self._analytics.open_commitments(self.db, tenant, person_id)
-        return {"rows": [self._norm_fact(r) for r in result], "cypher": getattr(result, "cypher", "")}
+        # Closing statuses may be stated by someone other than the owner, so filter closures over all rows first.
+        result = self._analytics.open_commitments(self.db, tenant, None)
+        rows = drop_closed_commitments([self._norm_fact(r) for r in result])
+        if person_id:
+            rows = [r for r in rows if (r.get("owner") or {}).get("id") == person_id]
+        return {"rows": rows, "cypher": getattr(result, "cypher", "")}
 
     def contradictions(self, tenant: str) -> dict[str, Any]:
         return self._with_cypher(self._analytics.contradictions(self.db, tenant))

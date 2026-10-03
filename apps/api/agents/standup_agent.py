@@ -145,7 +145,7 @@ class StandupAgent(BaseAgent):
     def _summarise(self, goal: str, gathered: dict[str, Any]) -> str:
         if getattr(self.llm, "backend", "") != "fake":
             try:
-                text = self.llm.complete(load_prompt("standup"), f"Goal: {goal}\n\nTool results (JSON):\n{json.dumps(gathered, default=str)[:12000]}\n\nWrite the standup summary now.", temperature=0.2, max_tokens=800)
+                text = self.llm.complete(load_prompt("standup"), f"Goal: {goal}\nToday: {datetime.now(tz=UTC).date().isoformat()} (anything due before today is overdue, not due this week)\n\nTool results (JSON):\n{json.dumps(gathered, default=str)[:12000]}\n\nWrite the standup summary now.", temperature=0.2, max_tokens=800)
                 if text.strip():
                     return text.strip()
             except Exception as exc:  # noqa: BLE001 - fall through to the deterministic summary
