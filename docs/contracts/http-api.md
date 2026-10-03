@@ -29,7 +29,7 @@ Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). JSON everywhe
 - `GET /tenants/{tenant}/analytics/clusters` → `[{component, entities: [...]}]`
 
 ## Chat (AnswerAgent)
-- `POST /tenants/{tenant}/chat` `{message, session_id?}` → `{answer, session_id, router: {intent, entities: [str], route: "vector"|"graph"|"template"|"freeform_ro", template?: str}, cypher: [str], subgraph: {nodes, edges}, sources: [{fact_id, speaker, meeting, t_start}], model, latency_ms}`
+- `POST /tenants/{tenant}/chat` `{message, session_id?}` → `{answer, session_id, router: {intent, entities: [str], route: "vector"|"graph"|"template"|"freeform_ro", template?: str}, cypher: [str], subgraph: {nodes, edges}, sources: [{fact_id, speaker, meeting, t_start}], episodes: [{episode_id, kind, speaker, container_id, meeting|thread, t_start|sent_at, text, t, score}], model, latency_ms}`. `episodes` are the raw utterances and emails retrieved by episode recall (vector KNN plus full-text, fused by reciprocal rank) and shown to the model as evidence; the Why subgraph includes them.
 - `GET /tenants/{tenant}/chat/{session_id}` → prior turns (stored as Episode-like `Turn` nodes in the tenant graph; persistent conversation history)
 
 ## Board (coordination)

@@ -67,6 +67,63 @@ def is_read_only_cypher(query: str) -> bool:
     return not _WRITE_KEYWORDS.search(query)
 
 
+_CLAUSE = re.compile(r"\b(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|UNWIND|CALL|RETURN|UNION|ORDER\s+BY|SKIP|LIMIT)\b", re.IGNORECASE)
+
+
+def _top_level_clauses(query: str) -> list[tuple[int, str]]:
+    """``(offset, KEYWORD)`` for clause keywords outside strings, backticks, comments and (), [], {} nesting."""
+    out: list[tuple[int, str]] = []
+    depth = 0
+    i, n = 0, len(query)
+    while i < n:
+        ch = query[i]
+        if ch in "'\"`":
+            j = i + 1
+            while j < n and query[j] != ch:
+                j += 2 if query[j] == "\\" else 1
+            i = j + 1
+            continue
+        if query.startswith("//", i):
+            j = query.find("\n", i)
+            i = n if j < 0 else j + 1
+            continue
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth = max(0, depth - 1)
+        elif depth == 0 and (ch.isalpha()) and (i == 0 or not (query[i - 1].isalnum() or query[i - 1] in "_.$")):
+            m = _CLAUSE.match(query, i)
+            if m:
+                out.append((i, re.sub(r"\s+", " ", m.group(1).upper())))
+                i = m.end()
+                continue
+        i += 1
+    return out
+
+
+def guard_match_where_match(query: str) -> tuple[str, bool]:
+    """Work around a FalkorDB 6.0.1 planner bug: ``MATCH ... WHERE ...`` followed directly by another (non-optional)
+    ``MATCH`` silently drops the first WHERE (no Filter in the plan, wrong rows). Inserting ``WITH *`` before the
+    second MATCH forces the filter to apply first and does not change the query's meaning. Returns (query, rewritten)."""
+    inserts: list[int] = []
+    in_match = False
+    filtered = False
+    for offset, keyword in _top_level_clauses(query):
+        if keyword == "MATCH":
+            if in_match and filtered:
+                inserts.append(offset)
+            in_match, filtered = True, False
+        elif keyword == "OPTIONAL MATCH":
+            in_match, filtered = True, False
+        elif keyword == "WHERE":
+            filtered = filtered or in_match
+        else:  # WITH, UNWIND, CALL, RETURN, UNION, ORDER BY ... end the MATCH...WHERE run
+            in_match, filtered = False, False
+    for offset in reversed(inserts):
+        query = query[:offset] + "WITH * " + query[offset:]
+    return query, bool(inserts)
+
+
 def find_entities(message: str, entities: list[dict[str, Any]], persons: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Entities and persons whose names occur in the message (longest names first, whole words)."""
     text = f" {message.lower()} "
@@ -100,6 +157,9 @@ def route(message: str, entities: list[dict[str, Any]], persons: list[dict[str, 
         query = re.sub(r"^\s*cypher\s*:\s*", "", text, flags=re.IGNORECASE)
         if not is_read_only_cypher(query):
             return RouterDecision("freeform", [], "freeform_ro", cypher=query, notes="rejected: write clause in free-form Cypher")
+        guarded, rewritten = guard_match_where_match(query)
+        if rewritten:
+            return RouterDecision("freeform", [], "freeform_ro", cypher=guarded, notes="rewritten: WITH * inserted before a MATCH that follows MATCH ... WHERE (FalkorDB 6.0.1 drops that WHERE)")
         return RouterDecision("freeform", [], "freeform_ro", cypher=query)
 
     found, people = find_entities(text, entities, persons)

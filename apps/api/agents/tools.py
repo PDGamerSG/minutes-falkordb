@@ -229,15 +229,24 @@ def build_tools(agent: Any, task: dict[str, Any], names: list[str]) -> ToolSet:
     def why(args: WhyArgs) -> dict[str, Any]:
         info = hive.why(tenant, args.node_id)
         episode = info.get("episode") or {}
+        node = _fact_brief(info.get("node") or {})
+        # the substrate returns the chain newest first (and the fake omits the node itself): normalise to oldest first
+        history = [_fact_brief(h) for h in info.get("history") or []]
+        if node.get("id") and all(h.get("id") != node["id"] for h in history):
+            history.append(node)
+        history.sort(key=lambda h: h.get("valid_from") or 0)
+        source_kind = (info.get("source") or {}).get("kind") or ("email" if info.get("thread") else "utterance")
         return {
-            "node": _fact_brief(info.get("node") or {}),
+            "node": node,
             "speaker": (info.get("speaker") or {}).get("name"),
-            "meeting": (info.get("meeting") or {}).get("title"),
+            "source_kind": source_kind,
+            "meeting": (info.get("meeting") or {}).get("title") if source_kind != "email" else None,
             "thread": (info.get("thread") or {}).get("subject"),
-            "said": episode.get("text"),
+            "said" if source_kind != "email" else "wrote": episode.get("text"),
             "t_start": episode.get("t_start"),
             "source": info.get("source"),
-            "history": [_fact_brief(h) for h in info.get("history") or []],
+            "history_order": "oldest first; the last active version is the current value",
+            "history": history,
         }
 
     def create_issue(args: CreateIssueArgs) -> dict[str, Any]:

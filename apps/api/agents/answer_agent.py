@@ -2,6 +2,12 @@
 
 Every answer carries the Cypher that ran, the subgraph it touched, the sources (fact ids with who
 said it and where) and the router decision, so the UI can render the Why panel.
+
+Evidence for the model (``evidence.py``): every fact it may cite comes with its whole SUPERSEDES chain
+(oldest first, each version's value, date, status, speaker or sender, meeting or email thread and the
+words it was derived from), later CONFIRMED_BY episodes, PRECEDENT_FOR neighbours and stated-rationale
+facts. Raw Episodes are recalled too (vector KNN on Episode plus full-text on Episode.text), fused with
+the route's facts by reciprocal-rank fusion, returned as ``episodes[]`` and drawn into the subgraph.
 """
 
 from __future__ import annotations
@@ -14,6 +20,21 @@ from typing import Any
 from ingest.fakes import new_id
 
 from .base import AgentResult, BaseAgent, load_prompt
+from .evidence import (
+    EvidenceIndex,
+    build_dossiers,
+    dossier_fact_ids,
+    episode_source_item,
+    fuse,
+    keywords,
+    merge_subgraph,
+    pretty_object,
+    quoted_episode_ids,
+    recall_episodes,
+    render_dossier,
+    render_episodes,
+    rrf,
+)
 from .router import RouterDecision, route
 
 log = logging.getLogger(__name__)
@@ -108,24 +129,125 @@ class AnswerAgent(BaseAgent):
     def answer(self, message: str, session_id: str | None = None) -> dict[str, Any]:
         started = time.perf_counter()
         session_id = session_id or new_id("sess")
+        self._qvec_cache: tuple[str, list[float]] | None = None
+        self._index = EvidenceIndex(self.hive, self.tenant)
         decision = route(message, self.hive.list_entities(self.tenant), self.hive.list_persons(self.tenant))
         facts, cypher, subgraph, extra = self._retrieve(message, decision)
-        sources = [_source_from_fact(f) for f in facts[:12]]
-        answer = self._compose(message, decision, facts, extra)
+        evidence = self._gather_evidence(message, decision, facts, extra)
+        index: EvidenceIndex | None = evidence.get("index")
+        source_facts = list(facts[:12])
+        if index is not None:
+            seen = {f.get("id") for f in source_facts}
+            widen = decision.route in ("graph", "vector") or decision.intent == "why"
+            for fid in dossier_fact_ids(evidence["dossiers"]):
+                if widen and fid not in seen and len(source_facts) < 20:
+                    fact = index.fact(fid)
+                    if fact:
+                        source_facts.append(fact)
+                        seen.add(fid)
+            subgraph = merge_subgraph(subgraph, index, evidence["dossiers"], evidence["episodes"])
+            cypher = [*cypher, *evidence["cypher"]]
+        sources = [_source_from_fact(f) for f in source_facts]
+        answer = self._compose(message, decision, facts, extra, evidence)
         latency = int((time.perf_counter() - started) * 1000)
         response = {
             "answer": answer,
             "session_id": session_id,
             "router": decision.as_dict(),
-            "cypher": [c for c in cypher if c],
+            "cypher": list(dict.fromkeys(c for c in cypher if c)),
             "subgraph": subgraph,
             "sources": sources,
+            "episodes": [episode_source_item(ep, evidence["episode_scores"].get(ep["id"])) for ep in evidence["episodes"]],
             "model": getattr(self.llm, "model", "fake"),
             "latency_ms": latency,
         }
         self.hive.add_turn(self.tenant, session_id, "user", message, {})
         self.hive.add_turn(self.tenant, session_id, "assistant", answer, {"response": response})
         return response
+
+    @property
+    def index(self) -> EvidenceIndex:
+        """Per-answer fact/episode cache (embedding-free projections on FalkorDB)."""
+        if getattr(self, "_index", None) is None:
+            self._index = EvidenceIndex(self.hive, self.tenant)
+        return self._index
+
+    def _qvec(self, message: str) -> list[float]:
+        cached = getattr(self, "_qvec_cache", None)
+        if cached and cached[0] == message:
+            return cached[1]
+        vec = self.embedder.embed_one(message, "query")
+        self._qvec_cache = (message, vec)
+        return vec
+
+    def _fact_fulltext(self, message: str, k: int = 8) -> list[str]:
+        words = keywords(message)
+        if not words:
+            return []
+        try:
+            if getattr(self.hive, "kind", "") == "falkordb":
+                rows = self.hive.fulltext(self.tenant, " ".join(words), label="Fact", k=k)
+            else:
+                rows = [r for w in words for r in self.hive.fulltext(self.tenant, w, label="Fact", k=k)]
+        except Exception as exc:  # noqa: BLE001
+            log.warning("fact full-text failed: %s", exc)
+            return []
+        return list(dict.fromkeys(r.get("id") for r in rows if r.get("id") and r.get("status", "active") == "active"))[:k]
+
+    def _gather_evidence(self, message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any]) -> dict[str, Any]:
+        """Fact dossiers (history, source, rationale) and raw Episodes fused with the route's facts by RRF."""
+        empty: dict[str, Any] = {"index": None, "dossiers": [], "episodes": [], "episode_scores": {}, "cypher": []}
+        if extra.get("error") or decision.route == "freeform_ro":
+            return empty
+        index = self.index
+        for fact in facts:
+            if fact.get("id"):
+                index.add_fact(fact)
+        try:
+            vec = self._qvec(message)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("query embedding failed: %s", exc)
+            vec = None
+        hits = recall_episodes(self.hive, self.tenant, message, vec, k=10)
+        route_ids = [f["id"] for f in facts if f.get("id")]
+        open_ended = decision.route == "vector" or decision.intent == "why"
+        fact_lists = [route_ids]
+        if decision.route == "vector":
+            fact_lists.append(self._fact_fulltext(message))
+        facts_ranked, eps_ranked = fuse(index, fact_lists, hits)
+        known = {fid for fid, _ in facts_ranked}
+        if open_ended:
+            boosted = []
+            for fid, score in facts_ranked:
+                fact = index.fact(fid) or {}
+                if fact.get("kind") == "decision":
+                    score *= 1.25
+                if fact.get("supersedes") or fact.get("status") == "superseded":
+                    score *= 1.5 if decision.intent == "when" else 1.25  # "what slipped" asks for a moved date
+                boosted.append((fid, score))
+            boosted.sort(key=lambda kv: -kv[1])
+            primary_ids = [fid for fid, _ in boosted][:6]
+        else:
+            # anchored routes keep their order; the episode hop may add two facts the route missed (graph routes only:
+            # template rows are already filtered, e.g. by person)
+            extra_ids = [fid for fid, _ in facts_ranked if fid not in set(route_ids)][:2] if decision.route == "graph" else []
+            primary_ids = route_ids[:8] + extra_ids
+        primary = [index.fact(fid, next((f for f in facts if f.get("id") == fid), None)) for fid in primary_ids if fid in known or fid in route_ids]
+        if decision.intent in ("contradictions", "who_knows"):
+            primary = primary[:6]
+        dossiers = build_dossiers(index, [f for f in primary if f], max_blocks=8)
+        episodes = []
+        for eid, _score in eps_ranked[:8]:
+            ep = index.episode(eid)
+            if ep:
+                episodes.append(ep)
+        return {
+            "index": index,
+            "dossiers": dossiers,
+            "episodes": episodes,
+            "episode_scores": dict(eps_ranked),
+            "cypher": [*hits["cypher"], *index.cypher],
+        }
 
     def _retrieve(self, message: str, decision: RouterDecision) -> tuple[list[dict[str, Any]], list[str], dict[str, Any], dict[str, Any]]:
         """Run the route; returns (facts, cypher list, subgraph, extra rows for templating)."""
@@ -146,7 +268,10 @@ class AnswerAgent(BaseAgent):
             if decision.intent == "who_knows":
                 result = self.hive.who_knows(tenant, decision.entities[0])
                 extra["who_knows"] = result["rows"]
-                facts = self.hive.list_facts(tenant, status="active", entity=decision.entity_ids[0] if decision.entity_ids else decision.entities[0])
+                if decision.entity_ids:
+                    facts = self.index.active_about(decision.entity_ids[0])
+                else:
+                    facts = self.hive.list_facts(tenant, status="active", entity=decision.entities[0])
                 return facts, [result.get("cypher", "")], _subgraph_from_facts(facts), extra
             if decision.intent == "open_commitments":
                 person = decision.person_ids[0] if decision.person_ids else None
@@ -156,7 +281,7 @@ class AnswerAgent(BaseAgent):
                     wanted = set(decision.entity_ids)
                     rows = [r for r in rows if wanted & set(r.get("entity_ids") or [])] or rows
                 # the analytics query returns owner + entities only; join speaker and container for the sources
-                rows = [{**r, **(self.hive.get_fact(tenant, r["id"]) or {})} if r.get("id") else r for r in rows[:20]]
+                rows = [{**r, **(self.index.fact(r["id"]) or {})} if r.get("id") else r for r in rows[:20]]
                 for row in rows:
                     if not row.get("speaker") and row.get("owner"):
                         row["speaker"] = row["owner"]
@@ -178,35 +303,13 @@ class AnswerAgent(BaseAgent):
                     rows = [r for r in rows if str(r.get("subject", "")).lower() in wanted] or rows
                 return rows, [result.get("cypher", "")], _subgraph_from_facts(rows), extra
             if decision.intent == "why":
-                vec = self.embedder.embed_one(message, "query")
-                recall = self.hive.recall(tenant, vec, k=5)
-                cyphers = [recall.get("cypher", "")]
-                candidates = [i.get("node") or {} for i in recall["items"]]
-                if decision.entity_ids:
-                    anchored = self.hive.list_facts(tenant, status="active", entity=decision.entity_ids[0])
-                    candidates = anchored[::-1] + candidates
-                facts: list[dict[str, Any]] = []
-                subgraph = {"nodes": [], "edges": []}
-                for candidate in candidates[:3]:
-                    if not candidate.get("id"):
-                        continue
-                    try:
-                        why = self.hive.why(tenant, candidate["id"])
-                    except Exception:  # noqa: BLE001
-                        continue
-                    cyphers.append(why.get("cypher", ""))
-                    full = self.hive.get_fact(tenant, candidate["id"]) or candidate
-                    facts.append(full)
-                    extra.setdefault("why", []).append({"id": candidate["id"], "episode": why.get("episode"), "history": why.get("history"), "speaker": why.get("speaker"), "meeting": why.get("meeting"), "thread": why.get("thread")})
-                    if not subgraph["nodes"]:
-                        subgraph = why.get("subgraph") or subgraph
-                return facts, cyphers, subgraph if subgraph["nodes"] else _subgraph_from_facts(facts), extra
+                return self._retrieve_why(message, decision)
 
         if decision.route == "graph":
             facts: list[dict[str, Any]] = []
             cyphers: list[str] = []
             for entity_id in decision.entity_ids[:3]:
-                rows = self.hive.list_facts(tenant, status="active", entity=entity_id)
+                rows = self.index.active_about(entity_id)
                 if decision.intent == "decisions":
                     rows = [r for r in rows if r.get("kind") == "decision"] or rows
                 if decision.intent == "when":
@@ -228,48 +331,152 @@ class AnswerAgent(BaseAgent):
                     pass
             return facts, cyphers, _subgraph_from_facts(facts), extra
 
-        vec = self.embedder.embed_one(message, "query")
+        vec = self._qvec(message)
         recall = self.hive.recall(tenant, vec, k=8)
         facts = [{**(i.get("node") or {}), "entities": i.get("entities") or [], "similarity": i.get("similarity")} for i in recall["items"]]
         enriched = []
         for fact in facts:
-            full = self.hive.get_fact(tenant, fact["id"]) if fact.get("id") else None
+            full = self.index.fact(fact.get("id"))
             enriched.append({**fact, **(full or {})})
         return enriched, [recall.get("cypher", "")], recall.get("subgraph") or _subgraph_from_facts(enriched), extra
 
-    def _compose(self, message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any]) -> str:
+    def _retrieve_why(self, message: str, decision: RouterDecision) -> tuple[list[dict[str, Any]], list[str], dict[str, Any], dict[str, Any]]:
+        """Why questions: RRF over entity-anchored facts, facts whose value names the entity ("we chose the side
+        drawer" -> navigation uses side drawer), vector recall and full-text; provenance (32_why_path) for the best."""
+        tenant = self.tenant
+        vec = self._qvec(message)
+        recall = self.hive.recall(tenant, vec, k=8)
+        cyphers = [recall.get("cypher", "")]
+        full: dict[str, dict[str, Any]] = {}
+        knn_ids = [str((i.get("node") or {}).get("id") or i.get("id")) for i in recall["items"] if (i.get("node") or {}).get("id") or i.get("id")]
+        anchored_ids: list[str] = []
+        object_ids: list[str] = []
+        for entity_id in decision.entity_ids[:3]:
+            for fact in self.index.active_about(entity_id)[::-1]:
+                full.setdefault(fact["id"], fact)
+                anchored_ids.append(fact["id"])
+        names = [n.lower() for n in decision.entities if len(n) > 2]
+        if names:
+            for fact in (f for f in self.index.facts.values() if f.get("status") == "active"):
+                obj = str(fact.get("object") or "").lower()
+                if any(n == obj or n in obj for n in names):
+                    full.setdefault(fact["id"], fact)
+                    object_ids.append(fact["id"])
+        object_ids.sort(key=lambda fid: (full[fid].get("kind") != "decision", -(full[fid].get("valid_from") or 0)))
+        scores = rrf(anchored_ids, object_ids, knn_ids, self._fact_fulltext(message), weights=[1.0, 1.5, 1.0, 0.7])
+        facts: list[dict[str, Any]] = []
+        for fid, _score in sorted(scores.items(), key=lambda kv: -kv[1])[:8]:
+            fact = full.get(fid) or self.index.fact(fid) or self.hive.get_fact(tenant, fid)
+            if fact:
+                facts.append(fact)
+        subgraph: dict[str, Any] = {"nodes": [], "edges": []}
+        if facts:
+            try:
+                why = self.hive.why(tenant, facts[0]["id"])
+                cyphers.append(why.get("cypher", ""))
+                subgraph = why.get("subgraph") or subgraph
+            except Exception as exc:  # noqa: BLE001
+                log.warning("why(%s) failed: %s", facts[0]["id"], exc)
+        return facts, cyphers, subgraph if subgraph["nodes"] else _subgraph_from_facts(facts), {}
+
+    def _compose(self, message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any], evidence: dict[str, Any] | None = None) -> str:
+        evidence = evidence or {"index": None, "dossiers": [], "episodes": []}
         if extra.get("error"):
             return f"I could not run that query: {extra['error']}"
-        answerable = facts or extra.get("who_knows") or extra.get("rows") or extra.get("contradictions") is not None
+        answerable = facts or extra.get("who_knows") or extra.get("rows") or extra.get("contradictions") is not None or evidence.get("episodes")
         if not answerable:
             return "I found nothing in the team memory that answers that. Try naming the project, person or decision."
         if getattr(self.llm, "backend", "") == "fake":
-            return render_answer(message, decision, facts, extra)
-        context_lines = []
-        for fact in facts[:12]:
-            speaker = (fact.get("speaker") or {}).get("name") or fact.get("speaker_id")
-            where = (fact.get("meeting") or {}).get("title") or (fact.get("thread") or {}).get("subject") or "?"
-            status = fact.get("status", "active")
-            context_lines.append(
-                f"- [{fact.get('id')}] ({fact.get('kind')}, {status}, said {_iso(fact.get('valid_from'))} by {speaker} in {where!r}) "
-                f"{fact.get('subject')} {fact.get('predicate')} {fact.get('object')}: {fact.get('text')}"
-            )
-        for item in extra.get("why", []) or []:
-            older = [f"{h.get('object')} ({_iso(h.get('valid_from'))})" for h in item.get("history") or [] if h.get("id") != item.get("id")]
-            if older:
-                context_lines.append(f"- history of {item['id']}: previously {' <- '.join(older)}")
-        if extra.get("who_knows"):
-            context_lines.append("- who knows: " + ", ".join(f"{r['person']['name']} ({r['mentions']} mentions)" for r in extra["who_knows"][:6]))
-        user = f"Question: {message}\nRouter: {decision.as_dict()}\n\nEvidence from the memory graph:\n" + "\n".join(context_lines) + "\n\nAnswer in at most five sentences, citing fact ids in square brackets."
+            return render_answer(message, decision, facts, extra, evidence.get("dossiers"))
+        user = build_user_prompt(message, decision, facts, extra, evidence)
         try:
-            text = self.llm.complete(load_prompt("answer"), user, temperature=0.2, max_tokens=600)
+            text = self.llm.complete(load_prompt("answer"), user, temperature=0.2, max_tokens=700)
         except Exception as exc:  # noqa: BLE001 - fail loudly in the payload, keep provenance
             log.error("answer composition failed: %s", exc)
-            return f"The model failed to compose an answer ({type(exc).__name__}); evidence: " + render_answer(message, decision, facts, extra)
-        return text.strip() or render_answer(message, decision, facts, extra)
+            return f"The model failed to compose an answer ({type(exc).__name__}); evidence: " + render_answer(message, decision, facts, extra, evidence.get("dossiers"))
+        return text.strip() or render_answer(message, decision, facts, extra, evidence.get("dossiers"))
 
 
-def render_answer(message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any]) -> str:
+def _legacy_fact_line(fact: dict[str, Any]) -> str:
+    """One line for rows that have no dossier (free-form Cypher results, analytics rows)."""
+    speaker = (fact.get("speaker") or {}).get("name") or fact.get("speaker_id") or "unknown"
+    thread = fact.get("thread") or {}
+    meeting = fact.get("meeting") or {}
+    if thread.get("subject"):
+        where = f'written in the email thread "{thread["subject"]}" (email sent by {speaker})'
+    elif meeting.get("title"):
+        where = f'spoken in the meeting "{meeting["title"]}"'
+    else:
+        where = "source unknown"
+    return (
+        f"- [{fact.get('id')}] {fact.get('subject')} {str(fact.get('predicate') or '').replace('_', ' ')} {pretty_object(fact.get('object'))} "
+        f"({fact.get('kind')}, {fact.get('status', 'active')}; stated {_iso(fact.get('valid_from'))} by {speaker}, {where}): {fact.get('text')}"
+    )
+
+
+def build_user_prompt(message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any], evidence: dict[str, Any]) -> str:
+    """The evidence block: one section per fact with its whole history (oldest first), then raw episodes."""
+    index: EvidenceIndex | None = evidence.get("index")
+    dossiers = evidence.get("dossiers") or []
+    parts = [f"Question: {message}", f"Router: intent={decision.intent}, route={decision.route}, entities={decision.entities}"]
+    if decision.intent == "belief_at" and decision.at_ms:
+        parts.append(f"The question asks what was believed as of {_iso(decision.at_ms)}: use the version that was active on that date; later versions are context only.")
+    parts.append("")
+    if dossiers and index is not None:
+        parts.append(
+            "EVIDENCE A: facts from the memory graph. Each FACT lists every version oldest to newest, who stated it, "
+            "where (a meeting or an email thread), what they said or wrote, and any stated rationale."
+        )
+        parts.extend(render_dossier(index, d, i + 1) for i, d in enumerate(dossiers))
+    else:
+        rows = [f for f in facts[:12] if isinstance(f, dict) and f.get("id")]
+        if rows:
+            parts.append("EVIDENCE A: facts from the memory graph.")
+            parts.extend(_legacy_fact_line(f) for f in rows)
+    if extra.get("who_knows"):
+        parts.append("WHO KNOWS (mentions across meetings and emails): " + ", ".join(f"{r['person']['name']} ({r['mentions']} mentions)" for r in extra["who_knows"][:6]))
+    if extra.get("contradictions") is not None:
+        pairs = extra["contradictions"]
+        lines = [f"CONTRADICTIONS between active facts: {len(pairs)}"]
+        for p in pairs[:5]:
+            a, b = p["facts"][0], p["facts"][1]
+            lines.append(f"- {p['key']}: [{a.get('id')}] '{a.get('object')}' vs [{b.get('id')}] '{b.get('object')}'")
+        parts.append("\n".join(lines))
+    if extra.get("rows") and not dossiers:
+        parts.append("QUERY ROWS: " + str(extra["rows"][:10])[:3000])
+    quoted = quoted_episode_ids(dossiers)
+    episodes = [ep for ep in evidence.get("episodes") or [] if ep["id"] not in quoted][:6]
+    if episodes:
+        shown: dict[str, str] = {}
+        for d in dossiers:
+            for v in d.get("versions", []):
+                if v["source"]["episode"]:
+                    shown.setdefault(v["source"]["episode"]["id"], v["fact"]["id"])
+        parts.append("")
+        parts.append("EVIDENCE B: more raw episodes (verbatim utterances and emails) found by semantic and keyword search, best first.")
+        parts.extend(render_episodes(episodes, shown))
+    parts.append("")
+    parts.append(
+        "Answer in at most five sentences. Cite fact ids (or episode ids) in square brackets after each claim. "
+        "If a value changed, tell it in time order: first ..., then ..., now ... (and say so if a status fact shows it was completed). "
+        "For each version or reason, name who stated it and the meeting title or email subject it came from. "
+        "Say 'meeting' only for evidence marked 'spoken in the meeting'; evidence marked 'email thread' is an email."
+    )
+    return "\n".join(parts)
+
+
+def _chain_sentence(dossier: dict[str, Any]) -> str:
+    words = ["first", *(["then"] * (len(dossier["versions"]) - 2)), "now"]
+    bits = []
+    for word, version in zip(words, dossier["versions"]):
+        src = version["source"]
+        where = f'email "{src["container"]}"' if src["kind"] == "email" else f'meeting "{src["container"]}"'
+        bits.append(f"{word} {version['fact'].get('object')} ({src['speaker']}, {where}, {src['date']}) [{version['fact'].get('id')}]")
+    head = dossier["chain"][-1]
+    return f"{head.get('subject')} {str(head.get('predicate') or '').replace('_', ' ')}: " + ", ".join(bits)
+
+
+def render_answer(message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any], dossiers: list[dict[str, Any]] | None = None) -> str:
     """Deterministic, citation-bearing answer used by the fake backend and as the model fallback."""
     if extra.get("who_knows"):
         people = ", ".join(f"{r['person']['name']} ({r['mentions']})" for r in extra["who_knows"][:5])
@@ -283,13 +490,15 @@ def render_answer(message: str, decision: RouterDecision, facts: list[dict[str, 
     lines = []
     for fact in facts[:6]:
         speaker = (fact.get("speaker") or {}).get("name") or fact.get("speaker_id") or "someone"
-        where = (fact.get("meeting") or {}).get("title") or (fact.get("thread") or {}).get("subject") or "a source"
+        thread = fact.get("thread") or {}
+        meeting = fact.get("meeting") or {}
+        where = f'email "{thread["subject"]}"' if thread.get("subject") else meeting.get("title") or "a source"
         lines.append(f"{fact.get('subject')} {str(fact.get('predicate', '')).replace('_', ' ')} {fact.get('object')} ({speaker}, {where}, {_iso(fact.get('valid_from'))}) [{fact.get('id')}]")
-    if decision.intent == "why" and extra.get("why"):
-        history = extra["why"][0].get("history") or []
-        prior = [h for h in history if h.get("id") != extra["why"][0].get("id")]
-        if prior:
-            lines.append("Earlier: " + "; ".join(f"{h.get('object')} ({h.get('status')}, {_iso(h.get('valid_from'))})" for h in prior[:3]))
+    if decision.intent != "belief_at":
+        for dossier in dossiers or []:
+            if len(dossier.get("versions") or []) > 1:
+                lines.append("History: " + _chain_sentence(dossier))
+                break
     if decision.intent == "belief_at" and decision.at_ms:
         lines.insert(0, f"Belief as of {_iso(decision.at_ms)}:")
     return "\n".join(lines) if lines else "No matching facts."
