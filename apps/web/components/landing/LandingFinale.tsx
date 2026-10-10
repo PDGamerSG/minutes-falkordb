@@ -68,7 +68,7 @@ export function LandingFinale() {
         </nav>
       </div>
       <div className="m-finale-wordmark" aria-label="Minutes">minutes<span>.</span></div>
-      <div className="m-finale-colophon"><span>Made with context. Built by Team Vulcan.</span><a href="https://github.com/FalkorDB/FalkorDB" target="_blank" rel="noreferrer">Powered by FalkorDB <ArrowUpRight size={12} aria-hidden="true" /></a><a href="#main-content">Back to top <ArrowUpRight size={12} aria-hidden="true" /></a></div>
+      <div className="m-finale-colophon"><span>Made with context. Built by Team Vulcan.</span></div>
     </footer>
   </div>;
 }

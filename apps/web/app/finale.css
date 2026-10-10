@@ -49,9 +49,7 @@
 .m-finale-links :is(a,button):hover { color: #fff; }
 .m-finale-wordmark { container-type: inline-size; font-family: MinutesCal, sans-serif; font-weight: 400; font-size: clamp(120px,22.7vw,310px); letter-spacing: -.065em; line-height: 1.03; color: #7d9bec; margin: 39px 0 28px -.025em; user-select: none; }
 .m-finale-wordmark > span { color: #3e65d8; }
-.m-finale-colophon { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding-block: 21px 94px; border-top: 1px solid #a7c0ff26; color: #9eb1d9; font-size: 10px; }
-.m-finale-colophon a { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; }
-.m-finale-colophon a:hover { color: #fff; }
+.m-finale-colophon { display: flex; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; gap: 18px; padding-block: 21px 94px; border-top: 1px solid #a7c0ff26; color: #9eb1d9; font-size: 10px; }
 .m-finale :is(a,button):focus-visible { outline: 2px solid #adcbff; outline-offset: 5px; }
 @media (max-width: 1050px) {
   .m-finale-story { margin-inline: 40px; }.m-finale-footer { margin-inline: 40px; }
