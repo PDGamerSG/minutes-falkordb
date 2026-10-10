@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUpRight, ChartColumn, Clock, Database, Layers, Menu, MessageSquare, SquareKanban, Workflow } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ChartColumn, Clock, Database, Layers, Menu, MessageSquare, SquareKanban, Workflow } from "lucide-react";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { useMockState } from "@/lib/mock-state";
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StateDot } from "@/components/StateBadge";
-import { AskMinutesButton, LandingAssistantProvider } from "@/components/landing/LandingAssistant";
+import { LandingAssistantProvider } from "@/components/landing/LandingAssistant";
+import { LandingNavigation } from "@/components/landing/LandingNavigation";
 
 const TEAM_PAGES = [
   { slug: "sources", label: "Sources", icon: Layers },
@@ -178,15 +179,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const team = useMemo(() => teamFromPath(pathname), [pathname]);
   const [open, setOpen] = useState(false);
-  const [landingScrolled, setLandingScrolled] = useState(false);
-
-  useEffect(() => {
-    if (pathname !== "/" && pathname !== "/workspaces") return;
-    const onScroll = () => setLandingScrolled(window.scrollY > 18);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [pathname]);
 
   const current = team ? TEAM_PAGES.find((p) => pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`))?.label : GLOBAL_PAGES.find((p) => pathname.startsWith(p.href))?.label;
 
@@ -194,18 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <LandingAssistantProvider key={pathname}>
     <div className="entrance-shell">
       <a className="m-skip-link" href="#main-content">Skip to content</a>
-      <header className="m-landing-nav" data-scrolled={landingScrolled || undefined}>
-        <Link className="m-home-brand" href="/" aria-label="Minutes home">
-          <span className="m-home-symbol" aria-hidden="true"><i /><i /><i /></span>
-          minutes<span>.</span>
-        </Link>
-        <nav aria-label="Main navigation">
-          <Link href="/#company-memory"><span>01</span>How it works</Link>
-          <Link href="/#inside-minutes"><span>02</span>Why Minutes</Link>
-          <AskMinutesButton />
-        </nav>
-        <div className="m-nav-end"><span className="m-nav-live"><i /> context online</span><Link className="m-nav-open" href="/workspaces">Open Minutes <ArrowUpRight size={15} /></Link></div>
-      </header>
+      <LandingNavigation />
       <main id="main-content">{children}</main>
     </div>
     </LandingAssistantProvider>

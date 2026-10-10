@@ -5,6 +5,8 @@ import "./walkthrough.css";
 import "./memory-landing.css";
 import "./assistant.css";
 import "./finale.css";
+import "./memory-atmosphere.css";
+import "./memory-storyboard.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/AppShell";

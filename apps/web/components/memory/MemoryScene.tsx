@@ -83,15 +83,19 @@ export default function MemoryScene({ selected, paused, reducedMotion }: Props) 
     const positions = layouts[state.current.selected].map(p => p.clone().multiplyScalar(state.current.reducedMotion ? 1 : 1.12));
     const object = new THREE.Object3D();
     const color = new THREE.Color();
+    const baseColors: THREE.Color[] = [];
+    const signalColor = new THREE.Color("#d5e3ff");
     for (let i = 0; i < count; i++) {
       const accent = ring[i].x > .3 && ring[i].y < .7 && ring[i].z > -.2;
       color.set(accent ? (i % 3 === 0 ? "#b1c8ff" : "#6986d5") : (i % 7 === 0 ? "#636879" : "#c6cbd7"));
+      baseColors.push(color.clone());
       mesh.setColorAt(i, color);
     }
 
     let frame = 0, last = 0, time = 0, visible = true, disposed = false;
     let pointerX = 0, pointerY = 0, dragX = -.5, dragY = .25, dragging = false;
     let lastX = 0, lastY = 0, hover = -1, settled = false;
+    let previousSelected = state.current.selected, assemblyTime = 2;
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
     const target = new THREE.Vector3();
@@ -104,28 +108,40 @@ export default function MemoryScene({ selected, paused, reducedMotion }: Props) 
       last = now;
       const moving = !state.current.paused && !state.current.reducedMotion;
       if (moving) time += dt;
+      if (previousSelected !== state.current.selected) { previousSelected = state.current.selected; assemblyTime = 0; }
+      assemblyTime += dt;
       const blend = state.current.reducedMotion || state.current.paused ? 1 : 1 - Math.exp(-dt * 5);
       let remaining = 0;
       for (let i = 0; i < count; i++) {
         target.copy(layouts[state.current.selected][i]);
+        if (moving && state.current.selected === 0) {
+          target.y += Math.sin(time * .7 + i * .4) * .045;
+          target.z += Math.cos(time * .5 + i * .6) * .035;
+        }
         if (hover >= 0 && !state.current.reducedMotion && !state.current.paused) {
           offset.copy(target).sub(layouts[state.current.selected][hover]);
           const length = offset.length();
           if (length < 1.05) target.addScaledVector(offset.normalize(), (1.05 - length) * .35);
         }
-        positions[i].lerp(target, blend);
+        const arrived = !moving || assemblyTime > random(i + 31) * .55;
+        positions[i].lerp(target, arrived ? blend : 0);
         remaining += positions[i].distanceToSquared(target);
         object.position.copy(positions[i]);
-        object.rotation.set(0, 0, 0);
+        const drift = moving && state.current.selected === 0 ? Math.sin(time * .5 + i) * .035 : 0;
+        object.rotation.set(drift, drift * .7, 0);
         object.scale.setScalar(1);
         object.updateMatrix();
         mesh.setMatrixAt(i, object.matrix);
+        const signal = moving && state.current.selected > 0 ? Math.pow(Math.max(0, Math.sin(time * .9 - ring[i].y * 1.5 - ring[i].x * .5)), 12) * .24 : 0;
+        color.copy(baseColors[i]).lerp(signalColor, signal);
+        mesh.setColorAt(i, color);
       }
       mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       group.rotation.y += (dragX + (moving ? Math.sin(time * .18) * .18 + pointerX * .13 : 0) - group.rotation.y) * blend;
       group.rotation.x += (dragY + (moving ? pointerY * .1 : 0) - group.rotation.x) * blend;
       group.position.y = Math.sin(time * .6) * .06;
-      const distance = (state.current.selected === 0 ? 12 : 8.6) / Math.min(camera.aspect, 1);
+      const distance = (state.current.selected === 0 ? 11.4 : 8.1) / Math.min(camera.aspect, 1);
       camera.position.z += (distance - camera.position.z) * blend;
       renderer.render(scene, camera);
       settled = remaining < .0001;
@@ -137,7 +153,7 @@ export default function MemoryScene({ selected, paused, reducedMotion }: Props) 
       const { width, height } = el.getBoundingClientRect();
       renderer.setSize(width, height);
       camera.aspect = width / Math.max(height, 1);
-      camera.position.z = (state.current.selected === 0 ? 12 : 8.6) / Math.min(camera.aspect, 1);
+      camera.position.z = (state.current.selected === 0 ? 11.4 : 8.1) / Math.min(camera.aspect, 1);
       camera.updateProjectionMatrix();
       requestRender();
     });

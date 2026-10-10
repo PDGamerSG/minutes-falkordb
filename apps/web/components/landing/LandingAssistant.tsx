@@ -9,12 +9,12 @@ import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { MemoryMark } from "./MemoryMark";
 
-const AssistantContext = createContext<(() => void) | null>(null);
+const AssistantContext = createContext<((question?: string) => void) | null>(null);
 const suggestions = ["Why did the release date move?", "What is still open?"];
 
-export function AskMinutesButton({ children = "Ask Minutes", className }: { children?: ReactNode; className?: string }) {
+export function AskMinutesButton({ children = "Ask Minutes", className, question }: { children?: ReactNode; className?: string; question?: string }) {
   const open = useContext(AssistantContext);
-  return <button type="button" className={className} onClick={() => open?.()} aria-haspopup="dialog">{children}</button>;
+  return <button type="button" className={className} onClick={() => open?.(question)} aria-haspopup="dialog">{children}</button>;
 }
 
 export function LandingAssistantProvider({ children }: { children: ReactNode }) {
@@ -34,7 +34,7 @@ export function LandingAssistantProvider({ children }: { children: ReactNode }) 
     startTransition(() => router.push(href));
   }
 
-  return <AssistantContext.Provider value={() => setOpen(true)}>
+  return <AssistantContext.Provider value={nextQuestion => { if (nextQuestion) setQuestion(nextQuestion); setOpen(true); }}>
     {children}
     <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
       <Dialog.Trigger ref={triggerRef} className="m-assistant-trigger" aria-label={open ? "Close Minutes assistant" : "Ask Minutes"}>

@@ -1,37 +1,34 @@
-import { Check, GitBranch, Mail, Mic, Users } from "lucide-react";
+"use client";
 
-const nodes = [
-  { className: "m-flow-node m-flow-node-meeting", icon: Mic, label: "Product kickoff", meta: "meeting" },
-  { className: "m-flow-node m-flow-node-decision", icon: GitBranch, label: "UPI release", meta: "decision" },
-  { className: "m-flow-node m-flow-node-followup", icon: Mail, label: "Payments follow-up", meta: "email" },
-  { className: "m-flow-node m-flow-node-people", icon: Users, label: "Rahul + Priya", meta: "people" },
+import { useEffect, useRef } from "react";
+
+const paths = [
+  "M-100 52C96 25 229 88 192 180S12 272 32 366s179 77 230 153",
+  "M-98 65C88 39 211 94 181 178S-2 279 18 373s182 84 238 157",
+  "M-98 78C80 54 195 101 170 176S-17 286 4 380s185 91 246 161",
+  "M-97 91C72 69 179 108 159 174S-32 293-10 387s188 98 254 165",
 ];
 
 export function HeroFlow() {
-  return (
-    <div className="m-hero-flow" aria-hidden="true">
-      <div className="m-flow-halo" />
-      <svg className="m-flow-lines" viewBox="0 0 1200 570" fill="none" role="presentation">
-        <path className="m-flow-path m-flow-path-a" d="M90 130C280 70 330 240 480 250S690 75 835 150s170 200 275 120" />
-        <path className="m-flow-path m-flow-path-b" d="M40 420C220 330 330 455 475 385s190-170 340-115 210 125 340 15" />
-        <path className="m-flow-path m-flow-path-c" d="M180 40C330 190 360 395 585 350s260-25 440 135" />
-        <circle className="m-flow-dot m-flow-dot-a" cx="90" cy="130" r="4" />
-        <circle className="m-flow-dot m-flow-dot-b" cx="835" cy="150" r="4" />
-        <circle className="m-flow-dot m-flow-dot-c" cx="40" cy="420" r="4" />
-        <circle className="m-flow-dot m-flow-dot-d" cx="815" cy="270" r="4" />
-      </svg>
-      {nodes.map(({ className, icon: Icon, label, meta }) => (
-        <div className={className} key={label}>
-          <span className="m-flow-node-icon"><Icon size={14} strokeWidth={1.8} /></span>
-          <span><strong>{label}</strong><small>{meta}</small></span>
-          <Check size={12} className="m-flow-check" />
-        </div>
-      ))}
-      <div className="m-flow-core">
-        <span className="m-flow-core-mark"><i /><i /><i /></span>
-        <strong>shared memory</strong>
-        <span><b /> always in context</span>
-      </div>
-    </div>
-  );
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    let visible = false;
+    const sync = () => { element.dataset.running = String(visible && !document.hidden); };
+    const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; sync(); });
+    observer.observe(element);
+    document.addEventListener("visibilitychange", sync);
+    return () => { observer.disconnect(); document.removeEventListener("visibilitychange", sync); };
+  }, []);
+
+  return <div className="m-hero-flow" ref={host} aria-hidden="true">
+    {["left", "right"].map(side => <svg key={side} className={`m-thread-art m-thread-art-${side}`} viewBox="0 0 300 560" fill="none">
+      {paths.map((d, index) => <path className="m-thread-outline" d={d} key={index} />)}
+      <path className="m-thread-signal" d={paths[0]} />
+      <path className="m-thread-signal m-thread-signal-soft" d={paths[3]} />
+      <g className="m-thread-junction" transform="translate(178 146)"><circle r="19" /><circle r="4" /><path d="M-8 0H8M0-8V8" /></g>
+      <g className="m-thread-blocks" transform="translate(30 381) rotate(-12)"><rect x="-14" y="-14" width="11" height="11" rx="2" /><rect x="3" y="-14" width="11" height="11" rx="2" /><rect x="-14" y="3" width="11" height="11" rx="2" /><rect x="3" y="3" width="11" height="11" rx="2" /></g>
+    </svg>)}
+  </div>;
 }

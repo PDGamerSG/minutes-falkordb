@@ -9,13 +9,19 @@ const chapters = [
   { title: "Recall", description: "Ask a question. Get the answer, the reason, and the sources behind it.", start: 16 },
 ];
 const subscribe = () => () => {};
+const mediaVersion = "blue-20261011-2";
+function subscribeMotion(onChange: () => void) {
+  const media = matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
 
 export function CompanyWalkthrough() {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  const reduced = useSyncExternalStore(subscribeMotion, () => matchMedia("(prefers-reduced-motion: reduce)").matches, () => true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLElement>(null);
-  const playIntent = useRef(false);
-  const visible = useRef(false);
+  const resume = useRef<() => void>(() => {});
   const [time, setTime] = useState(0);
   const [failed, setFailed] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -25,38 +31,76 @@ export function CompanyWalkthrough() {
     const video = videoRef.current;
     const container = containerRef.current;
     if (!video || !container) return;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    playIntent.current = !motion.matches;
+    let disposed = false;
+    let pending = false;
+    let retry = 0;
+    let timer = 0;
+    let scrollFrame = 0;
+    // Set both properties before play: WebKit and embedded browsers consult defaultMuted.
+    video.muted = true;
+    video.defaultMuted = true;
+    const shouldPlay = () => {
+      const rect = video.getBoundingClientRect();
+      const visibleHeight = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
+      return !disposed && !reduced && !document.hidden && visibleHeight > Math.min(rect.height, innerHeight) * .15;
+    };
     const syncPlayback = () => {
-      if (playIntent.current && visible.current && !document.hidden) {
-        // A tab switch can interrupt play(); keep autoplay intent for the next visibility change.
-        void video.play().catch(() => {});
-      } else video.pause();
+      if (disposed) return;
+      if (!shouldPlay()) {
+        clearTimeout(timer);
+        if (!video.paused) video.pause();
+        return;
+      }
+      if (pending || !video.paused || video.error) return;
+      pending = true;
+      void video.play().then(() => { retry = 0; }).catch(() => {
+        // Loading, seeking, and tab switches can interrupt a pending play().
+        // Retry briefly, then wait for the next readiness/visibility/user event.
+        if (shouldPlay() && retry < 3) {
+          retry += 1;
+          timer = window.setTimeout(syncPlayback, retry * 150);
+        }
+      }).finally(() => { pending = false; });
     };
-    const observer = new IntersectionObserver(([entry]) => {
-      visible.current = entry.isIntersecting;
-      syncPlayback();
-    }, { threshold: 0.3 });
-    const updateMotion = () => {
-      playIntent.current = !motion.matches;
-      syncPlayback();
+    const wake = () => { retry = 0; syncPlayback(); };
+    const onScroll = () => {
+      if (!scrollFrame) scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; syncPlayback(); });
     };
-    observer.observe(container);
-    document.addEventListener("visibilitychange", syncPlayback);
-    motion.addEventListener("change", updateMotion);
+    const onPause = () => {
+      if (shouldPlay()) timer = window.setTimeout(syncPlayback, 150);
+    };
+    const observer = new IntersectionObserver(wake, { threshold: [0, .15, .35] });
+    observer.observe(video);
+    for (const event of ["loadeddata", "canplay", "seeked"]) video.addEventListener(event, wake);
+    video.addEventListener("pause", onPause);
+    document.addEventListener("visibilitychange", wake);
+    document.addEventListener("pointerdown", wake, { passive: true });
+    window.addEventListener("pageshow", wake);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    resume.current = wake;
+    syncPlayback();
     return () => {
+      disposed = true;
+      clearTimeout(timer);
+      cancelAnimationFrame(scrollFrame);
       observer.disconnect();
-      document.removeEventListener("visibilitychange", syncPlayback);
-      motion.removeEventListener("change", updateMotion);
+      for (const event of ["loadeddata", "canplay", "seeked"]) video.removeEventListener(event, wake);
+      video.removeEventListener("pause", onPause);
+      document.removeEventListener("visibilitychange", wake);
+      document.removeEventListener("pointerdown", wake);
+      window.removeEventListener("pageshow", wake);
+      window.removeEventListener("scroll", onScroll);
+      resume.current = () => {};
       video.pause();
     };
-  }, [mounted]);
+  }, [mounted, reduced]);
 
   const seek = (nextTime: number) => {
     const video = videoRef.current;
     if (!video) return;
     video.currentTime = nextTime;
     setTime(nextTime);
+    resume.current();
   };
 
   return (
@@ -80,8 +124,8 @@ export function CompanyWalkthrough() {
         </div>
         <div className="m-walkthrough-media">
           <div className="m-walkthrough-screen">
-            {mounted ? <video id="minutes-walkthrough-video" ref={videoRef} width="1200" height="900" muted loop playsInline preload="metadata" poster="/media/minutes-walkthrough-poster.jpg" aria-label="How Minutes captures conversations, connects decisions, and recalls answers" aria-describedby="walkthrough-description" onTimeUpdate={event => setTime(event.currentTarget.currentTime)} onError={() => { playIntent.current = false; setFailed(true); }}>
-              <source src="/media/minutes-walkthrough.mp4" type="video/mp4" />
+            {mounted ? <video key={mediaVersion} id="minutes-walkthrough-video" ref={videoRef} width="1200" height="900" muted autoPlay={!reduced} loop playsInline preload="metadata" poster={`/media/minutes-walkthrough-poster.jpg?v=${mediaVersion}`} aria-label="How Minutes captures conversations, connects decisions, and recalls answers" aria-describedby="walkthrough-description" onTimeUpdate={event => setTime(event.currentTarget.currentTime)} onError={() => setFailed(true)}>
+              <source src={`/media/minutes-walkthrough.mp4?v=${mediaVersion}`} type="video/mp4" />
               <track kind="captions" src="/media/minutes-walkthrough.vtt" srcLang="en" label="English" />
               Your browser does not support video. Read the story below.
             </video> : <div className="m-walkthrough-poster" role="img" aria-label="A product kickoff and a follow-up email connected in Minutes" />}

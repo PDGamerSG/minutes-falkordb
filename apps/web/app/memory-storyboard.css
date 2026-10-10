@@ -1,0 +1,47 @@
+/* One message, one change, one next step. */
+.ms-section { padding: 70px 64px 57px; border-top: 1px solid var(--minutes-line); background: #fff; scroll-margin-top: 92px; }
+.ms-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 35px; margin-bottom: 35px; }
+.minutes-home .ms-heading h2 { font-family: MinutesCal,sans-serif; font-size: clamp(34px,3.8vw,49px); font-weight: 400; letter-spacing: -.025em; line-height: 1.12; }
+.ms-heading > p { color: #7a8494; font-size: 13px; line-height: 1.8; padding-bottom: 4px; }
+.ms-story { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 100px minmax(0,1fr); align-items: center; padding: 51px 44px 0; background: #f5f7fb; border-radius: 5px; --story-motion: paused; }
+.ms-story[data-running='true'] { --story-motion: running; }
+.ms-message { padding-block: 10px 24px; transition: opacity .7s,transform .9s cubic-bezier(.22,1,.36,1); }
+.ms-message-meta { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #74819a; }
+.ms-message-meta > svg { color: #899ac0; }
+.ms-message blockquote { color: #34435d; font-size: clamp(19px,1.65vw,23px); line-height: 1.65; letter-spacing: -.025em; margin-block: 20px 18px; max-width: 29ch; }
+.ms-message mark { color: #3155ed; background: linear-gradient(transparent 66%,#e0e7fc 66%); padding-bottom: 2px; }
+.ms-message-author { font-size: 11px; color: #929cad; }
+.ms-story[data-phase='0'] .ms-message { opacity: .35; transform: translateY(9px); }
+.ms-bridge { padding-inline: 10px 23px; margin-top: -20px; }
+.ms-bridge svg { width: 100%; stroke: #c7d1e4; stroke-width: 1; }
+.ms-bridge-signal { stroke: #6f8bcc; stroke-width: 1.5; stroke-dasharray: 20 80; animation: ms-thread 2.5s linear infinite; animation-play-state: var(--story-motion); }
+.ms-story[data-phase='0'] .ms-bridge-signal { opacity: 0; }
+.ms-decision { padding-block: 12px 30px; min-width: 0; }
+.minutes-home .ms-decision h3 { font-family: MinutesInter,sans-serif; font-size: 13px; font-weight: 500; color: #56647e; letter-spacing: 0; }.ms-decision h3 > span { color: #8b98ad; font-weight: 400; }
+.ms-date { display: flex; align-items: center; gap: 18px; height: 159px; font-family: MinutesCal,sans-serif; font-size: clamp(88px,9vw,128px); font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.055em; color: #293f68; }
+.ms-old-date { position: relative; transition: color .8s,transform .8s; }
+.ms-old-date::after { content: ''; position: absolute; left: -3px; right: -4px; top: 51%; height: 2px; background: #a4b0c5; transform: scaleX(0) rotate(-8deg); transform-origin: left; transition: transform .8s; }
+.ms-date-arrow { color: #a7b6d0; font-family: MinutesInter,sans-serif; font-size: 25px; opacity: 0; transform: translateX(-10px); transition: opacity .5s,transform .7s; }
+.ms-new-date { color: #3155ed; opacity: 0; transform: translateY(20px); transition: opacity .6s,transform .9s cubic-bezier(.22,1,.36,1); }.ms-new-date > span { color: #b4c3ec; }
+.ms-story:is([data-phase='2'],[data-phase='3']) .ms-old-date { color: #afbacd; transform: scale(.91); }
+.ms-story:is([data-phase='2'],[data-phase='3']) .ms-old-date::after { transform: scaleX(1) rotate(-8deg); }
+.ms-story:is([data-phase='2'],[data-phase='3']) :is(.ms-new-date,.ms-date-arrow) { opacity: 1; transform: none; }
+.ms-date-caption { color: #7b8aa3; font-size: 11px; line-height: 1.8; min-height: 20px; }
+.ms-handoff { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding-block: 24px; margin-top: 21px; border-top: 1px solid #dfe5ef; min-height: 91px; opacity: 0; transform: translateY(7px); transition: opacity .6s,transform .6s; }
+.ms-story[data-phase='3'] .ms-handoff { opacity: 1; transform: none; }
+.ms-handoff-person { display: grid; place-items: center; width: 27px; height: 30px; color: #7085ac; background: #e6ecf7; border-radius: 7px; font-size: 11px; }
+.ms-handoff p { color: #718098; font-size: 12px; }
+.ms-handoff button { display: flex; align-items: center; gap: 12px; min-height: 44px; margin-left: auto; color: #496291; font-size: 11px; transition: color .2s; }.ms-handoff button:hover { color: #3155ed; }.ms-handoff button > svg { transition: transform .2s; }.ms-handoff button:hover > svg { transform: translate(2px,-2px); }
+.ms-draft { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 15px; padding: 0 0 27px; color: #607899; animation: ms-reveal .3s ease-out; }.ms-draft > svg { flex: none; margin-top: 4px; }.ms-draft p { font-size: 12px; max-width: 72ch; line-height: 1.8; }.ms-draft span { display: block; font-size: 10px; color: #8996ab; margin-top: 10px; }
+.ms-example-note { text-align: right; font-size: 9px; color: #a0a8b5; margin-top: 16px; }
+.ms-story button:focus-visible { outline: 2px solid #3155ed; outline-offset: 4px; }
+@keyframes ms-thread { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes ms-reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1100px) { .ms-section { padding-inline: 35px; }.ms-story { padding-inline: 30px; grid-template-columns: minmax(0,1fr) 60px minmax(0,1fr); }.ms-heading { gap: 25px; }.ms-heading > p { max-width: 26ch; font-size: 12px; }.ms-date { font-size: 99px; gap: 15px; }.ms-date-arrow { font-size: 23px; }.ms-message blockquote { font-size: 20px; } }
+@media (max-width: 900px) and (min-width: 761px) { .ms-story { padding-inline: 25px; grid-template-columns: minmax(0,1fr) 35px minmax(0,1fr); }.ms-date { font-size: 81px; gap: 11px; }.ms-date-arrow { font-size: 21px; }.ms-bridge { padding-inline: 3px 10px; }.ms-date-caption { min-height: 40px; }.ms-message blockquote { font-size: 18px; } }
+@media (max-width: 760px) {
+  .ms-section { padding: 44px 23px 38px; scroll-margin-top: 80px; }.ms-heading { display: block; margin-bottom: 25px; }.minutes-home .ms-heading h2 { font-size: clamp(32px,8vw,42px); }.ms-heading > p { max-width: none; font-size: 12px; margin-top: 13px; }
+  .ms-story { padding: 27px 25px 0; grid-template-columns: 1fr; }.ms-message { padding-block: 0 24px; }.ms-message-meta { font-size: 11px; }.ms-message blockquote { font-size: 21px; margin-block: 17px 13px; max-width: 29ch; }.ms-message-author { font-size: 10px; }.ms-bridge { display: none; }.ms-decision { padding: 25px 0 11px; border-top: 1px solid #e0e6f0; }.minutes-home .ms-decision h3 { font-size: 12px; }.ms-date { height: 135px; font-size: 106px; gap: 20px; }.ms-date-arrow { font-size: 24px; }.ms-date-caption { font-size: 10px; min-height: 36px; }.ms-handoff { margin-top: 10px; flex-wrap: wrap; padding-block: 17px; gap: 8px; min-height: 108px; }.ms-handoff p { font-size: 11px; flex: 1; }.ms-handoff button { margin-left: 35px; min-height: 34px; font-size: 10px; }.ms-draft { gap: 9px; }.ms-draft p { font-size: 11px; }
+}
+@media (max-width: 360px) { .ms-section { padding-inline: 19px; }.ms-story { padding-inline: 20px; }.ms-message blockquote { font-size: 19px; }.ms-date { font-size: 88px; gap: 15px; height: 120px; }.ms-date-arrow { font-size: 22px; }.ms-handoff p { font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .ms-story *, .ms-story *::after { animation: none !important; transition: none !important; } }

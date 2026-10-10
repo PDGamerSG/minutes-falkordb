@@ -1,16 +1,34 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { ArrowRight, ArrowUpRight, Network, Mic, Mail, GitBranch, Users, Sparkles, FileText } from "lucide-react";
 import { CompanyWalkthrough } from "./CompanyWalkthrough";
 import { MemoryFeatures } from "./MemoryFeatures";
 import { LandingFinale } from "./LandingFinale";
 import { HeroFlow } from "./HeroFlow";
+import { ContextQuestions } from "./ContextQuestions";
 
 export function MinutesLanding() {
+  const page = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = page.current;
+    if (!root || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.isIntersecting) {
+        entry.target.setAttribute("data-revealed", "true");
+        observer.unobserve(entry.target);
+      }
+    }, { threshold: .15 });
+    root.querySelectorAll(".m-walkthrough-heading,.m-source-strip,.ms-heading,.mq-intro,.mq-question,.m-finale-links,.m-finale-wordmark").forEach(element => {
+      element.setAttribute("data-revealed", "false");
+      observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="minutes-home">
+    <div className="minutes-home" ref={page}>
       <section className="m-hero">
-        <HeroFlow />
         <div className="m-hero-copy">
+          <HeroFlow />
           <a className="m-announcement" href="#company-memory">
             <span>
               <Network size={12} />
@@ -28,7 +46,7 @@ export function MinutesLanding() {
           </p>
           <div className="m-hero-actions">
             <a className="m-button" href="/workspaces">
-              Open your workspace <ArrowUpRight size={16} />
+              Open Minutes <ArrowUpRight size={16} />
             </a>
             <a className="m-button m-button-secondary" href="#company-memory">
               See the story <ArrowRight size={16} />
@@ -66,7 +84,8 @@ export function MinutesLanding() {
           </div>
         </div>
       </section>
-      <MemoryFeatures workspaceHref="/workspaces" />
+      <MemoryFeatures />
+      <ContextQuestions />
       <LandingFinale />
     </div>
   );

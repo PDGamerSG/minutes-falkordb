@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Mail, Mic } from "lucide-react";
 import { MemorySculpture } from "@/components/memory/MemorySculpture";
 import { AskMinutesButton } from "./LandingAssistant";
 import { MemoryMark } from "./MemoryMark";
@@ -24,7 +24,7 @@ export function LandingFinale() {
     if (!journey || !story) return;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => {
-      if (motion.matches) return;
+      if (motion.matches) { setMode(2); return; }
       const rect = journey.getBoundingClientRect();
       const distance = journey.offsetHeight - story.offsetHeight;
       const progress = distance > 0 ? -rect.top / distance : (innerHeight * .8 - rect.top) / rect.height;
@@ -45,32 +45,18 @@ export function LandingFinale() {
     };
   }, []);
 
-  function selectMode(index: number) {
-    const journey = journeyRef.current;
-    const story = storyRef.current;
-    if (!journey || !story) return;
-    setMode(index);
-    const distance = journey.offsetHeight - story.offsetHeight;
-    if (distance <= 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const top = window.scrollY + journey.getBoundingClientRect().top + distance * (index + .15) / 3;
-    window.scrollTo({ top, behavior: "smooth" });
-  }
-
-  return <div className="m-finale">
+  return <div className="m-finale" id="shared-memory">
     <div className="m-finale-journey" ref={journeyRef} data-memory-mode={["gather", "connect", "remember"][mode]}>
     <section className="m-finale-story" ref={storyRef} aria-labelledby="finale-title">
       <div className="m-finale-copy">
-        <span className="m-finale-eyebrow"><span /> Small pieces. A bigger picture.</span>
+        <div className="m-finale-origin" aria-hidden="true"><Mic size={16} /><span /><Mail size={16} /><svg viewBox="0 0 65 24" fill="none"><path d="M0 12H20C31 12 31 4 40 4S47 12 58 12h7" /></svg><MemoryMark /></div>
         <h2 id="finale-title">More than meetings.<br /><span>A shared memory.</span></h2>
         <div className="m-finale-stage-copy" key={mode}>
-          <span>0{mode + 1} / {stages[mode].name}</span>
           <h3>{stages[mode].title}</h3>
           <p>{stages[mode].description}</p>
         </div>
-        <Link href="/workspaces" className="m-finale-cta">Find your shared memory <ArrowUpRight size={17} aria-hidden="true" /></Link>
-        <div className="m-finale-scroll-note"><span aria-hidden="true">{[0, 1, 2].map(index => <i key={index} className={index <= mode ? "is-reached" : ""} />)}</span><span>{["Scroll to bring the pieces together.", "Connected to the bigger picture.", "A shared memory. Ready for what’s next."][mode]}</span><ArrowDown size={13} aria-hidden="true" /></div>
       </div>
-      <MemorySculpture selected={mode} onSelectedChange={selectMode} />
+      <MemorySculpture selected={mode} />
     </section>
     </div>
     <footer className="m-finale-footer">
@@ -78,7 +64,7 @@ export function LandingFinale() {
         <div className="m-finale-signoff"><MemoryMark /><p>A little less catching up.<br /><span>A lot more moving forward.</span></p></div>
         <nav aria-label="Footer">
           <div><span>Explore</span><a href="#company-memory">How it works</a><a href="#inside-minutes">Why Minutes</a></div>
-          <div><span>Your next step</span><AskMinutesButton /><Link href="/workspaces">Open a workspace <ArrowUpRight size={13} aria-hidden="true" /></Link></div>
+          <div><span>Your next step</span><AskMinutesButton /><Link href="/workspaces">Workspaces <ArrowUpRight size={13} aria-hidden="true" /></Link></div>
         </nav>
       </div>
       <div className="m-finale-wordmark" aria-label="Minutes">minutes<span>.</span></div>
