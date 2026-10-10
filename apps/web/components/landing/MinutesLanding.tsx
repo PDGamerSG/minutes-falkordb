@@ -3,11 +3,13 @@ import { ArrowRight, ArrowUpRight, Network, Mic, Mail, GitBranch, Users, Sparkle
 import { CompanyWalkthrough } from "./CompanyWalkthrough";
 import { MemoryFeatures } from "./MemoryFeatures";
 import { LandingFinale } from "./LandingFinale";
+import { HeroFlow } from "./HeroFlow";
 
 export function MinutesLanding() {
   return (
     <div className="minutes-home">
       <section className="m-hero">
+        <HeroFlow />
         <div className="m-hero-copy">
           <a className="m-announcement" href="#company-memory">
             <span>

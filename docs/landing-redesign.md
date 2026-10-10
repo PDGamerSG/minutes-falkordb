@@ -17,6 +17,13 @@ The landing page now follows a shorter story: company memory → animated Captur
 - The bottom assistant opens a nonmodal, keyboard-accessible panel. Choose a workspace, write a question or select a suggestion, then continue to `/t/{workspace}/chat?q=...`. The question is prefilled for review, not silently submitted. Loading, error/retry, empty, and disabled states are included.
 - The large answer demonstration, homepage workspace directory, and FAQ block have been removed. Existing workspace creation remains on the dedicated directory page.
 
+## Motion pass
+
+- The hero now uses one restrained SVG thread to carry meeting, decision, email, and people source cards into a shared-memory mark. Cards drift on long, low-contrast loops while the dashed paths move slowly enough to read as a living system instead of a loading indicator.
+- T3 Code informed the floating source marks and staggered arrival; 100xDevs informed the focused headline surrounded by a small constellation and the spotlight treatment. The result stays specific to Minutes and the existing cobalt/navy system.
+- The landing navigation is now a translucent instrument-panel rail with numbered section links, a live context status, and a clear workspace action. It becomes slightly denser as the page scrolls and remains a compact single row on mobile.
+- All ambient motion is disabled under `prefers-reduced-motion`; the hero layout remains readable with the decorative layer still present but static.
+
 ## Validation
 
 - Targeted ESLint and scoped landing TypeScript checks passed, including the shared shell, new components, and sculpture.

@@ -40,6 +40,73 @@
 .minutes-home .m-source-strip > span strong { color: var(--minutes-muted); }
 .minutes-home .m-source-strip > div > span { color: var(--minutes-muted); font-size: 13px; }
 .minutes-home .m-source-strip svg { width: 16px; color: var(--minutes-muted); }
+
+/* A single ambient thread gives the paper hero the same sense of life as the
+   product: sources drift in, meet at the memory, and leave a trace behind. */
+.minutes-home .m-hero { overflow: clip; }
+.m-hero-flow { position: absolute; z-index: 0; inset: 0 0 auto; height: 548px; max-width: 1280px; margin-inline: auto; pointer-events: none; }
+.m-flow-halo { position: absolute; width: 520px; height: 300px; left: 50%; top: 156px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, #dbe5ff9c 0%, #eef3ff70 37%, transparent 72%); filter: blur(13px); animation: m-flow-breathe 7s ease-in-out infinite; }
+.m-flow-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.m-flow-path { stroke: #9fb3ef; stroke-width: 1.15; stroke-dasharray: 3 11; stroke-linecap: round; opacity: .45; }
+.m-flow-path-a { animation: m-flow-dash 19s linear infinite; }
+.m-flow-path-b { animation: m-flow-dash 24s linear infinite reverse; opacity: .32; }
+.m-flow-path-c { animation: m-flow-dash 29s linear infinite; opacity: .25; }
+.m-flow-dot { fill: #3155ed; opacity: .56; filter: drop-shadow(0 0 7px #3155ed66); animation: m-flow-pulse 3.8s ease-in-out infinite; }
+.m-flow-dot-b { animation-delay: -1.1s; }.m-flow-dot-c { animation-delay: -2.4s; }.m-flow-dot-d { animation-delay: -3.1s; }
+.m-flow-node { position: absolute; display: flex; align-items: center; gap: 8px; min-width: 139px; padding: 8px 10px 8px 8px; border: 1px solid #d9e1f3; border-radius: 9px; background: #ffffffd9; box-shadow: 0 12px 28px -18px #334c8a42, 0 1px 0 #fff inset; backdrop-filter: blur(8px); color: #596985; text-align: left; animation: m-flow-float 8s ease-in-out infinite; }
+.m-flow-node strong { display: block; color: #344666; font-size: 10px; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; }
+.m-flow-node small { display: block; margin-top: 2px; color: #8b98ad; font-size: 8px; letter-spacing: .045em; text-transform: uppercase; }
+.m-flow-node-icon { display: grid; place-items: center; width: 25px; height: 25px; flex: none; border-radius: 7px; background: #edf2ff; color: #3155ed; }
+.m-flow-check { margin-left: auto; color: #5f9b78; }
+.m-flow-node-meeting { top: 104px; left: clamp(30px, 7vw, 94px); animation-delay: -.8s; }
+.m-flow-node-decision { top: 92px; right: clamp(30px, 7vw, 94px); animation-delay: -3s; }
+.m-flow-node-followup { top: 343px; left: clamp(46px, 12vw, 158px); animation-delay: -4.7s; }
+.m-flow-node-people { top: 357px; right: clamp(46px, 12vw, 158px); animation-delay: -6.2s; }
+.m-flow-core { position: absolute; top: 145px; left: 50%; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); color: #445675; animation: m-flow-core 6s ease-in-out infinite; }
+.m-flow-core-mark { display: grid; place-items: center; width: 74px; height: 74px; position: relative; border: 1px solid #a8bcec; border-radius: 22px; background: #ffffff9e; box-shadow: 0 17px 50px -18px #3155ed35, 0 0 0 9px #dce6ff42; transform: rotate(-8deg); opacity: .45; }
+.m-flow-core-mark::after { content: ''; position: absolute; inset: -16px; border: 1px solid #9eb4f04d; border-radius: 31px; animation: m-flow-ring 7s linear infinite; }
+.m-flow-core-mark i { position: absolute; width: 40px; height: 16px; border: 1.5px solid #3155ed; border-radius: 50%; transform: rotate(45deg) scaleX(.55); }
+.m-flow-core-mark i:nth-child(2) { transform: rotate(-45deg) scaleX(.55); }.m-flow-core-mark i:nth-child(3) { transform: rotate(90deg) scaleX(.55); }
+.m-flow-core strong, .m-flow-core > span:last-child { display: none; }
+.m-flow-core > span:last-child b { width: 5px; height: 5px; border-radius: 50%; background: #65a980; box-shadow: 0 0 7px #65a980aa; }
+.minutes-home .m-hero-copy { z-index: 1; }
+@keyframes m-flow-dash { to { stroke-dashoffset: -280; } }
+@keyframes m-flow-float { 0%,100% { transform: translate3d(0,0,0) rotate(0); } 50% { transform: translate3d(0,-8px,0) rotate(-.6deg); } }
+@keyframes m-flow-breathe { 0%,100% { opacity: .62; transform: translateX(-50%) scale(.94); } 50% { opacity: .94; transform: translateX(-50%) scale(1.04); } }
+@keyframes m-flow-pulse { 0%,100% { opacity: .3; transform: scale(.78); } 50% { opacity: .8; transform: scale(1.25); } }
+@keyframes m-flow-ring { to { transform: rotate(360deg); } }
+@keyframes m-flow-core { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-5px); } }
+
+/* The navigation behaves like a small instrument panel: quiet at the top,
+   crisp and tactile once the story starts moving. */
+.entrance-shell > .m-landing-nav { position: sticky; z-index: 20; top: 16px; width: min(1180px, calc(100% - 48px)); height: 64px; margin: 16px auto 0; padding: 7px 9px 7px 18px; border: 1px solid #dfe5f0; border-radius: 16px; background: #ffffffd9; box-shadow: 0 16px 38px -27px #25396d4a, 0 1px 0 #fff inset; backdrop-filter: blur(16px) saturate(1.2); transition: box-shadow 200ms, border-color 200ms, transform 200ms; }
+.entrance-shell > .m-landing-nav[data-scrolled='true'] { border-color: #cbd7f3; box-shadow: 0 18px 46px -24px #213b7c5c, 0 1px 0 #fff inset; }
+.entrance-shell > .m-landing-nav .m-home-brand { font-size: 27px; }
+.entrance-shell > .m-landing-nav nav { gap: 5px; align-items: center; }
+.entrance-shell > .m-landing-nav nav a { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 8px 11px; border-radius: 8px; color: #61708c; transition: color 160ms, background 160ms; }
+.entrance-shell > .m-landing-nav nav a:hover { color: #253b71; background: #eef3ff; }
+.entrance-shell > .m-landing-nav nav a > span { color: #9aa8bf; font: 9px ui-monospace, monospace; }
+.entrance-shell > .m-landing-nav nav .m-assistant-trigger { min-height: 36px; padding: 8px 12px; border: 1px solid #dce4f3; border-radius: 8px; background: #f7f9ff; color: #405579; font-size: 12px; }
+.entrance-shell > .m-landing-nav nav .m-assistant-trigger:hover { background: #edf2ff; color: #3155ed; }
+.m-nav-end { display: flex; align-items: center; gap: 11px; }
+.m-nav-live { display: inline-flex; align-items: center; gap: 6px; color: #7e8ca3; font: 9px ui-monospace, monospace; letter-spacing: .03em; text-transform: uppercase; }
+.m-nav-live i { width: 5px; height: 5px; border-radius: 50%; background: #62a67d; box-shadow: 0 0 0 3px #62a67d16; }
+.entrance-shell > .m-landing-nav .m-nav-open { min-height: 40px; padding: 8px 12px 8px 14px; gap: 15px; border-radius: 9px; background: #3155ed; border-color: #3155ed; color: #fff; box-shadow: 0 7px 16px -10px #3155edb5; }
+.entrance-shell > .m-landing-nav .m-nav-open:hover { background: #2444cd; border-color: #2444cd; }
+@media (max-width: 760px) {
+  .m-hero-flow { height: 465px; opacity: .78; }
+  .m-flow-node { transform: scale(.84); transform-origin: center; }
+  .m-flow-node-meeting { left: -4px; top: 84px; }.m-flow-node-decision { right: -4px; top: 80px; }
+  .m-flow-node-followup { left: 3px; top: 320px; }.m-flow-node-people { right: 3px; top: 329px; }
+  .m-flow-core { top: 153px; }.m-flow-core-mark { width: 63px; height: 63px; border-radius: 19px; }
+  .entrance-shell > .m-landing-nav { top: 9px; width: calc(100% - 24px); height: 58px; margin-top: 9px; padding-left: 12px; border-radius: 13px; }
+  .entrance-shell > .m-landing-nav .m-home-brand { font-size: 24px; }.entrance-shell > .m-landing-nav nav, .m-nav-live { display: none; }
+  .m-nav-end { margin-left: auto; }.entrance-shell > .m-landing-nav .m-nav-open { min-height: 37px; font-size: 11px; }
+  .minutes-home .m-hero-copy { padding-top: 43px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-flow-halo, .m-flow-path, .m-flow-dot, .m-flow-node, .m-flow-core, .m-flow-core-mark::after { animation: none; }
+}
 .mf-section { padding: 68px 48px 56px; border-top: 1px solid var(--minutes-line); }
 .mf-section-heading { display: grid; grid-template-columns: 1.25fr .75fr; gap: 48px; align-items: end; text-align: left; margin-bottom: 32px; }
 .mf-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--minutes-muted); margin-bottom: 20px; }
