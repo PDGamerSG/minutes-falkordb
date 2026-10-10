@@ -1,5 +1,5 @@
-import { TenantsPage } from "@/components/pages/TenantsPage";
+import { MinutesLanding } from "@/components/landing/MinutesLanding";
 
 export default function Page() {
-  return <TenantsPage />;
+  return <MinutesLanding />;
 }

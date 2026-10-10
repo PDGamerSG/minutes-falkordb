@@ -156,7 +156,7 @@ export function ChatPage({ team }: { team: string }) {
 
   const [sessionId, setSessionId] = useState<string | null>(urlSession);
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => urlSession ? "" : (sp.get("q") ?? "").slice(0, 2000));
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const loadedFor = useRef<string | null>(null);
@@ -209,6 +209,7 @@ export function ChatPage({ team }: { team: string }) {
           setSessionId(r.session_id);
           loadedFor.current = r.session_id;
           const next = new URLSearchParams(sp.toString());
+          next.delete("q");
           next.set("session", r.session_id);
           router.replace(`${pathname}?${next.toString()}`, { scroll: false });
         }
@@ -223,6 +224,7 @@ export function ChatPage({ team }: { team: string }) {
   );
 
   const newSession = () => {
+    setInput("");
     setSessionId(null);
     setMsgs([]);
     loadedFor.current = null;
@@ -234,7 +236,7 @@ export function ChatPage({ team }: { team: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Chat</h1>
-          <p className="text-sm text-muted-foreground">Ask the AnswerAgent. Every answer carries its router decision, the Cypher that ran, the sources and the subgraph it touched.</p>
+          <p className="text-sm text-muted-foreground">Pick up the thread. Ask about your team’s decisions, conversations, and next steps.</p>
         </div>
         <div className="flex items-center gap-2">
           {sessionId && <Mono title="session_id">session {sessionId}</Mono>}
@@ -277,6 +279,7 @@ export function ChatPage({ team }: { team: string }) {
         }}
       >
         <Textarea
+          aria-label="Your question"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

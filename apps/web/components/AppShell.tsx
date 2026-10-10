@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
-import { ChartColumn, Clock, Database, Layers, Menu, MessageSquare, SquareKanban, Workflow } from "lucide-react";
+import { ArrowUpRight, ChartColumn, Clock, Database, Layers, Menu, MessageSquare, SquareKanban, Workflow } from "lucide-react";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { useMockState } from "@/lib/mock-state";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StateDot } from "@/components/StateBadge";
+import { AskMinutesButton, LandingAssistantProvider } from "@/components/landing/LandingAssistant";
 
 const TEAM_PAGES = [
   { slug: "sources", label: "Sources", icon: Layers },
@@ -22,7 +23,7 @@ const TEAM_PAGES = [
 ] as const;
 
 const GLOBAL_PAGES = [
-  { href: "/", label: "Tenants", icon: Database },
+  { href: "/workspaces", label: "Workspaces", icon: Database },
   { href: "/bench", label: "Bench", icon: ChartColumn },
 ] as const;
 
@@ -159,7 +160,7 @@ function NavBody({ team, pathname, onNavigate }: { team: string | null; pathname
         <div className="space-y-0.5">
           {team && <div className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Global</div>}
           {GLOBAL_PAGES.map((p) => (
-            <NavLink key={p.href} href={p.href} active={p.href === "/" ? pathname === "/" : pathname.startsWith(p.href)} icon={p.icon} onNavigate={onNavigate}>
+            <NavLink key={p.href} href={p.href} active={pathname.startsWith(p.href)} icon={p.icon} onNavigate={onNavigate}>
               {p.label}
             </NavLink>
           ))}
@@ -178,10 +179,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const team = useMemo(() => teamFromPath(pathname), [pathname]);
   const [open, setOpen] = useState(false);
 
-  const current = team ? TEAM_PAGES.find((p) => pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`))?.label : GLOBAL_PAGES.find((p) => (p.href === "/" ? pathname === "/" : pathname.startsWith(p.href)))?.label;
+  const current = team ? TEAM_PAGES.find((p) => pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`))?.label : GLOBAL_PAGES.find((p) => pathname.startsWith(p.href))?.label;
+
+  if (pathname === "/" || pathname === "/workspaces") return (
+    <LandingAssistantProvider key={pathname}>
+    <div className="entrance-shell">
+      <a className="m-skip-link" href="#main-content">Skip to content</a>
+      <header className="m-landing-nav">
+        <Link className="m-home-brand" href="/" aria-label="Minutes home">
+          <span className="m-home-symbol" aria-hidden="true"><i /><i /><i /></span>
+          minutes<span>.</span>
+        </Link>
+        <nav aria-label="Main navigation">
+          <Link href="/#company-memory">How it works</Link>
+          <Link href="/#inside-minutes">Why Minutes</Link>
+          <AskMinutesButton />
+        </nav>
+        <Link className="m-nav-open" href="/workspaces">Open Minutes <ArrowUpRight size={15} /></Link>
+      </header>
+      <main id="main-content">{children}</main>
+    </div>
+    </LandingAssistantProvider>
+  );
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="minutes-workspace-shell flex min-h-dvh">
       <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground md:block">
         <NavBody team={team} pathname={pathname} />
       </aside>
