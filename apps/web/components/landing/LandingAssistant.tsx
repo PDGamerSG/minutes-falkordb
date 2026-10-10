@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useRef, useState, useTransition, type ReactNode } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { ArrowRight, ArrowUpRight, ChevronDown, MessageSquare, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { MemoryMark } from "./MemoryMark";
@@ -38,9 +38,9 @@ export function LandingAssistantProvider({ children }: { children: ReactNode }) 
     {children}
     <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
       <Dialog.Trigger ref={triggerRef} className="m-assistant-trigger" aria-label={open ? "Close Minutes assistant" : "Ask Minutes"}>
-        {open ? <X size={20} aria-hidden="true" /> : <MemoryMark />}
-        <span>{open ? "Close" : "Ask Minutes"}</span>
-        {!open && <MessageSquare size={16} aria-hidden="true" />}
+        <MemoryMark />
+        <span className="m-assistant-trigger-label">{open ? "Close assistant" : "Ask Minutes"}</span>
+        <span className="m-assistant-trigger-arrow" aria-hidden="true">{open ? <X size={15} /> : <ArrowUpRight size={15} />}</span>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Popup className="m-assistant-panel" initialFocus={false} finalFocus={triggerRef}>

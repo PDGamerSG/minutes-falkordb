@@ -8,17 +8,19 @@ The page follows a short product story: company memory, a silent walkthrough, on
 - Cal.com informed the locally served Cal Sans display type. Latitude informed precise spacing; Dub informed product framing and fine page rails.
 - T3 Code and 100xDevs informed measured ambient motion. The hero uses flowing SVG threads at its edges, with a staged headline entrance and restrained light gradients.
 - Stripe informed the shallow angled transition into the ending. Drizzle informed the existing compact assistant entry.
-- The header contains the brand, a small animated thread, and the workspace action. Section links and context status are removed. Calls to action remain in the header and hero, with ordinary navigation in the footer.
+- The header contains the brand, an animated miniature tile sculpture, and the workspace action. Section links and context status are removed. Calls to action remain in the header and hero, with ordinary navigation in the footer.
+
+The assistant launcher uses a compact navy speech shape with the Minutes mark and one directional affordance. The browser favicon, scalable SVG icon, and Apple touch icon use the same nine-tile identity.
 
 ## Product story
 
-?Know what changed? shows one payments message, a September 24 to September 28 date change, and one handoff note. There are no numbered steps, tabs, chapter bars, repeated product headings, or workspace buttons inside the scene.
+"Know what changed" shows one payments message, a September 24 to September 28 date change, and one handoff note. There are no numbered steps, tabs, chapter bars, repeated product headings, or workspace buttons inside the scene.
 
-A 22-second loop brings in the message, updates the date, then reveals Rahul?s handoff. The completed result remains visible for over eleven seconds. The draft opens only on request and never sends a message. Interaction holds the sequence. The clock and ambient signal pause offscreen or in a hidden document; reduced motion shows the completed result immediately.
+A 22-second loop brings in the message, updates the date, then reveals Rahul's handoff. The completed result remains visible for over eleven seconds. The draft opens only on request and never sends a message. Interaction holds the sequence. The clock and ambient signal pause offscreen or in a hidden document; reduced motion shows the completed result immediately.
 
 ## Catching up
 
-The new ?Walk in with the context? section uses three full-width, unnumbered questions rather than cards. Each opens the existing bottom assistant with the selected question prefilled. It does not submit a chat message. This gives the page a practical next step without repeating workspace calls to action.
+The new "Walk in with the context" section uses three full-width, unnumbered questions rather than cards. Each opens the existing bottom assistant with the selected question prefilled. It does not submit a chat message. This gives the page a practical next step without repeating workspace calls to action.
 
 ## Video and sculpture
 

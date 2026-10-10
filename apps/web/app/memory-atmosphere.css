@@ -31,19 +31,22 @@
 @keyframes m-thread-travel { to { stroke-dashoffset: -1118; } }
 /* A quiet masthead: the mark, a single action, and precise alignment. */
 .mn-header { position: sticky; top: 0; z-index: 30; background: #fdfefef5; border-bottom: 1px solid #d7dce4; backdrop-filter: blur(12px); }
-.mn-bar { height: 77px; max-width: 1280px; margin-inline: auto; padding-inline: 48px; display: flex; align-items: center; justify-content: space-between; gap: 30px; border-inline: 1px solid #d7dce4; }
-.mn-brand { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; color: #202a3b; }
+.mn-bar { height: 77px; max-width: 1280px; margin-inline: auto; padding-inline: 48px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 30px; border-inline: 1px solid #d7dce4; }
+.mn-brand { display: inline-flex; align-items: center; gap: 10px; justify-self: start; color: #202a3b; }
 .mn-brand > .m-memory-mark { width: 24px; height: 24px; gap: 3px; color: #3155ed; transform: rotate(-9deg); transition: transform 220ms; }
 .mn-brand:hover > .m-memory-mark { transform: rotate(0); }
 .mn-brand > span { font-family: MinutesCal,sans-serif; font-size: 30px; letter-spacing: -.055em; line-height: 1; }
 .mn-brand > span > span { color: var(--minutes-blue); }
-.mn-signature { display: flex; align-items: center; gap: 18px; color: #788395; font-size: 11px; letter-spacing: -.01em; }
-.mn-signature svg { width: 116px; height: 28px; }
-.mn-thread-base { stroke: #d8e0ee; stroke-width: 1; }
-.mn-thread-motion { stroke: #5578c4; stroke-width: 1.4; stroke-dasharray: 22 160; animation: mn-trace 6s linear infinite; }
-.mn-signature circle { fill: #839ac5; }
-@keyframes mn-trace { to { stroke-dashoffset: -182; } }
-.mn-open { display: inline-flex; align-items: center; justify-content: center; gap: 23px; min-height: 41px; padding: 9px 14px; border: 1px solid #313740; border-radius: 5px; color: #fdfefe; background: #202a3b; font-size: 12px; transition: background 180ms; }
+.mn-keepsake { display: flex; align-items: center; gap: 8px; padding-right: 9px; }
+.mn-keepsake-art { width: 70px; height: 53px; overflow: visible; }
+.mn-keepsake-shadow { fill: #728cba; opacity: .09; }
+.mn-memory-piece { animation: mn-assemble 9s cubic-bezier(.45,0,.2,1) infinite; }
+.mn-piece-top { fill: #b4c5ff; }.mn-piece-left { fill: #6d8ae6; }.mn-piece-right { fill: #3155bd; }
+.mn-keepsake-art > g:nth-of-type(3n) .mn-piece-top { fill: #d7e0ff; }.mn-keepsake-art > g:nth-of-type(3n) .mn-piece-left { fill: #a4b8ed; }.mn-keepsake-art > g:nth-of-type(3n) .mn-piece-right { fill: #718dcc; }
+.mn-keepsake > span { color: #8993a5; font-size: 10px; line-height: 1.5; letter-spacing: .005em; }
+.mn-keepsake strong { display: inline-block; font-family: MinutesCal,sans-serif; font-size: 17px; font-weight: 400; line-height: 1.1; letter-spacing: -.025em; color: #526caa; }
+@keyframes mn-assemble { 0%,12%,100% { transform: translate(var(--piece-x),var(--piece-y)); } 32%,76% { transform: translate(0,0); } }
+.mn-open { display: inline-flex; align-items: center; justify-content: center; justify-self: end; gap: 23px; min-height: 41px; padding: 9px 14px; border: 1px solid #313740; border-radius: 5px; color: #fdfefe; background: #202a3b; font-size: 12px; transition: background 180ms; }
 .mn-open > svg { transition: transform 180ms; }
 .mn-open:hover { background: #3d434d; }.mn-open:hover > svg { transform: translate(2px,-2px); }
 .mn-header[data-scrolled] { box-shadow: 0 5px 18px -15px #242b3852; }
@@ -85,7 +88,6 @@
 .m-finale-stage-copy p { color: #8f9fb9; max-width: 33ch; margin-top: 12px; font-size: 14px; line-height: 1.85; }
 .m-finale-stage-copy { animation: m-stage-enter 380ms ease-out; }
 @keyframes m-stage-enter { from { opacity: .2; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
-.m-assistant-trigger { background: #fdfefe; border-radius: 10px; }
 .m-assistant-panel { background: #fdfefe; }
 .minutes-home .m-hero-copy > :is(.m-announcement,h1,p,.m-hero-actions) { animation: m-arrive 850ms cubic-bezier(.22,1,.36,1) both; }
 .minutes-home .m-hero-copy > h1 { animation-delay: 100ms; }.minutes-home .m-hero-copy > p { animation-delay: 200ms; }.minutes-home .m-hero-copy > .m-hero-actions { animation-delay: 300ms; }
@@ -105,9 +107,9 @@
   .mq-section { padding-inline: 35px; gap: 40px; }
 }
 @media (max-width: 760px) {
-  .mn-signature { display: none; }
+  .mn-keepsake { display: none; }
   .m-thread-art { width: 150px; height: 220px; top: auto; bottom: -40px; opacity: .6; }.m-thread-art-left { left: -93px; }.m-thread-art-right { right: -93px; }
-  .mn-bar { height: 66px; padding-inline: 20px; gap: 8px; border-inline: 0; }
+  .mn-bar { height: 66px; padding-inline: 20px; gap: 8px; border-inline: 0; grid-template-columns: 1fr auto; }
   .mn-brand { gap: 7px; }.mn-brand > span { font-size: 26px; }.mn-brand > .m-memory-mark { width: 21px; height: 21px; }
   .mn-open { min-height: 42px; padding: 9px 12px; gap: 14px; border-radius: 6px; font-size: 11px; }
   .minutes-home .m-hero-copy { padding: 53px 22px 85px; }
@@ -129,7 +131,7 @@
   .mq-section { padding-inline: 19px; }.mq-question strong { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .m-thread-signal, .mn-thread-motion { animation: none; }
+  .m-thread-signal, .mn-memory-piece { animation: none; }
   .m-finale-stage-copy { animation: none; }
   .mn-brand > .m-memory-mark, .mn-open, .mn-open > svg { transition: none; }
   .minutes-home .m-hero-copy > :is(.m-announcement,h1,p,.m-hero-actions) { animation: none; }
