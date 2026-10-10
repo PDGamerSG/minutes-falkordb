@@ -23,9 +23,10 @@ export function MemoryFeatures() {
     const showPhase = (next: number) => {
       if (next !== currentPhase) { currentPhase = next; setPhase(next); }
     };
-    const tick = (now: number) => {
+    const tick = () => {
       frame = 0;
       if (!active()) return;
+      const now = performance.now();
       // Keep the complete scene in place while someone inspects its sources.
       if (!inspecting.current && !element.contains(document.activeElement)) {
         elapsed += last ? now - last : 0;
@@ -33,13 +34,13 @@ export function MemoryFeatures() {
         showPhase(elapsed >= 10500 ? 3 : elapsed >= 6500 ? 2 : elapsed >= 3000 ? 1 : 0);
       }
       last = now;
-      frame = requestAnimationFrame(tick);
+      frame = window.setTimeout(tick, 100);
     };
     const wake = () => {
       element.dataset.running = String(active());
       if (motion.matches) showPhase(3);
-      if (!active()) { cancelAnimationFrame(frame); frame = 0; last = 0; return; }
-      if (!frame) { last = 0; frame = requestAnimationFrame(tick); }
+      if (!active()) { clearTimeout(frame); frame = 0; last = 0; return; }
+      if (!frame) { last = 0; frame = window.setTimeout(tick, 0); }
     };
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting && entry.intersectionRatio >= .2;
@@ -50,7 +51,7 @@ export function MemoryFeatures() {
     motion.addEventListener("change", wake);
     wake();
     return () => {
-      cancelAnimationFrame(frame);
+      clearTimeout(frame);
       observer.disconnect();
       document.removeEventListener("visibilitychange", wake);
       motion.removeEventListener("change", wake);
@@ -76,7 +77,7 @@ export function MemoryFeatures() {
       <div className="ms-decision">
         <h3>UPI launch <span>· September</span></h3>
         <div className="ms-date" aria-label={changed ? "Launch moved from September 24 to September 28" : "Launch planned for September 24"}>
-          <span className="ms-old-date" aria-hidden="true">24</span><span className="ms-date-arrow" aria-hidden="true">→</span><span className="ms-new-date" aria-hidden="true">28<span>.</span></span>
+          <span className="ms-old-date" aria-hidden="true">24</span><span className="ms-date-arrow" aria-hidden="true">→</span><span className="ms-new-date" aria-hidden="true">28</span>
         </div>
         <p className="ms-date-caption">{changed ? "Four more days for testing. Context kept." : "The original plan, from the product kickoff."}</p>
       </div>
