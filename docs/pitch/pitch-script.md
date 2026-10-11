@@ -1,50 +1,56 @@
 # Minutes: 3:00 pitch video script
 
-Team Vulcan, Graph Hacks: Context for AI Agents (WeMakeDevs x FalkorDB, Oct 15-18 2026). Tracks 2 (Agent Memory and Coordination, primary) and 3 (Company Brain).
+Team Vulcan, Graph Hacks: Context for AI Agents (WeMakeDevs x FalkorDB, Oct 15-18 2026). Tracks 3 (Company Brain, primary) and 2 (Agent Memory and Coordination).
 
-The narration runs 378 words, kept at or below 2.3 words per second in every row. The table below is the master timeline; `video-storyboard.md` gives the matching shot list and window sizes. Questions are typed exactly as written. Base URLs assume the local setup from the root `README.md`: web on `http://localhost:3001`, API on `http://localhost:8080`. For the hosted take, swap in the deployed URLs.
+The narration runs 385 words, kept at or below 2.3 words per second in every row. The table below is the master timeline; `video-storyboard.md` gives the matching shot list and window sizes. Questions are typed exactly as written. Base URLs assume the local setup from the root `README.md`: web on `http://localhost:3001`, API on `http://localhost:8080`. For the hosted take, swap in the deployed URLs.
+
+The story: a team changes a decision, and the people doing the work never find out. Minutes is a company memory in FalkorDB, built from meetings and email, that knows who owns what, why it changed, and what the change affects. The ripple effect carries the first minute; the Track 2 coordination work supports it.
 
 ## Script
 
 | Time | On screen | Spoken line | Caption |
 |---|---|---|---|
-| 0:00-0:07 | B-roll: `apps/web/public/media/minutes-walkthrough.mp4`, first 7 s, muted | Agents forget. Every session starts from zero, and the team explains its decisions again. | Agents forget. |
-| 0:07-0:15 | B-roll continues (7-15 s of the clip) | And a memory that cannot explain itself is a liability. Who said it? When? Is it still true? | A memory that cannot explain itself is a liability. |
-| 0:15-0:25 | Landing page `/`, hero visible, then click the workspace action into `/workspaces` | This is Minutes. It turns what a team said in meetings and wrote in email into one shared, time-aware memory in FalkorDB. | Minutes: meetings + email → one time-aware memory in FalkorDB |
-| 0:25-0:35 | Orbit overview `/t/orbit`, with real source, decision and commitment counts | Agents read it, write it and hand work through it, and every answer traces back to a speaker and a timestamp. | Synthetic meetings and emails · reviewed labels replayed · real FalkorDB 6.0.1 |
-| 0:35-0:47 | `/workspaces` shows Orbit, Nimbus and Quill. Cut to a browser tab at `http://localhost:8080/tenants/orbit/acl-probe?target=nimbus`; JSON shows `"allowed": false` and the NOPERM error | Each team gets its own FalkorDB graph and its own database users. Here, Orbit's read-only user tries to read Nimbus's graph. FalkorDB refuses it. | One graph per team · ACL users per team · cross-tenant read denied |
-| 0:47-1:00 | `/t/orbit/chat`. Type **Why is the UPI flow due on the 28th?** and press Enter. The answer appears | I ask: why is the UPI flow due on the 28th? Priya promised the 24th at kickoff, said the 25th at standup, then wrote the 28th in email. | Sept 24 (kickoff, speech) → Sept 25 (standup, speech) → Sept 28 (email) |
-| 1:00-1:12 | Click **Why this answer**. Scroll through Router decision (`template`, `cypher/32_why_path.cypher`), Cypher that ran, Sources, Evidence episodes | The Why panel shows the Cypher that ran, the router's decision and the subgraph. Old facts are not deleted. They are expired and linked by SUPERSEDES. | Bi-temporal: valid_from / valid_to · SUPERSEDES across sources |
-| 1:12-1:20 | In Sources, click the email source (opens Priya's Sept 17 message "UPI flow: moving to Monday the 28th"), close it, then click the play-at-timestamp source for standup 1 (0:38) | Open email shows Priya's message. Play at timestamp jumps to the exact line in the standup. | Every claim links to its source |
-| 1:20-1:32 | Click the suggestion **Why did we choose the side drawer?** (or type it). Open **Why this answer** and point at the design review evidence episode | Why did we choose the side drawer? Meridian's accessibility checklist needs 56 dp touch targets. That reversed the kickoff's bottom tab bar on September 16. | Bottom tab bar (Sept 7) → side drawer (Sept 16): Meridian 56 dp rule |
-| 1:32-1:47 | `/t/orbit/board`. Click **Simulate: "move it to Friday"**. Toast: "Moved it to Friday … Scheduler wakes next." Cards move from submitted to working | On the board I simulate Priya saying: move it to Friday. The PayU date is superseded. The Scheduler agent wakes over Redis pub/sub, claims the task and hands it to FollowUp. | PayU integration: Oct 1 → Fri Oct 2 · Scheduler wakes on Redis pub/sub |
-| 1:47-1:57 | Open the FollowUp task. The drawer Trace shows claimed → handed_off → artifact → completed. Artifact shows the **simulated** label | The handoff is an edge in the graph, carrying the subgraph ids FollowUp needs. It produces a follow-up artifact, marked simulated. | HANDED_OFF {summary, subgraph_ids} · artifact simulated (no GitHub token) |
-| 1:57-2:05 | Click **Induce double claim**. Toast: "1 winner, 24 losers". Click **Open trace** | Now twenty-five agents race for the same task. One compare-and-set query: one winner, twenty-four losers. | 25 agents · 1 winner · 24 losers |
-| 2:05-2:13 | `/t/orbit/timeline?t=1789540200000` (Sept 16 2026, 12:00 IST). Type `UPI` in the fact filter, then clear it and type `vendor` | The timeline answers what we believed on September 16: UPI due the 25th, vendor still Razorpay. | Belief at Sept 16: UPI due Sept 25 · vendor Razorpay |
-| 2:13-2:20 | `/t/orbit/skills`. The standup skill row shows steps, runs and success rate. Click **Run standup skill**, then accept the result so the success rate updates | The weekly standup became a learned skill, and every run updates its success rate. | Procedural memory: Skill + Steps + success rate |
-| 2:20-2:30 | Slide 4 of `minutes-pitch.pptx` (graph model), then the `belief_at_time` Cypher | Under the hood: one graph per team, plus a commons graph. Facts are bi-temporal, so belief at any time is one Cypher query. | team_&lt;slug&gt; graphs + commons · cypher/31_belief_at_time |
-| 2:30-2:37 | `cypher/20_claim_task.cypher` full screen (or slide 6), then `udf/score.js` | The claim is one atomic query, and retrieval ranking runs as a JavaScript UDF inside FalkorDB. | CAS claim: zero rows = another agent won · hive.score UDF |
-| 2:37-2:45 | `/bench` page (or slide 9) | Eighteen hundred operations a second; two hundred agents over twenty graphs, zero errors, one winner per race. | 6.0.1: ~1,800 ops/s vs ~1,360 on 4.22.0 · 200 agents × 20 graphs: 2,608 ops/s, 0 errors · one laptop |
-| 2:45-2:52 | Slide 11 (honest limits) | Honest note: this demo replays hand-labelled facts on synthetic data; live extraction is scored separately. | Live extraction (Gemma 4): P 0.42 / R 0.59 strict · no HTTP auth yet |
-| 2:52-3:00 | Slide 12 (tracks, stack, links, team) | Tracks 2 and 3, open Gemma models, FalkorDB. Repo and live link below. We're Team Vulcan. | github.com/Hydra-Of-Malice/FalkorDB · &lt;LIVE_URL&gt; · Team Vulcan |
+| 0:00-0:08 | Landing page `/`, hero visible, slow scroll | A team changes a decision in a meeting. The people doing the work never find out. | A decision changes. The people doing the work never find out. |
+| 0:08-0:16 | Landing continues. Click the workspace action into `/workspaces`, then click Orbit | The runbook still says Razorpay. The test plan still assumes a tab bar. Nobody connected the change. | Changed decisions, stale work |
+| 0:16-0:29 | Orbit overview `/t/orbit`: "The whole picture.", then the Source entries, Decisions and Commitments counts | This is Minutes: a company memory in FalkorDB, built from meetings and email. It knows who owns what, why it changed, and what the change affects. | Minutes: a company memory in FalkorDB, built from meetings + email |
+| 0:29-0:38 | Hover the counts, then scroll to **The ripple effect.** Filters read All work 5, Needs review 3, Aligned 1, Closed 1 | Orbit is a synthetic team: six meetings, five email threads. Five work items are tracked, and three need review. | Synthetic meetings and emails · reviewed labels replayed · real FalkorDB 6.0.1 |
+| 0:38-0:49 | Click **Review** on **Update the payment integration runbook**. The row reads payments service · uses vendor, Razorpay → PayU, Needs review, Priya | This is the ripple effect. The payment integration runbook needs review: the vendor moved from Razorpay to PayU, and Priya is the person responsible. | Needs review: Razorpay → PayU · owner Priya |
+| 0:49-1:00 | Click **Original decision** (kickoff transcript line, Aditya, 2:13). Close. Click **Current decision** (customer call recap, Aditya, 3:07) | Original decision: Aditya at the kickoff, September seventh. Current decision: the customer call on the twenty-third, because Meridian's compliance team mandates PayU. | Kickoff, Sept 7: Razorpay → customer call, Sept 23: PayU |
+| 1:00-1:10 | Click **Dependency document**. The dialog "Orbit delivery plan · dependency register" opens; hold on the runbook paragraph | This is not a keyword match. The dependency document says the runbook holds Razorpay API steps. That link was written down, not guessed. | Explicit DEPENDS_ON from an authored document · no co-mention, no similarity |
+| 1:10-1:22 | Close the dialog. Expand **Recorded graph relationships** (graph and edge trail), then **How FalkorDB found the impact** (the executed Cypher) | FalkorDB follows the work to its baseline decision, then the supersedes chain back from the current one. Here is the path, and the query that ran. | WorkItem -DEPENDS_ON→ Razorpay ←SUPERSEDES- PayU · cypher/81_work_impacts |
+| 1:22-1:32 | `/t/orbit/chat`. Type **Who owns the decision log?** and press Enter. The answer appears at once | In chat: who owns the decision log? Rahul, from Aditya's email on September twenty-ninth. Minutes keeps the owner apart from the announcer. | Ownership template (cypher/54_owners) · Rahul · email, Sept 29 |
+| 1:32-1:44 | Type **Why is the UPI flow due on the 28th?** and press Enter. The answer appears | Why is the UPI flow due on the twenty-eighth? Priya said the twenty-fourth at kickoff, the twenty-fifth at standup, then wrote the twenty-eighth in email. | Sept 24 (kickoff, speech) → Sept 25 (standup, speech) → Sept 28 (email) |
+| 1:44-1:54 | Click **Why this answer**: Router decision (`template`, `cypher/32_why_path.cypher`), Cypher that ran, Sources. Click **Open email** on Priya's Sept 17 message "UPI flow: moving to Monday the 28th" | The Why panel shows that chain across speech and email. Old dates are expired, not deleted. Open email shows Priya's actual message. | Bi-temporal facts · SUPERSEDES across sources · every claim links to its source |
+| 1:54-2:05 | `/t/orbit/board`. Click **Simulate: "move it to Friday"**. Toast: "Moved it to Friday … Scheduler wakes next" | A change can also start work. On the board, I simulate "move it to Friday": the PayU integration moves from October first to the second. | PayU integration: Oct 1 → Fri Oct 2 |
+| 2:05-2:15 | Cards move from submitted to working. Open the FollowUp task; the drawer Trace shows claimed → handed_off → artifact → completed, and the artifact carries the **simulated** label | The Scheduler agent claims the task and hands it to FollowUp, which drafts the follow-up. The GitHub issue is marked simulated. | Scheduler claims → HANDED_OFF → FollowUp · issue simulated (no GitHub token) |
+| 2:15-2:23 | `/t/orbit/timeline?t=1789540200000` (Sept 16 2026, 12:00 IST). Type `UPI` in the fact filter, then clear it and type `vendor` | The timeline shows what we believed on September sixteenth: UPI due the twenty-fifth, vendor still Razorpay. | Belief at Sept 16: UPI due Sept 25 · vendor Razorpay |
+| 2:23-2:32 | Board: click **Induce double claim**, hold on the toast "1 winner, 24 losers" (4 s). Cut to `/t/orbit/skills`, the standup skill row with steps, runs and success rate (5 s) | For Track two: twenty-five agents race for one task, and one compare-and-set wins. The standup became a learned skill. | Track 2 · 25 agents · 1 compare-and-set winner · standup learned as a Skill |
+| 2:32-2:42 | Slide 9 of `minutes-pitch.pptx` (tenancy and ACLs, 5 s), then slide 7 (the UPI chain and the `belief_at_time` Cypher, 5 s) | Under the hood: one graph per team, with its own database users. Facts are bi-temporal; belief at any time is one query. | team_&lt;slug&gt; graph + ACL users per team · SUPERSEDES across sources · cypher/31_belief_at_time |
+| 2:42-2:52 | Slide 10 (benchmarks) | On one laptop: about eighteen hundred operations a second, and two hundred agents across twenty graphs with zero errors, one winner per race. | 6.0.1: ~1,800 ops/s vs ~1,360 on 4.22.0 · 200 agents × 20 graphs: 2,608 ops/s, 0 errors · one laptop |
+| 2:52-3:00 | Slide 12 (tracks, stack, links, team) | Synthetic data, a real FalkorDB, open Gemma models. Repo below. We're Team Vulcan: tracks three and two. | github.com/Hydra-Of-Malice/FalkorDB · Team Vulcan · Tracks 3 and 2 · synthetic data, reviewed labels replayed, no HTTP auth yet |
 
-Word count of the spoken column: 378 words (about 2.1 words per second on average). The fastest row is 2:20-2:30 (23 words in 10 s, 2.3 w/s); the longest is 1:32-1:47 (31 words in 15 s). If a row runs long, cut its last clause rather than speeding up.
+Word count of the spoken column: 385 words (about 2.1 words per second on average). The fastest rows are 1:00-1:10 and 2:42-2:52 (23 words in 10 s, 2.3 w/s); the longest are 0:16-0:29 (26 words in 13 s) and 1:10-1:22 (26 words in 12 s). Numbers are spelled out as spoken. If a row runs long, cut its last clause rather than speeding up.
 
-### Cypher on screen at 2:30
+### Cypher on screen at 1:10 (excerpt of `cypher/81_work_impacts.cypher`)
 
 ```cypher
-// cypher/20_claim_task.cypher
-MATCH (t:Task {id: $id, status: 'submitted', version: $v})
-MATCH (a:Agent {id: $agent})
-SET t.status = 'working', t.version = $v + 1, t.owner_agent = $agent, t.updated_at = $now
-CREATE (t)-[:CLAIMED_BY {at: $now}]->(a)
-RETURN t.version AS version
-// zero rows = another agent won
+// Only explicit dependencies count. No co-mention or vector similarity establishes impact.
+MATCH (w:WorkItem)-[:DEPENDS_ON]->(baseline:Fact)
+OPTIONAL MATCH (w)-[:OWNED_BY]->(owner:Person)
+WITH w, baseline, owner
+MATCH (w)-[:DOCUMENTED_IN]->(doc:Document)
+WITH w, baseline, owner, doc
+OPTIONAL MATCH (current:Fact {status: 'active'})
+WHERE current.key = baseline.key
+WITH w, baseline, owner, doc, current
+OPTIONAL MATCH path=(current)-[:SUPERSEDES*0..24]->(baseline)
 ```
+
+In words: start at each work item and the fact it depends on; find the active fact with the same key; follow SUPERSEDES back from it to the baseline. An open item with a path and a changed value needs review, an unchanged value is aligned, completed work is closed.
 
 ## Recording checklist
 
-1. **Seed fresh, right before the take.** Each rehearsal of "move it to Friday" pushes the PayU date another week (Oct 2, then Oct 9). Reseed so the toast reads Oct 1 → Oct 2.
+1. **Seed fresh, right before the take, including the work register.** The ripple-effect view is empty until `data/seed_work.py --tenants orbit` runs; afterwards `/t/orbit` must show **5 tracked work items: 3 need review, 1 aligned, 1 closed**. Each rehearsal of "move it to Friday" pushes the PayU date another week (Oct 2, then Oct 9), and every **Connect work** submission adds an item that a work reseed does not delete, so reseed everything with `--reset`.
    ```bash
    docker compose up -d falkordb
    uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --extract gold --reset
@@ -54,33 +60,34 @@ RETURN t.version AS version
    ```
    `--reset` deletes the selected tenants' data. Use it only on the demo database.
 2. **Choose the model mode before recording and keep it on screen.**
-   - Mode A, deterministic (the verified path): `LLM_BACKEND=fake EMBED_BACKEND=fake`. Answers are graph-evidence templates. The sidebar shows "Scripted answers · demo mode". Keep that label visible and leave the 0:25 caption in.
-   - Mode B, Gemma 4 answers: `LLM_BACKEND=gemini`, `GEMINI_API_KEY`, `EMBED_BACKEND=onnx` (EmbeddingGemma). Seeding and querying must use the same embedding backend. Answers take 6 to 13 s, so trim the wait in the edit. The free tier is capped at 16k input tokens per minute, so pause between questions.
-3. **Leave `GITHUB_TOKEN` unset** so the FollowUp artifact shows **simulated**. Make sure `NEXT_PUBLIC_MOCK` is unset (no mock badge on screen).
-4. **Health check:** `http://localhost:8080/health` returns 200. `/t/orbit` shows 5 tracked work items (3 need review, 1 aligned, 1 closed).
-5. **Browser:** Chrome, window 1600x900, zoom 100%, light theme, a clean profile with no extensions, bookmarks bar hidden. Use one tab per URL below, opened in order.
-6. **Tenant:** Orbit for everything. Nimbus appears only as the ACL probe target.
-7. **Exact URLs, in shot order:**
-   - `http://localhost:3001/`
-   - `http://localhost:3001/workspaces`
-   - `http://localhost:3001/t/orbit`
-   - `http://localhost:8080/tenants/orbit/acl-probe?target=nimbus` (raw JSON. The redesigned workspace has no ACL probe button, so show the endpoint)
-   - `http://localhost:3001/t/orbit/chat`
-   - `http://localhost:3001/t/orbit/board`
-   - `http://localhost:3001/t/orbit/timeline?t=1789540200000` (Sept 16 2026 12:00 IST. For Sept 10, use `t=1789021800000`)
-   - `http://localhost:3001/t/orbit/skills`
-   - `http://localhost:3001/bench`
-8. **Audio:** meeting `.wav` files are not in the repo. Without them, "play at timestamp" shows the transcript segment at that offset. Say "jumps to the exact line", as the script does, not "plays the recording", unless the audio has been dropped into `data/meetings/`.
-9. **Rehearse the race once.** "Induce double claim" registers 25 throwaway agents. The board then shows them as one summary card, which is fine on camera.
-10. **Do not show** any `.env` file, the FalkorDB Browser on port 3000, or the ACL passwords.
+   - Mode A, deterministic (the verified path): `LLM_BACKEND=fake EMBED_BACKEND=fake`. Answers are graph-evidence templates, so the ownership answer is instant. The sidebar shows "Scripted answers · demo mode". Keep that label visible and leave the 0:29 caption in.
+   - Mode B, Gemma 4 answers: `LLM_BACKEND=gemini`, `GEMINI_API_KEY`, `EMBED_BACKEND=onnx` (EmbeddingGemma). Seeding and querying must use the same embedding backend. Answers take 7 to 17 s on the free tier, so trim the wait in the edit and pause between questions.
+3. **Say nothing the data does not support.** The demo graph is synthetic and replays reviewed gold labels; one live import is shown separately and live extraction is scored on its own (P 0.42 / R 0.59 strict). The work dependencies come from an authored, synthetic delivery register, not from inference. There is no HTTP user auth yet.
+4. **Do not click "Prepare follow-up" in the timed take.** The board's FollowUp agent drafts the follow-up in this script. If a rehearsal saved a local draft on the runbook, the row shows it; reseed to clear it.
+5. **Leave `GITHUB_TOKEN` unset** so the FollowUp artifact shows **simulated**. Make sure `NEXT_PUBLIC_MOCK` is unset (no mock badge on screen).
+6. **Rehearse the board twice before the take.** The Scheduler-to-FollowUp handoff and the Scheduler wake-up are being fixed (`docs/review/README.md`, P0-3 and P0-4). If the trace lacks `handed_off`, reseed and record that shot again. "Induce double claim" registers 25 throwaway agents; the board then shows them as one summary card, which is fine on camera.
+7. **Health check:** `http://localhost:8080/health` returns 200. `/t/orbit` shows the 5 tracked items, and the runbook row reads Razorpay → PayU with Priya.
+8. **Browser:** Chrome, window 1600x900, zoom 100%, light theme, a clean profile with no extensions, bookmarks bar hidden. Use one tab per URL below, opened in order.
+9. **Tenant:** Orbit for everything.
+10. **Exact URLs, in shot order:**
+    - `http://localhost:3001/`
+    - `http://localhost:3001/workspaces`
+    - `http://localhost:3001/t/orbit` (the ripple-effect card is the "The ripple effect." section on this page)
+    - `http://localhost:3001/t/orbit/chat`
+    - `http://localhost:3001/t/orbit/board`
+    - `http://localhost:3001/t/orbit/timeline?t=1789540200000` (Sept 16 2026 12:00 IST. For Sept 10, use `t=1789021800000`)
+    - `http://localhost:3001/t/orbit/skills`
+11. **Audio:** meeting `.wav` files are not in the repo. Without them, the evidence links show the transcript line at that offset. Say "transcript line", not "recording".
+12. **Disclose in the submission:** synthetic data, gold-label replay with one live import, scripted versus Gemma answer modes, no HTTP auth, AI assistance, and the open question of pre-event reuse recorded in `docs/track3-readiness.md`.
+13. **Do not show** any `.env` file, the FalkorDB Browser on port 3000, or the ACL passwords.
 
 ## Speaking notes: eight lines not to get wrong
 
-1. **UPI chain:** Sept 24 (kickoff, Sept 7, speech) → Sept 25 (standup 1, Sept 14, speech, "move it to Friday") → Sept 28 (Priya's email, Sept 17). Priya is the speaker at every hop. Standup 2 (Sept 21) confirms the 28th without a new SUPERSEDES edge. The flow was done Mon Sept 28.
-2. **Side drawer:** the kickoff (Sept 7) chose a bottom tab bar. The design review on **Sept 16** reversed it to a side drawer because of Meridian's **56 dp** minimum touch target. Farah (Meridian compliance) confirmed it by email on Sept 18.
-3. **Vendor:** Razorpay → PayU at the **Sept 23** customer call, because Meridian's compliance team mandates PayU. On Sept 16 the vendor is still Razorpay.
-4. **Board "move it to Friday"** moves the **PayU integration** (Oct 1 → Fri Oct 2), not the UPI flow. It is a source-state simulation, and the GitHub issue is **simulated**.
-5. **Race:** 25 agents, 1 winner, 24 losers. In the 200 × 20 benchmark, all 20 races had exactly one winner (500 attempts).
-6. **Benchmarks:** about 1,800 ops/s on FalkorDB 6.0.1 vs about 1,360 on 4.22.0 (20 agents × 4 graphs, 4 client processes). 2,608 ops/s at 200 agents × 20 graphs with zero errors, but only after raising MAX_QUEUED_QUERIES to 1000 (at the default of 25, 18 percent were rejected). One laptop, client on the same host: not server capacity.
-7. **Extraction:** Gemma 4 26B scores **P 0.42 / R 0.59** (F1 0.49), strict match. The demo graph replays hand-labelled facts; one live extraction is shown separately. Never say the model built the demo graph.
-8. **Security and findings:** there is no HTTP user auth yet; isolation is enforced by FalkorDB ACL users with key patterns. The three FalkorDB 6.0.1 findings are **drafted** as issues, not filed.
+1. **The ripple effect:** "Update the payment integration runbook" (owner Priya, open) depends on the kickoff vendor decision, Razorpay (Sept 7, `orbit_001` at 2:13, Aditya). The customer call recap (Sept 23, `orbit_005` at 3:07, Aditya) superseded it with PayU because Meridian's compliance team mandates PayU. The dependency is written in the synthetic delivery register; never say a model or similarity search found it.
+2. **The overview counts:** 5 tracked items. Needs review: the payment runbook (Priya, Razorpay → PayU), navigation accessibility tests (Sana, bottom tab bar → side drawer), the UPI release handoff (Rahul, Sept 24 → Sept 28). Aligned: the October release checklist (Aditya, Oct 16 unchanged). Closed: the vendor sandbox spike (Priya, completed, no follow-up). The UPI flow itself is done; the handoff document needs review, not an overdue task.
+3. **Ownership:** Rahul owns the decision log. Aditya assigned it in the Sept 29 email "Retro prep and action item: decision log (issue #42)", due Fri Oct 2. Aditya announced it; Rahul owns it. An explicit assignment beats the speaker fallback.
+4. **UPI chain:** Sept 24 (kickoff, Sept 7, speech) → Sept 25 (standup 1, Sept 14, speech, "move it to Friday") → Sept 28 (Priya's email, Sept 17). Priya is the speaker at every hop. Standup 2 (Sept 21) confirms the 28th without a new SUPERSEDES edge. The flow was done Mon Sept 28.
+5. **Board "move it to Friday"** moves the **PayU integration** (Oct 1 → Fri Oct 2), not the UPI flow. It is a source-state simulation, and the GitHub issue is **simulated**. It is separate from the overview's "Prepare follow-up", which saves a local draft and sends nothing.
+6. **Timeline at Sept 16, 12:00 IST:** UPI due the 25th, vendor Razorpay. PayU arrives on Sept 23. If the navigation row shows side drawer, that is correct: the design review ran at 10:00 that morning.
+7. **Race and benchmarks:** 25 agents, 1 winner, 24 losers. About 1,800 ops/s on FalkorDB 6.0.1 vs about 1,360 on 4.22.0 (20 agents × 4 graphs, 4 client processes). 2,608 ops/s at 200 agents × 20 graphs with zero errors, only after raising MAX_QUEUED_QUERIES to 1000; all 20 races had exactly one winner. One laptop, client on the same host: not server capacity.
+8. **Models and security:** Gemma 4 26B scores **P 0.42 / R 0.59** (F1 0.49) strict on extraction; the demo graph replays hand-labelled facts. Gemma is the configured live model; if the take used scripted answers, say so. There is no HTTP user auth yet; graph isolation is enforced by FalkorDB ACL users with key patterns, and the shared commons graph is still writable by each team's read-write user. The three FalkorDB 6.0.1 findings are **drafted** as issues, not filed.
