@@ -94,7 +94,6 @@ export function useEvents(tenant: string | null | undefined, onEvent?: (e: SSEEv
       const delay = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
       if (attempt >= 3) {
         setStatus("offline");
-        markMock(ROUTE, "SSE unreachable");
       } else {
         setStatus("reconnecting");
       }

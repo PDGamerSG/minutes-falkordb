@@ -34,9 +34,9 @@ def build_context(settings: Settings | None = None) -> AppContext:
         os.environ.setdefault("HF_HOME", settings.hf_home)
     hive = build_hive(settings)
     llm = make_llm(settings)
-    embedder = Embedder(settings.embed_backend, settings.embed_model, settings.hf_home or os.environ.get("HF_HOME"), settings.gemini_api_key)
-    if embedder.is_fake and settings.embed_backend != "fake":
-        log.warning("EMBED_BACKEND=%s requested but the FakeEmbedder is in use (see the warning above)", settings.embed_backend)
+    # Mixing embedding models in one index invalidates similarity scores. Demo vectors
+    # must be requested explicitly; a model load failure must not change the vector space.
+    embedder = Embedder(settings.embed_backend, settings.embed_model, settings.hf_home or os.environ.get("HF_HOME"), settings.gemini_api_key, strict=True)
     return AppContext(settings=settings, hive=hive, llm=llm, embedder=embedder)
 
 
@@ -75,12 +75,14 @@ def create_app(ctx: AppContext | None = None, *, start_workers: bool | None = No
             tenants = prepare_tenants(context, settings.seed_tenant_list, create_missing=settings.auto_create_tenants)
             for tenant in context.hive.list_tenants():
                 if tenant not in tenants:
+                    context.hive.ensure_schema(tenant)
                     register_default_agents(context.hive, tenant, getattr(context.llm, "model", "fake"))
                     tenants.append(tenant)
         except Exception as exc:  # noqa: BLE001 - fail loudly in logs but let /health report the state
             log.error("startup preparation failed: %s", exc)
+            context.startup_error = f"Startup preparation failed: {type(exc).__name__}: {exc}"
         run_workers = settings.workers_enabled if start_workers is None else start_workers
-        if run_workers:
+        if run_workers and not context.startup_error:
             context.workers = WorkerPool(context)
             await context.workers.start(tenants)
         log.info("Minutes API ready: hive=%s llm=%s/%s embedder=%s tenants=%s", getattr(context.hive, "kind", "?"), getattr(context.llm, "backend", "?"), getattr(context.llm, "model", "?"), context.embedder.name, tenants)

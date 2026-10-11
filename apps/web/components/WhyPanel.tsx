@@ -93,9 +93,7 @@ export function WhyPanel({ tenant, why, showGraph = true, className }: { tenant:
         </section>
       )}
 
-      <section>
-        <CypherBlock cypher={why.cypher} label="Cypher that ran" />
-      </section>
+      <details className="query-details"><summary>View the query behind this evidence</summary><div className="mt-3"><CypherBlock cypher={why.cypher} label="Cypher that ran" /></div></details>
 
       {showGraph && (
         <section>

@@ -1,22 +1,34 @@
 # Deployment notes
 
-## FalkorDB on Railway (database + API)
+Local operation and an API container build were checked on Oct 9, 2026. These notes are a deployment recipe, not evidence of a working hosted deployment. Provider pricing, limits and free-tier policies must be checked at deployment time.
 
-1. New Railway project → "Deploy a template" → search FalkorDB (docs: https://docs.falkordb.com/operations/railway.html, template: https://railway.com/deploy/falkordb-1). Attach a volume at `/var/lib/falkordb/data` (check the image's data path; docs show both `/data` and `/var/lib/falkordb/data`). Set `REDIS_ARGS=--requirepass <password> --appendonly yes` and `FALKORDB_ARGS=TIMEOUT_DEFAULT 3000 TIMEOUT_MAX 10000 MAX_QUEUED_QUERIES 500`. Note the public TCP proxy host and port (`FALKORDB_PUBLIC_URL`).
-2. Add a second service from this repo with root `apps/api` (Dockerfile build). Env: `FALKORDB_URL=falkor://default:<password>@<internal host>:6379`, `LLM_BACKEND=gemini`, `GEMINI_API_KEY`, `LLM_MODEL=gemma-4-26b-a4b-it` (verify the id in AI Studio), `EMBED_BACKEND=onnx`, `CORS_ORIGINS=https://<web>.vercel.app`. Expose port 8000.
-3. Seed once: `railway run uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --reset` (or run the seed container locally against the public URL).
-4. Keep-warm: a Vercel cron or cron-job.org hitting `GET /health` every 10 minutes.
+## API and database
 
-Budget: Hobby plan $5 per month including $5 usage; a 1 GB container all month is roughly $10 to $15 more.
+Build the API with the **repository root as its build context**. The Dockerfile copies workspace packages, Cypher, synthetic data and stored benchmark results:
 
-## Web on Vercel
+```bash
+docker build -f apps/api/Dockerfile -t minutes-api .
+```
 
-Import the repo, root directory `apps/web`, framework Next.js. Env: `NEXT_PUBLIC_API_URL=https://<api>.up.railway.app`. Hobby plan, free.
+For Railway or another container host, set the Dockerfile path to `apps/api/Dockerfile` while keeping the build context at the root. The container listens on **8000**; local Compose maps **8080:8000**. Configure the host to route traffic to that port. `/health` returns 503 if database checks or startup preparation fail.
 
-## $0 alternative
+Run `falkordb/falkordb:6.0.1` on the private network. Set `FALKORDB_URL` for the API, provision persistent storage at the image's configured data directory, enable persistence as appropriate, and verify recovery after restarting the database. Do not expose the unauthenticated database or FalkorDB Browser publicly. See the sponsor's [operations documentation](https://docs.falkordb.com/operations/railway.html) for platform-specific setup.
 
-Oracle Cloud Always Free ARM VM (4 OCPU, 24 GB): `docker compose up -d` with this repo's compose file, Caddy for TLS. A few hours of setup; no monthly cost.
+Use `LLM_BACKEND=fake EMBED_BACKEND=fake` for the deterministic synthetic-data demo, or explicitly configure and test a real model provider and embedding model. Use the same embedding model for import and retrieval; embedding spaces are not interchangeable even when both have 768 dimensions. The API no longer silently falls back to test vectors.
 
-## FalkorDB Cloud free tier
+Seed from inside the deployed environment or from a secured connection to that database. `data/seed.py --extract gold` replays gold labels; `--extract real` invokes a model. Use `--reset` only when deliberately discarding a demo tenant's data. Leave `GITHUB_TOKEN` and `GITHUB_DEMO_REPO` unset for simulated follow-ups.
 
-Fine for development (100 MB, no card). Not for the judging window: no persistence, stops after one idle day, deleted after seven. If used anyway, keep `data/seed.py --reset` ready and a keep-warm ping.
+## Web
+
+For Vercel, use `apps/web` as the project root and set `NEXT_PUBLIC_API_URL` to the HTTPS API URL before building. Set the API's `CORS_ORIGINS` to the web origin. `NEXT_PUBLIC_MOCK` must remain unset for a real API demonstration. The app does not substitute fixtures when the API fails.
+
+A local web container can be built separately:
+
+```bash
+docker build -t minutes-web apps/web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080
+docker run --rm -p 3001:3000 minutes-web
+```
+
+## Access-control gap
+
+The current HTTP API has no login or tenant membership authorization and uses an administrative database connection. Per-graph database ACL tests do not prevent a caller from changing a tenant slug in an HTTP request. Use synthetic/public data for the hackathon as required by its rules. Before a company deployment, implement identity and tenant checks on every route, gate demo/benchmark/admin endpoints, configure upload limits and rate limits, and test unauthorized access. No private company deployment has been validated.

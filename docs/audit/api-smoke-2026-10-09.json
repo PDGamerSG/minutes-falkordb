@@ -1,0 +1,107 @@
+[
+  {
+    "tenant": "orbit",
+    "question": "Who owns the decision log?",
+    "answer": "Recorded owners for Decision Log: Rahul [fact_ep_thr_orbit_005_000_00].",
+    "source_count": 1,
+    "router": {
+      "intent": "ownership",
+      "entities": [
+        "Decision Log"
+      ],
+      "route": "template",
+      "template": "54_owners"
+    }
+  },
+  {
+    "tenant": "orbit",
+    "question": "Who owns payments service?",
+    "answer": "Recorded owners for Payments Service: Priya [fact_ep_mtg_orbit_001_012_00].",
+    "source_count": 1,
+    "router": {
+      "intent": "ownership",
+      "entities": [
+        "Payments Service"
+      ],
+      "route": "template",
+      "template": "54_owners"
+    }
+  },
+  {
+    "tenant": "orbit",
+    "question": "When is the UPI flow due?",
+    "answer": "UPI Flow due 2026-09-28 (Priya, email \"UPI flow: moving to Monday the 28th\", 2026-09-17) [fact_ep_thr_orbit_002_000_00]\nUPI Flow status completed (Priya, email \"Retro prep and action item: decision log (issue #42)\", 2026-09-29) [fact_ep_thr_orbit_005_002_00]\nHistory: UPI Flow due: first 2026-09-24 (Priya, meeting \"Orbit kickoff\", 2026-09-07) [fact_ep_mtg_orbit_001_020_00], then 2026-09-25 (Priya, meeting \"Orbit standup 1\", 2026-09-14) [fact_ep_mtg_orbit_002_005_00], now 2026-09-28 (Priya, email \"UPI flow: moving to Monday the 28th\", 2026-09-17) [fact_ep_thr_orbit_002_000_00]",
+    "source_count": 5,
+    "router": {
+      "intent": "when",
+      "entities": [
+        "UPI Flow"
+      ],
+      "route": "graph",
+      "template": null
+    }
+  },
+  {
+    "tenant": "orbit",
+    "question": "What did we believe about the UPI flow as of 2026-09-10?",
+    "answer": "Belief as of 2026-09-10:\nUPI Flow due 2026-09-24 (Priya, Orbit kickoff, 2026-09-07) [fact_ep_mtg_orbit_001_020_00]",
+    "source_count": 1,
+    "router": {
+      "intent": "belief_at",
+      "entities": [
+        "UPI Flow"
+      ],
+      "route": "template",
+      "template": "31_belief_at_time",
+      "t": 1789084799000
+    }
+  },
+  {
+    "tenant": "nimbus",
+    "question": "Who owns the decision log?",
+    "answer": "Name the project or commitment whose owner you want to look up.",
+    "source_count": 0,
+    "router": {
+      "intent": "ownership",
+      "entities": [],
+      "route": "template",
+      "template": "54_owners"
+    }
+  },
+  {
+    "change": {
+      "old_fact_id": "fact_ep_mtg_orbit_005_023_00",
+      "new_fact_id": "fact_demo_1791502189006",
+      "subject": "PayU Integration",
+      "old_object": "2026-10-01",
+      "new_object": "2026-10-02",
+      "due_at": 1790899200000
+    },
+    "task": "task_01m4exm0erb8ndtbwh5zscss1c",
+    "events": [
+      "submitted",
+      "claimed",
+      "handed_off",
+      "claimed",
+      "artifact",
+      "completed"
+    ],
+    "simulated_artifact": {
+      "id": "art_66657aa9989d",
+      "kind": "github_issue",
+      "uri": "https://github.com/minutes-demo/board/issues/6e9f05",
+      "text": "{\"title\": \"Follow up: Payu Integration now due 2026-10-02\", \"body\": \"The commitment 'Payu Integration' moved to 2026-10-02. Confirm the new date with the owner and update dependent work.\", \"labels\": [\"minutes\", \"follow-up\"], \"simulated\": true, \"also\": [{\"kind\": \"nudge_message\", \"text\": \"Hi, quick reminder that Payu Integration now lands on 2026-10-02. Shout if that slips again.\"}]}",
+      "title": "Follow up: Payu Integration now due 2026-10-02",
+      "simulated": true,
+      "body": "The commitment 'Payu Integration' moved to 2026-10-02. Confirm the new date with the owner and update dependent work."
+    },
+    "claim_race": {
+      "winners": 1,
+      "losers": 24,
+      "task_id": "task_01m4exm0khw909apcqqz4z0zb7",
+      "winner_agent": "demo_claimer_08",
+      "attempts": 25,
+      "errors": []
+    }
+  }
+]

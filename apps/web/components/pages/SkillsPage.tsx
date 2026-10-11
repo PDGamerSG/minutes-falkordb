@@ -174,8 +174,8 @@ export function SkillsPage({ team }: { team: string }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Skills"
-        description="Procedural memory. Routines the agents learned from repeated work, ranked by PageRank over USED edges. Accept or reject an outcome to update the success rate."
+        title="Good work, remembered."
+        description="The routines your agents learn from repeated work. Run a skill, review its outcome, and help the next run get better."
         actions={
           <Button size="sm" onClick={run} disabled={running}>
             <Play /> {running ? "Submitting…" : "Run standup skill"}

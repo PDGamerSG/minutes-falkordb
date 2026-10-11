@@ -28,6 +28,7 @@ class AppContext:
     workers: Any = None
     bench_results: list[dict[str, Any]] = field(default_factory=list)
     started_at: int = 0
+    startup_error: str | None = None
 
     def __post_init__(self) -> None:
         if self.bus is None:

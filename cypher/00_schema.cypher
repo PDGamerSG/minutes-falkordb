@@ -34,6 +34,10 @@ CREATE INDEX FOR (n:Snapshot) ON (n.id)
 CREATE INDEX FOR (n:Snapshot) ON (n.tenant)
 CREATE INDEX FOR (n:Tenant) ON (n.slug)
 
+CREATE INDEX FOR (n:WorkItem) ON (n.id)
+CREATE INDEX FOR (n:Document) ON (n.id)
+CREATE INDEX FOR (n:FollowUpDraft) ON (n.id)
+
 // Full-text (RediSearch). Sanitize query strings: a bare underscore breaks the tokenizer.
 CREATE FULLTEXT INDEX FOR (n:Episode) ON (n.text)
 CREATE FULLTEXT INDEX FOR (n:Fact) ON (n.text)

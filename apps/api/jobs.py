@@ -73,7 +73,14 @@ class JobStore:
             log.exception("job %s failed", job_id)
             self.update(job_id, status="failed", stage="failed", error=f"{type(exc).__name__}: {exc}"[:2000])
             raise
-        self.update(job_id, status="done", stage="done", progress=1.0, stats=stats)
+        failed = stats.get("failed_episodes") or []
+        if failed:
+            self.update(
+                job_id, status="failed", stage="extraction incomplete", progress=1.0, stats=stats,
+                error=f"Extraction failed for {len(failed)} episode(s). Sources and successful facts were saved; retry the import to finish.",
+            )
+        else:
+            self.update(job_id, status="done", stage="done", progress=1.0, stats=stats)
         return stats
 
     async def run_async(self, job_id: str, fn: JobFn) -> None:

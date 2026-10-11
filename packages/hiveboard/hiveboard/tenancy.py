@@ -36,6 +36,21 @@ def acl_setuser_args(user: str, password: str, commands: tuple[str, ...], graphs
     return ["ACL", "SETUSER", user, "reset", "on", f">{password}", *commands, *[f"~{g}" for g in graphs]]
 
 
+def ensure_tenant_access(db: HiveDB, tenant: str, password_rw: str, password_ro: str) -> None:
+    """Restore missing runtime ACL users after Redis restarts; preserve existing policy."""
+    validate_slug(tenant)
+    if not db.graph_exists(db.graph_name(tenant)):
+        raise NotFound(f"tenant {tenant!r} does not exist")
+    graphs = [db.graph_name(tenant), COMMONS]
+    for user, password, commands in (
+        (db.rw_user(tenant), password_rw, RW_COMMANDS),
+        (db.ro_user(tenant), password_ro, RO_COMMANDS),
+    ):
+        if db.connection.execute_command("ACL", "GETUSER", user) is None:
+            db.connection.execute_command(*acl_setuser_args(user, password, commands, graphs))
+    db.configure_ro(tenant, password_ro)
+
+
 def create_tenant(
     db: HiveDB, tenant: str, display_name: str, password_rw: str, password_ro: str
 ) -> dict[str, Any]:

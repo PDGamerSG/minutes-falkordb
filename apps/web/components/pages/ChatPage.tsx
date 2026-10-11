@@ -2,17 +2,16 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, SendHorizontal } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, History, MessageSquare, Plus, SendHorizontal } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatResponse } from "@/lib/types";
-import { fmtNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CypherBlock } from "@/components/CypherBlock";
 import { GraphView } from "@/components/GraphView";
-import { ErrorNote, Mono } from "@/components/Page";
+import { ErrorNote } from "@/components/Page";
 import { fromChatEpisode, fromChatSource, SourceRow } from "@/components/SourceLink";
 
 type Msg = {
@@ -41,8 +40,37 @@ const ROUTE_TONE: Record<string, string> = {
 
 function WhySection({ tenant, r }: { tenant: string; r: ChatResponse }) {
   return (
-    <div className="mt-3 space-y-4 rounded-lg border bg-muted/30 p-3">
+    <div className="chat-evidence space-y-5">
+
       <section>
+        <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Sources</h4>
+        {r.sources.length === 0 && <p className="text-xs text-muted-foreground">No sources attached.</p>}
+        <div className="divide-y rounded-md border bg-card">
+          {r.sources.map((s, i) => (
+            <SourceRow key={`${s.fact_id}-${i}`} tenant={tenant} source={fromChatSource(s)} className="px-2.5 py-1.5" />
+          ))}
+        </div>
+      </section>
+
+      {r.episodes && r.episodes.length > 0 && (
+        <section>
+          <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Evidence episodes ({r.episodes.length})</h4>
+          <ol className="divide-y rounded-md border bg-card">
+            {r.episodes.map((e, i) => (
+              <li key={`${e.episode_id}-${i}`} className="px-2.5 py-1.5">
+                <SourceRow tenant={tenant} source={fromChatEpisode(e)} />
+                <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{e.text}</p>
+                <div className="mt-0.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
+                  <span>{e.episode_id}</span>
+                  {typeof e.score === "number" && <span className="tabular">score {e.score.toFixed(4)}</span>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <details className="query-details"><summary>Query and routing details</summary><div className="space-y-4 pt-4">      <section>
         <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Router decision</h4>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           <dt className="text-muted-foreground">intent</dt>
@@ -76,35 +104,7 @@ function WhySection({ tenant, r }: { tenant: string; r: ChatResponse }) {
           <CypherBlock key={i} cypher={c} label={r.cypher.length > 1 ? `Query ${i + 1} of ${r.cypher.length}` : "Cypher"} />
         ))}
       </section>
-
-      <section>
-        <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Sources</h4>
-        {r.sources.length === 0 && <p className="text-xs text-muted-foreground">No sources attached.</p>}
-        <div className="divide-y rounded-md border bg-card">
-          {r.sources.map((s, i) => (
-            <SourceRow key={`${s.fact_id}-${i}`} tenant={tenant} source={fromChatSource(s)} className="px-2.5 py-1.5" />
-          ))}
-        </div>
-      </section>
-
-      {r.episodes && r.episodes.length > 0 && (
-        <section>
-          <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Evidence episodes ({r.episodes.length})</h4>
-          <ol className="divide-y rounded-md border bg-card">
-            {r.episodes.map((e, i) => (
-              <li key={`${e.episode_id}-${i}`} className="px-2.5 py-1.5">
-                <SourceRow tenant={tenant} source={fromChatEpisode(e)} />
-                <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{e.text}</p>
-                <div className="mt-0.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
-                  <span>{e.episode_id}</span>
-                  {typeof e.score === "number" && <span className="tabular">score {e.score.toFixed(4)}</span>}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
+</div></details>
       <section>
         <h4 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Subgraph</h4>
         <GraphView subgraph={r.subgraph} tenant={tenant} height={280} highlightIds={r.sources.map((s) => s.fact_id)} />
@@ -117,8 +117,8 @@ function AssistantMessage({ tenant, m }: { tenant: string; m: Msg }) {
   const [open, setOpen] = useState(false);
   const r = m.response;
   return (
-    <div className="max-w-3xl">
-      <div className="rounded-lg border bg-card p-3 text-sm">
+    <div className="assistant-message">
+      <div className="answer-body">
         {m.pending && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="size-1.5 animate-pulse rounded-full bg-primary" /> Thinking…
@@ -127,20 +127,7 @@ function AssistantMessage({ tenant, m }: { tenant: string; m: Msg }) {
         {m.error && <ErrorNote error={m.error} />}
         {!m.pending && !m.error && <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>}
         {r && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
-            <span className="font-mono" style={{ color: ROUTE_TONE[r.router.route] }}>
-              {r.router.route}
-              {r.router.template ? ` · ${r.router.template}` : ""}
-            </span>
-            <span className="font-mono">{r.model}</span>
-            <span className="font-mono tabular">{fmtNum(r.latency_ms)} ms</span>
-            <span className="font-mono tabular">
-              {r.subgraph.nodes.length}n/{r.subgraph.edges.length}e
-            </span>
-            <Button size="xs" variant="ghost" className="ml-auto" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-              {open ? <ChevronDown /> : <ChevronRight />} Why
-            </Button>
-          </div>
+          <div className="answer-footer"><span className="answer-provenance"><span />{r.sources.length} linked source{r.sources.length !== 1 ? "s" : ""}</span><span>{/fake|scripted/i.test(r.model) ? "Scripted demo answer" : "Evidence available"}</span><Button size="xs" variant="ghost" className="ml-auto" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? <ChevronDown /> : <ChevronRight />} Why this answer</Button></div>
         )}
       </div>
       {r && open && <WhySection tenant={tenant} r={r} />}
@@ -149,6 +136,11 @@ function AssistantMessage({ tenant, m }: { tenant: string; m: Msg }) {
 }
 
 export function ChatPage({ team }: { team: string }) {
+  const sp = useSearchParams();
+  return <ChatSession key={`${team}:${sp.get("session") ?? "new"}`} team={team} />;
+}
+
+function ChatSession({ team }: { team: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -157,9 +149,16 @@ export function ChatPage({ team }: { team: string }) {
   const [sessionId, setSessionId] = useState<string | null>(urlSession);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState(() => urlSession ? "" : (sp.get("q") ?? "").slice(0, 2000));
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(!!urlSession);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const loadedFor = useRef<string | null>(null);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   // Restore a session from the URL.
   useEffect(() => {
@@ -181,16 +180,19 @@ export function ChatPage({ team }: { team: string }) {
           })),
         );
       })
-      .catch(() => {
-        // unknown session: start fresh but keep the id so the server can attach
-      });
+      .catch((error: unknown) => {
+        if (!cancelled) setHistoryError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => { if (!cancelled) setBusy(false); });
     return () => {
       cancelled = true;
     };
   }, [team, urlSession]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
+    if (!msgs.length) return;
+    const conversation = bottomRef.current?.parentElement;
+    if (conversation) conversation.scrollTop = conversation.scrollHeight;
   }, [msgs.length, busy]);
 
   const send = useCallback(
@@ -204,6 +206,7 @@ export function ChatPage({ team }: { team: string }) {
       setMsgs((m) => [...m, { id: uid, role: "user", text: message }, { id: aid, role: "assistant", text: "", pending: true }]);
       try {
         const r = await api.chat.send(team, message, sessionId ?? undefined);
+        if (!mounted.current) return;
         setMsgs((m) => m.map((x) => (x.id === aid ? { id: aid, role: "assistant", text: r.answer, response: r } : x)));
         if (r.session_id && r.session_id !== sessionId) {
           setSessionId(r.session_id);
@@ -214,10 +217,11 @@ export function ChatPage({ team }: { team: string }) {
           router.replace(`${pathname}?${next.toString()}`, { scroll: false });
         }
       } catch (e) {
+        if (!mounted.current) return;
         const err = e instanceof Error ? e.message : String(e);
         setMsgs((m) => m.map((x) => (x.id === aid ? { id: aid, role: "assistant", text: "", error: err } : x)));
       } finally {
-        setBusy(false);
+        if (mounted.current) setBusy(false);
       }
     },
     [busy, team, sessionId, sp, router, pathname],
@@ -232,37 +236,20 @@ export function ChatPage({ team }: { team: string }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] flex-col md:h-[calc(100dvh-2.5rem)]">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Chat</h1>
-          <p className="text-sm text-muted-foreground">Pick up the thread. Ask about your team’s decisions, conversations, and next steps.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {sessionId && <Mono title="session_id">session {sessionId}</Mono>}
-          <Button size="sm" variant="outline" onClick={newSession}>
-            <Plus /> New session
-          </Button>
-        </div>
-      </div>
+    <div className="chat-workspace">
+      <div className="chat-header"><div><h1>Ask your company.</h1><p>Find the context behind a decision, and follow it to the source.</p></div><Button size="sm" variant="outline" onClick={newSession} disabled={busy}><Plus /> New conversation</Button></div>
+      <div className="chat-context"><span><MessageSquare size={13} /> {team} memory</span><span><History size={13} /> Ask what was known at any point in time</span>{sessionId && <span className="conversation-saved">Conversation saved</span>}</div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border bg-muted/20 p-3">
-        {msgs.length === 0 && (
-          <div className="flex h-full flex-col items-start justify-end gap-2">
-            <div className="text-xs text-muted-foreground">Try one of these:</div>
-            <div className="flex flex-wrap gap-1.5">
-              {(SUGGESTIONS[team] ?? GENERIC_SUGGESTIONS).map((s) => (
-                <Button key={s} size="sm" variant="outline" onClick={() => void send(s)}>
-                  {s}
-                </Button>
-              ))}
-            </div>
-          </div>
+      <div className="chat-messages" role="log" aria-label="Conversation" aria-live="polite">
+        {historyError && <ErrorNote error={`Could not load this conversation: ${historyError}`} />}
+        {busy && msgs.length === 0 && <p role="status" className="text-sm text-muted-foreground">Loading conversation…</p>}
+        {msgs.length === 0 && !busy && (
+          <div className="chat-empty"><span className="empty-brain-mark" aria-hidden><span /><span /><span /></span><h2>There’s a reason<br />behind every decision.</h2><p>Start with a question. Every answer keeps its evidence close.</p><div className="chat-suggestions">{(SUGGESTIONS[team] ?? GENERIC_SUGGESTIONS).slice(0, 4).map(s => <button key={s} onClick={() => void send(s)}>{s}<ArrowUpRight size={14} /></button>)}</div></div>
         )}
         {msgs.map((m) =>
           m.role === "user" ? (
             <div key={m.id} className="flex justify-end">
-              <div className="max-w-2xl rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">{m.text}</div>
+              <div className="user-message">{m.text}</div>
             </div>
           ) : (
             <AssistantMessage key={m.id} tenant={team} m={m} />
@@ -272,31 +259,31 @@ export function ChatPage({ team }: { team: string }) {
       </div>
 
       <form
-        className="mt-3 flex items-end gap-2"
+        className="chat-composer"
         onSubmit={(e) => {
           e.preventDefault();
           void send(input);
         }}
       >
         <Textarea
-          aria-label="Your question"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send(input);
             }
           }}
-          placeholder="Ask about a decision, a commitment, or who said what… (Enter to send, Shift+Enter for a newline)"
-          className={cn("min-h-10 flex-1 resize-none")}
+          placeholder="Ask a question about your team…"
+          aria-label="Message"
+          className={cn("chat-input min-h-12 flex-1 resize-none")}
           rows={1}
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !input.trim()} aria-label="Send">
           <SendHorizontal /> Send
         </Button>
-      </form>
+      </form><p className="composer-hint">Enter to send · Shift + Enter for a new line. Answers reflect the sources in this workspace.</p>
     </div>
   );
 }

@@ -26,8 +26,8 @@ function WhySheet({ target, onClose }: { target: WhyTarget; onClose: () => void 
     <Sheet open={!!target} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full gap-0 overflow-hidden sm:max-w-xl">
         <SheetHeader className="border-b">
-          <SheetTitle>Why</SheetTitle>
-          <SheetDescription className="font-mono text-xs">{target?.nodeId}</SheetDescription>
+          <SheetTitle>Behind the decision</SheetTitle>
+          <SheetDescription>Source evidence, context, and the history of this record.</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-auto p-4">
           {target && loading && !data && (

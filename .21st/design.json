@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "project": {
+    "name": "Minutes",
+    "productType": "Company memory and evidence workspace",
+    "stack": [
+      "Next.js 16 App Router",
+      "React 19",
+      "TypeScript",
+      "Tailwind CSS 4",
+      "Base UI",
+      "Three.js"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "apps/web/app/globals.css",
+      "apps/web/app/workspace.css"
+    ],
+    "components": [
+      "apps/web/components/ui",
+      "apps/web/components/memory"
+    ],
+    "assets": [
+      "apps/web/public/fonts"
+    ],
+    "instructions": [
+      "apps/web/AGENTS.md",
+      "docs/frontend-design.md",
+      "docs/minutes-experience.md",
+      "docs/workspace-redesign.md"
+    ]
+  },
+  "design": {
+    "colorMode": "light with dark evidence panels",
+    "colors": {
+      "background": "#fafbfe",
+      "surface": "#ffffff",
+      "foreground": "#182138",
+      "signal": "#3155ed",
+      "muted": "#647087",
+      "border": "#e0e5ef"
+    },
+    "typography": {
+      "family": "Self-hosted Manrope for entrance; Inter for workspace",
+      "display": "62\u2013100px desktop, 47\u201370px mobile",
+      "body": "11\u201315px"
+    },
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {
+      "ui": "150\u2013250ms",
+      "connections": "Finite 3-second trace",
+      "sculpture": "Instanced blocks, paused offscreen; reduced motion starts still"
+    },
+    "density": "Spacious editorial entrance with detailed product scenes"
+  },
+  "components": {
+    "installed": [
+      "Base UI dialog/sheet/input/button",
+      "Lucide",
+      "Three.js",
+      "Existing GraphView and source viewers"
+    ],
+    "preferredPrimitives": [
+      "apps/web/components/ui"
+    ],
+    "patterns": [
+      "21st Animated Beam measured SVG connections; native implementation without Framer Motion"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "Preserve API contracts and real data behavior",
+      "Keep illustrative data labeled",
+      "Keyboard, mobile, reduced motion and no-WebGL support",
+      "Follow-up actions save drafts only"
+    ],
+    "avoid": [
+      "Fabricated metrics",
+      "Silent mock fallbacks",
+      "External message sending",
+      "New animation dependencies"
+    ]
+  },
+  "decisions": [
+    "User feedback on 2026-10-10 rejected the sparse graphite landing. Homepage direction changed to paper and cobalt with dark evidence panels, a connected relationship map, and a dimensional blue interlude/footer.",
+    "Supplied we make devs.docx and its 16 embedded images are the primary visual brief.",
+    "21st catalog searched after login; Animated Beam id 919 retrieved and studied. AI generation unavailable on current account.",
+    "2026-10-11: Workspace follows the latest Minutes homepage with paper surfaces, navy ink, cobalt accents, Cal Sans headings and Inter body text. Persistent navigation starts at 1024px; smaller screens use the existing accessible sheet. Workspace styles and font aliases remain scoped so the homepage can be merged independently."
+  ],
+  "evidence": [
+    {
+      "fact": "User supplied interaction references",
+      "source": "we make devs.docx (16 embedded images)"
+    },
+    {
+      "fact": "Measured connection pattern",
+      "source": "https://21st.dev/@dillionverma/components/animated-beam"
+    }
+  ],
+  "generatedAt": "2026-10-10T16:36:30.536Z"
+}

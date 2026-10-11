@@ -1,6 +1,6 @@
 services:
   falkordb:
-    image: falkordb/falkordb:latest   # 6.0.x; validated on 6.0.1. Fallback: falkordb/falkordb:v4.22.0
+    image: falkordb/falkordb:6.0.1   # 6.x image tags have no v prefix
     container_name: minutes-falkordb
     ports:
       - "6379:6379"   # database
@@ -35,11 +35,11 @@ services:
   web:
     build:
       context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     container_name: minutes-web
     depends_on:
       - api
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
     ports:
       - "3001:3000"
 

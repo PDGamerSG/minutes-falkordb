@@ -28,6 +28,7 @@ COPY cypher ./cypher
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY data ./data
+COPY docs/bench ./docs/bench
 RUN uv sync --no-dev --package minutes-api
 
 EXPOSE 8000

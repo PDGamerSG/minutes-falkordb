@@ -1,6 +1,6 @@
 # Minutes web (Next.js, standalone output). Built from apps/web as the context:
-#   docker build -t minutes-web apps/web
-#   docker run -p 3001:3000 -e NEXT_PUBLIC_API_URL=http://localhost:8000 minutes-web
+#   docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t minutes-web apps/web
+#   docker run -p 3001:3000 minutes-web
 # docker-compose.yml at the repo root maps 3001:3000 for this image.
 
 FROM node:20-alpine AS base
@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 WORKDIR /app
 # NEXT_PUBLIC_* values are inlined at build time.
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules

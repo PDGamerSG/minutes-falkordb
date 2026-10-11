@@ -2,6 +2,16 @@
 MATCH (c:Fact:Commitment {status: 'active'})
 OPTIONAL MATCH (c)-[:OWNED_BY]->(p:Person)
 WITH c, p
+OPTIONAL MATCH (a:Fact {status: 'active', predicate: 'owner'})
+WHERE toLower(a.subject) = toLower(c.subject)
+WITH c, p, collect(DISTINCT a) AS assignments
+WITH c, p, assignments, CASE WHEN size(assignments) = 1 THEN assignments[0] ELSE NULL END AS assignment
+OPTIONAL MATCH (assigned:Person)
+WHERE assigned.id = assignment.object OR toLower(assigned.name) = toLower(assignment.object) OR toLower(assigned.email) = toLower(assignment.object)
+WITH c, p, assignments, collect(DISTINCT assigned) AS people
+WITH c, CASE WHEN size(assignments) > 0 THEN
+    CASE WHEN size(assignments) = 1 AND size(people) = 1 THEN people[0] ELSE NULL END
+    ELSE p END AS p
 WHERE $person IS NULL OR p.id = $person
 OPTIONAL MATCH (c)-[:STATED_BY]->(sp:Person)
 WITH c, p, sp

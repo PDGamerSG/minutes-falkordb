@@ -28,6 +28,9 @@ UNIQUE_ID_LABELS = [
     "Step",
     "Artifact",
     "Snapshot",
+    "WorkItem",
+    "Document",
+    "FollowUpDraft",
 ]
 _ALREADY = ("already indexed", "already exists")
 

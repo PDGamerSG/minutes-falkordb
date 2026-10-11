@@ -1,0 +1,254 @@
+{
+  "date": "2026-10-10",
+  "scope": "UI create/edit rehearsal with real FalkorDB and independent HTTP assertions",
+  "tenant": "impact_verify_b19c80c7",
+  "data": "Synthetic Orbit kickoff and customer-call recap, reviewed gold extraction",
+  "modes": {
+    "database": {
+      "version": "6.0.1",
+      "graphs": [
+        "team_impact_verify_b19c80c7",
+        "team_nimbus",
+        "team_orbit",
+        "team_quill",
+        "team_test_44eb738f35b5"
+      ],
+      "kind": "falkordb"
+    },
+    "llm": {
+      "backend": "fake",
+      "model": "fake",
+      "native_tools": false
+    },
+    "embeddings": {
+      "model": "fake-hashed-bow-768",
+      "dim": 768,
+      "backend": "fake",
+      "source": "in-process"
+    }
+  },
+  "work_id": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+  "draft_id": "draft_36d2e49b384b6c18615f2172",
+  "stale_draft_status_after_review": 409,
+  "states": {
+    "initial": {
+      "summary": {
+        "tracked": 1,
+        "needs_review": 1,
+        "aligned": 0,
+        "closed": 0,
+        "unresolved": 0
+      },
+      "assessment": "needs_review",
+      "status": "open",
+      "owner": {
+        "id": "spk_priya",
+        "name": "Priya"
+      },
+      "baseline": {
+        "id": "fact_ep_mtg_orbit_001_017_00",
+        "value": "Razorpay"
+      },
+      "current": {
+        "id": "fact_ep_mtg_orbit_005_026_00",
+        "value": "PayU"
+      },
+      "document": {
+        "id": "doc_4d96925c76b694521b41e40d",
+        "title": "Dependency note: Prepare the vendor onboarding guide",
+        "uri": "minutes://impact_verify_b19c80c7/work/work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+        "content": "Dependency recorded explicitly in Minutes.\n\nWork: Prepare the vendor onboarding guide\n\nOwner: Priya [spk_priya]\n\nStatus: open\n\nBased on: Payments Service \u00b7 uses vendor \u00b7 Razorpay [fact_ep_mtg_orbit_001_017_00]\n\nDependency: The onboarding guide contains Razorpay-specific API and merchant setup instructions. A provider change requires Priya to review those instructions.",
+        "synthetic": true
+      },
+      "edges": [
+        {
+          "source": "fact_ep_mtg_orbit_005_026_00",
+          "target": "fact_ep_mtg_orbit_001_017_00",
+          "type": "SUPERSEDES",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "fact_ep_mtg_orbit_001_017_00",
+          "type": "DEPENDS_ON",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "doc_4d96925c76b694521b41e40d",
+          "type": "DOCUMENTED_IN",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "spk_priya",
+          "type": "OWNED_BY",
+          "props": {}
+        }
+      ],
+      "draft": {
+        "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+        "body": "Priya, please review \u201cPrepare the vendor onboarding guide\u201d.\n\nPayments Service \u00b7 uses vendor changed from Razorpay to PayU.\nPrevious evidence: [fact_ep_mtg_orbit_001_017_00]. Current evidence: [fact_ep_mtg_orbit_005_026_00] in Orbit customer call recap (Meridian).\n\nWhy this work is affected: The onboarding guide contains Razorpay-specific API and merchant setup instructions. A provider change requires Priya to review those instructions.\nDependency recorded in Dependency note: Prepare the vendor onboarding guide [doc_4d96925c76b694521b41e40d].\n\nPlease confirm whether the work or its delivery plan needs updating. This is a local draft; nothing has been sent.",
+        "created_at": 1791588661295,
+        "current_fact_id": "fact_ep_mtg_orbit_005_026_00",
+        "document_id": "doc_4d96925c76b694521b41e40d",
+        "id": "draft_36d2e49b384b6c18615f2172",
+        "owner_id": "spk_priya",
+        "status": "draft",
+        "title": "Review Prepare the vendor onboarding guide",
+        "work_item_id": "work_5dfb49df-b873-46da-bdfb-876d516e3aac"
+      }
+    },
+    "reviewed": {
+      "summary": {
+        "tracked": 1,
+        "needs_review": 0,
+        "aligned": 1,
+        "closed": 0,
+        "unresolved": 0
+      },
+      "assessment": "aligned",
+      "status": "open",
+      "owner": {
+        "id": "spk_priya",
+        "name": "Priya"
+      },
+      "baseline": {
+        "id": "fact_ep_mtg_orbit_005_026_00",
+        "value": "PayU"
+      },
+      "current": {
+        "id": "fact_ep_mtg_orbit_005_026_00",
+        "value": "PayU"
+      },
+      "document": {
+        "id": "doc_7deb6b35d9e4c4d81b6d6008",
+        "title": "Dependency note: Prepare the vendor onboarding guide",
+        "uri": "minutes://impact_verify_b19c80c7/work/work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+        "content": "Dependency recorded explicitly in Minutes.\n\nWork: Prepare the vendor onboarding guide\n\nOwner: Priya [spk_priya]\n\nStatus: open\n\nBased on: Payments Service \u00b7 uses vendor \u00b7 PayU [fact_ep_mtg_orbit_005_026_00]\n\nDependency: Reviewed the provider change. The onboarding guide now follows PayU API and merchant setup instructions; future provider changes still require a review.\n\nPrevious dependency document: [doc_4d96925c76b694521b41e40d]",
+        "synthetic": true
+      },
+      "edges": [
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "fact_ep_mtg_orbit_005_026_00",
+          "type": "DEPENDS_ON",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "doc_7deb6b35d9e4c4d81b6d6008",
+          "type": "DOCUMENTED_IN",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "spk_priya",
+          "type": "OWNED_BY",
+          "props": {}
+        }
+      ],
+      "draft": null
+    },
+    "completed": {
+      "summary": {
+        "tracked": 1,
+        "needs_review": 0,
+        "aligned": 0,
+        "closed": 1,
+        "unresolved": 0
+      },
+      "assessment": "closed",
+      "status": "completed",
+      "owner": {
+        "id": "spk_priya",
+        "name": "Priya"
+      },
+      "baseline": {
+        "id": "fact_ep_mtg_orbit_005_026_00",
+        "value": "PayU"
+      },
+      "current": {
+        "id": "fact_ep_mtg_orbit_005_026_00",
+        "value": "PayU"
+      },
+      "document": {
+        "id": "doc_6b895d23eb3f4fb6f3c00158",
+        "title": "Dependency note: Prepare the vendor onboarding guide",
+        "uri": "minutes://impact_verify_b19c80c7/work/work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+        "content": "Dependency recorded explicitly in Minutes.\n\nWork: Prepare the vendor onboarding guide\n\nOwner: Priya [spk_priya]\n\nStatus: completed\n\nBased on: Payments Service \u00b7 uses vendor \u00b7 PayU [fact_ep_mtg_orbit_005_026_00]\n\nDependency: Reviewed the provider change. The onboarding guide now follows PayU API and merchant setup instructions; future provider changes still require a review.\n\nPrevious dependency document: [doc_7deb6b35d9e4c4d81b6d6008]",
+        "synthetic": true
+      },
+      "edges": [
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "fact_ep_mtg_orbit_005_026_00",
+          "type": "DEPENDS_ON",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "doc_6b895d23eb3f4fb6f3c00158",
+          "type": "DOCUMENTED_IN",
+          "props": {}
+        },
+        {
+          "source": "work_5dfb49df-b873-46da-bdfb-876d516e3aac",
+          "target": "spk_priya",
+          "type": "OWNED_BY",
+          "props": {}
+        }
+      ],
+      "draft": null
+    }
+  },
+  "final_drafts": [
+    {
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+      "body": "Priya, please review \u201cPrepare the vendor onboarding guide\u201d.\n\nPayments Service \u00b7 uses vendor changed from Razorpay to PayU.\nPrevious evidence: [fact_ep_mtg_orbit_001_017_00]. Current evidence: [fact_ep_mtg_orbit_005_026_00] in Orbit customer call recap (Meridian).\n\nWhy this work is affected: The onboarding guide contains Razorpay-specific API and merchant setup instructions. A provider change requires Priya to review those instructions.\nDependency recorded in Dependency note: Prepare the vendor onboarding guide [doc_4d96925c76b694521b41e40d].\n\nPlease confirm whether the work or its delivery plan needs updating. This is a local draft; nothing has been sent.",
+      "created_at": 1791588661295,
+      "current_fact_id": "fact_ep_mtg_orbit_005_026_00",
+      "document_id": "doc_4d96925c76b694521b41e40d",
+      "id": "draft_36d2e49b384b6c18615f2172",
+      "owner_id": "spk_priya",
+      "status": "draft",
+      "title": "Review Prepare the vendor onboarding guide",
+      "work_item_id": "work_5dfb49df-b873-46da-bdfb-876d516e3aac"
+    }
+  ],
+  "browser": {
+    "draft_restored_after_reload": true,
+    "graph_initial_nodes": 5,
+    "graph_initial_edges": 4,
+    "executed_cypher_inspected": true,
+    "mobile_width": 390,
+    "mobile_document_width": 390,
+    "mobile_form_scroll_width": 356,
+    "mobile_form_client_width": 356,
+    "keyboard_tab_title_to_owner": true,
+    "escape_dismissal": true
+  },
+  "cypher": "MATCH (w:WorkItem)-[:DEPENDS_ON]->(baseline:Fact)\nOPTIONAL MATCH (w)-[:OWNED_BY]->(owner:Person)\nWITH w, baseline, owner\nMATCH (w)-[:DOCUMENTED_IN]->(doc:Document)\nWITH w, baseline, owner, doc\nOPTIONAL MATCH (current:Fact {status: 'active'})\nWHERE current.key = baseline.key\nWITH w, baseline, owner, doc, current\nOPTIONAL MATCH path=(current)-[:SUPERSEDES*0..24]->(baseline)\nRETURN w {.id, .title, .status, .rationale} AS item,\n       baseline {.id, .subject, .predicate, .object, .key, .kind, .status, .valid_from} AS baseline,\n       owner {.id, .name} AS owner,\n       doc {.id, .title, .uri, .content, .synthetic} AS document,\n       collect(DISTINCT {fact: current {.id, .subject, .predicate, .object, .key, .kind, .status, .valid_from},\n                         via: [n IN nodes(path) | n.id]}) AS candidates\nORDER BY w.id\nLIMIT 200",
+  "cleanup": {
+    "temporary_tenant_deleted": true,
+    "other_tenants_preserved": [
+      "nimbus",
+      "orbit",
+      "quill",
+      "test_44eb738f35b5"
+    ],
+    "orbit_summary": {
+      "tracked": 5,
+      "needs_review": 3,
+      "aligned": 1,
+      "closed": 1,
+      "unresolved": 0
+    }
+  },
+  "bounded_picker_regression": {
+    "fact_list_count": 500,
+    "baseline_and_current_omitted_from_list": true,
+    "one_off_node_assertions": "Failed before fix, passed after: baseline/current retention, deduplication, refreshed list precedence, retracted baseline and new work choices",
+    "post_fix_browser_retest": "Unavailable after native Electron renderer failure"
+  }
+}

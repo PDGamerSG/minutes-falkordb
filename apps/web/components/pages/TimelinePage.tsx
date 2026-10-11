@@ -188,8 +188,8 @@ export function TimelinePage({ team }: { team: string }) {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Timeline"
-        description="Scrub through the tenant's history. Facts are bi-temporal: what the team believed at T is a query, not a reconstruction."
+        title="A memory of every moment."
+        description="Move through your team’s history. See what was known then, what changed, and what’s true today."
         actions={<SnapshotDialog tenant={team} onDone={timeline.refetch} />}
       />
 
@@ -325,7 +325,7 @@ export function TimelinePage({ team }: { team: string }) {
 
       {belief.data && <CypherBlock cypher={belief.data.cypher} label={`31_belief_at_time.cypher · t = ${belief.data.t}`} />}
 
-      <Section title="Snapshots" description="GRAPH.COPY of the tenant graph. Click one to jump the slider to when it was taken.">
+      <Section title="Snapshots" description="Saved moments in your company’s memory. Choose one to revisit what the team knew at that point.">
         {snapshots.length === 0 && <EmptyState title="No snapshots yet" />}
         {snapshots.length > 0 && (
           <ul className="divide-y rounded-lg border bg-card text-xs">

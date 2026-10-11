@@ -13,6 +13,7 @@ the route's facts by reciprocal-rank fusion, returned as ``episodes[]`` and draw
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -35,7 +36,7 @@ from .evidence import (
     render_episodes,
     rrf,
 )
-from .router import RouterDecision, route
+from .router import RouterDecision, find_entities, route
 
 log = logging.getLogger(__name__)
 
@@ -96,7 +97,11 @@ def _subgraph_from_facts(facts: list[dict[str, Any]]) -> dict[str, Any]:
         container = fact.get("meeting") or fact.get("thread")
         if container and container.get("id"):
             add(container["id"], "Meeting" if fact.get("meeting") else "EmailThread", container)
-            edges.append({"source": container["id"], "target": fid, "type": "CONTAINS", "props": {}})
+            episode_id = fact.get("episode_id") or (fact.get("source") or {}).get("episode_id")
+            if episode_id:
+                add(episode_id, "Episode", {"id": episode_id})
+                edges.append({"source": container["id"], "target": episode_id, "type": "HAS_EPISODE", "props": {}})
+                edges.append({"source": fid, "target": episode_id, "type": "DERIVED_FROM", "props": {}})
         for old in fact.get("supersedes") or []:
             edges.append({"source": fid, "target": old, "type": "SUPERSEDES", "props": {}})
     return {"nodes": list(nodes.values()), "edges": edges}
@@ -131,9 +136,13 @@ class AnswerAgent(BaseAgent):
         session_id = session_id or new_id("sess")
         self._qvec_cache: tuple[str, list[float]] | None = None
         self._index = EvidenceIndex(self.hive, self.tenant)
-        decision = route(message, self.hive.list_entities(self.tenant), self.hive.list_persons(self.tenant))
-        facts, cypher, subgraph, extra = self._retrieve(message, decision)
-        evidence = self._gather_evidence(message, decision, facts, extra)
+        entities, people = self.hive.list_entities(self.tenant), self.hive.list_persons(self.tenant)
+        query = self._resolve_followup(message, session_id, entities, people)
+        decision = route(query, entities, people)
+        if query != message:
+            decision.notes = "Resolved follow-up from this session's last named entity; evidence queried again."
+        facts, cypher, subgraph, extra = self._retrieve(query, decision)
+        evidence = self._gather_evidence(query, decision, facts, extra)
         index: EvidenceIndex | None = evidence.get("index")
         source_facts = list(facts[:12])
         if index is not None:
@@ -149,6 +158,17 @@ class AnswerAgent(BaseAgent):
             cypher = [*cypher, *evidence["cypher"]]
         sources = [_source_from_fact(f) for f in source_facts]
         answer = self._compose(message, decision, facts, extra, evidence)
+        # Every accepted citation must be inspectable, including a dossier's neighbour or old version.
+        if index is not None:
+            for citation in re.findall(r"\[((?:fact|ep)_[^\]\s]+)\]", answer):
+                if citation.startswith("fact_") and not any(s["fact_id"] == citation for s in sources):
+                    fact = index.fact(citation)
+                    if fact:
+                        sources.append(_source_from_fact(fact))
+                elif citation.startswith("ep_") and not any(ep["id"] == citation for ep in evidence["episodes"]):
+                    episode = index.episode(citation)
+                    if episode:
+                        evidence["episodes"].append(episode)
         latency = int((time.perf_counter() - started) * 1000)
         response = {
             "answer": answer,
@@ -164,6 +184,22 @@ class AnswerAgent(BaseAgent):
         self.hive.add_turn(self.tenant, session_id, "user", message, {})
         self.hive.add_turn(self.tenant, session_id, "assistant", answer, {"response": response})
         return response
+
+    def _resolve_followup(self, message: str, session_id: str, entities: list[dict[str, Any]], people: list[dict[str, Any]]) -> str:
+        """Reuse a single explicit topic, never an old answer as evidence or another tenant's session."""
+        found, persons = find_entities(message, entities, people)
+        if found or persons or not re.search(r"\b(it|its|that|those|they|them)\b|^\s*and\b", message, re.I):
+            return message
+        available = {e["name"] for e in entities}
+        for turn in reversed(self.hive.get_turns(self.tenant, session_id)):
+            if turn.get("role") != "assistant":
+                continue
+            response = (turn.get("meta") or {}).get("response") or {}
+            names = (response.get("router") or {}).get("entities") or []
+            if len(names) == 1 and names[0] in available:
+                return f"{message} (Context: {names[0]})"
+            break  # ambiguous or absent context: do not reach back to an unrelated topic
+        return message
 
     @property
     def index(self) -> EvidenceIndex:
@@ -197,7 +233,11 @@ class AnswerAgent(BaseAgent):
     def _gather_evidence(self, message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any]) -> dict[str, Any]:
         """Fact dossiers (history, source, rationale) and raw Episodes fused with the route's facts by RRF."""
         empty: dict[str, Any] = {"index": None, "dossiers": [], "episodes": [], "episode_scores": {}, "cypher": []}
-        if extra.get("error") or decision.route == "freeform_ro":
+        if extra.get("error") or decision.route == "freeform_ro" or decision.intent in ("ownership", "belief_at"):
+            # Historical answers must only use the time-filtered query result. A present-day
+            # dossier/episode recall would reintroduce future versions and confirmations.
+            return empty
+        if not facts and decision.route in ("graph", "template") and decision.intent not in ("why", "who_knows", "contradictions"):
             return empty
         index = self.index
         for fact in facts:
@@ -265,6 +305,19 @@ class AnswerAgent(BaseAgent):
             return facts, [result.get("cypher", "")], _subgraph_from_facts(facts), {"rows": rows[:20]}
 
         if decision.route == "template":
+            if decision.intent == "ownership":
+                result = self.hive.owners(tenant, decision.entities[0]) if decision.entities else {"rows": [], "cypher": ""}
+                rows = result["rows"]
+                facts = [f for row in rows if (f := self.index.fact(row["fact_id"]))]
+                graph = _subgraph_from_facts(facts)
+                for row in rows:
+                    person = row["person"]
+                    if not any(n["id"] == person["id"] for n in graph["nodes"]):
+                        graph["nodes"].append({"id": person["id"], "label": "Person", "props": person})
+                    fact = self.index.fact(row["fact_id"]) or {}
+                    if fact.get("predicate") != "owner":
+                        graph["edges"].append({"source": row["fact_id"], "target": person["id"], "type": "OWNED_BY", "props": {}})
+                return facts, [result.get("cypher", ""), *self.index.cypher], graph, {"owners": rows}
             if decision.intent == "who_knows":
                 result = self.hive.who_knows(tenant, decision.entities[0])
                 extra["who_knows"] = result["rows"]
@@ -279,13 +332,13 @@ class AnswerAgent(BaseAgent):
                 rows = result["rows"]
                 if decision.entity_ids:
                     wanted = set(decision.entity_ids)
-                    rows = [r for r in rows if wanted & set(r.get("entity_ids") or [])] or rows
+                    rows = [r for r in rows if wanted & set(r.get("entity_ids") or [])]
                 # the analytics query returns owner + entities only; join speaker and container for the sources
                 rows = [{**r, **(self.index.fact(r["id"]) or {})} if r.get("id") else r for r in rows[:20]]
                 for row in rows:
                     if not row.get("speaker") and row.get("owner"):
                         row["speaker"] = row["owner"]
-                return rows, [result.get("cypher", "")], _subgraph_from_facts(rows), extra
+                return rows, [result.get("cypher", "")], _subgraph_from_facts(rows), {**extra, "open_commitments": True}
             if decision.intent == "contradictions":
                 result = self.hive.contradictions(tenant)
                 extra["contradictions"] = result["rows"]
@@ -300,8 +353,19 @@ class AnswerAgent(BaseAgent):
                 rows = result["rows"]
                 if entity is None and decision.entities:
                     wanted = {e.lower() for e in decision.entities}
-                    rows = [r for r in rows if str(r.get("subject", "")).lower() in wanted] or rows
-                return rows, [result.get("cypher", "")], _subgraph_from_facts(rows), extra
+                    rows = [r for r in rows if str(r.get("subject", "")).lower() in wanted]
+                enriched = []
+                for row in rows:
+                    full = self.index.fact(row["id"]) or {}
+                    historical = dict(row)
+                    # The temporal query omits source joins. Fill only provenance:
+                    # historical values/times must remain exactly as selected at T.
+                    for key in ("speaker", "meeting", "thread", "episode_id", "source", "entity_ids"):
+                        if historical.get(key) is None:
+                            historical[key] = full.get(key)
+                    enriched.append(historical)
+                rows = enriched
+                return rows, [result.get("cypher", ""), *self.index.cypher], _subgraph_from_facts(rows), extra
             if decision.intent == "why":
                 return self._retrieve_why(message, decision)
 
@@ -311,11 +375,11 @@ class AnswerAgent(BaseAgent):
             for entity_id in decision.entity_ids[:3]:
                 rows = self.index.active_about(entity_id)
                 if decision.intent == "decisions":
-                    rows = [r for r in rows if r.get("kind") == "decision"] or rows
+                    rows = [r for r in rows if r.get("kind") == "decision"]
                 if decision.intent == "when":
                     rows = sorted(rows, key=lambda r: (r.get("due_at") is None, -(r.get("valid_from") or 0)))
                 facts.extend(r for r in rows if r.get("id") not in {f.get("id") for f in facts})
-            cyphers.append("MATCH (f:Fact {status:'active'})-[:ABOUT]->(e:Entity {id:$entity}) OPTIONAL MATCH (f)-[:STATED_BY]->(p) OPTIONAL MATCH (f)-[:DERIVED_FROM]->(ep)<-[:HAS_EPISODE]-(c) RETURN f, p, ep, c ORDER BY f.valid_from")
+            cyphers.extend(self.index.cypher)
             if facts:
                 try:
                     why = self.hive.why(tenant, facts[-1]["id"])
@@ -383,6 +447,10 @@ class AnswerAgent(BaseAgent):
         evidence = evidence or {"index": None, "dossiers": [], "episodes": []}
         if extra.get("error"):
             return f"I could not run that query: {extra['error']}"
+        if decision.intent == "ownership":
+            return render_answer(message, decision, facts, extra)
+        if extra.get("open_commitments") and not facts:
+            return "No open commitments match the requested person or project in the recorded company knowledge."
         answerable = facts or extra.get("who_knows") or extra.get("rows") or extra.get("contradictions") is not None or evidence.get("episodes")
         if not answerable:
             return "I found nothing in the team memory that answers that. Try naming the project, person or decision."
@@ -394,6 +462,15 @@ class AnswerAgent(BaseAgent):
         except Exception as exc:  # noqa: BLE001 - fail loudly in the payload, keep provenance
             log.error("answer composition failed: %s", exc)
             return f"The model failed to compose an answer ({type(exc).__name__}); evidence: " + render_answer(message, decision, facts, extra, evidence.get("dossiers"))
+        # Do not let a fabricated reference masquerade as a traceable company fact.
+        allowed = {f["id"] for f in facts if f.get("id")}
+        allowed.update(dossier_fact_ids(evidence.get("dossiers") or []))
+        allowed.update(quoted_episode_ids(evidence.get("dossiers") or []))
+        allowed.update(ep["id"] for ep in evidence.get("episodes") or [])
+        cited = set(re.findall(r"\[((?:fact|ep)_[^\]\s]+)\]", text))
+        if cited - allowed or (allowed and not cited):
+            log.warning("answer has missing or unknown evidence citations; returning grounded fallback")
+            return render_answer(message, decision, facts, extra, evidence.get("dossiers"))
         return text.strip() or render_answer(message, decision, facts, extra, evidence.get("dossiers"))
 
 
@@ -478,6 +555,18 @@ def _chain_sentence(dossier: dict[str, Any]) -> str:
 
 def render_answer(message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any], dossiers: list[dict[str, Any]] | None = None) -> str:
     """Deterministic, citation-bearing answer used by the fake backend and as the model fallback."""
+    if decision.intent == "ownership":
+        if not decision.entities:
+            return "Name the project or commitment whose owner you want to look up."
+        owners = extra.get("owners") or []
+        if not owners:
+            return f"No commitment owner is recorded for {decision.entities[0]}. Mentions alone do not establish ownership."
+        people: dict[str, list[str]] = {}
+        for row in owners:
+            people.setdefault(row["person"]["name"], []).append(row["fact_id"])
+        return f"Recorded owners for {decision.entities[0]}: " + "; ".join(
+            f"{name} " + " ".join(f"[{fid}]" for fid in dict.fromkeys(ids)) for name, ids in people.items()
+        ) + "."
     if extra.get("who_knows"):
         people = ", ".join(f"{r['person']['name']} ({r['mentions']})" for r in extra["who_knows"][:5])
         return f"People with context on {decision.entities[0] if decision.entities else 'that'}: {people}."

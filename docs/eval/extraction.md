@@ -107,6 +107,6 @@ Facts with the same `subject|predicate` used to supersede each other for every p
 
 ## Open items for other owners
 
-- `51_open_commitments` (cypher/, not ingest) returns `owner` but no speaker. The ingest side already passes `speaker_id` for every fact, commitments included. In the seeded DB each commitment has both `STATED_BY` and `OWNED_BY` edges (checked: `upi flow|due` gives spk_priya / spk_priya). The query needs to project the `STATED_BY` person if the UI wants it.
-- `apps/api/ingest_service.import_meeting/import_thread` still build the default extractor (`v1`). To use v5 in the API, pass `extractor=ingest.extract.make_extractor(llm)`.
+- **Resolved by Oct 9 audit:** `51_open_commitments` now returns both the resolved `owner` and original `speaker`. Earlier finding: the query returned `owner` but no speaker. The ingest side already passes `speaker_id` for every fact, commitments included. In the seeded DB each commitment has both `STATED_BY` and `OWNED_BY` edges (checked: `upi flow|due` gives spk_priya / spk_priya). The query needs to project the `STATED_BY` person if the UI wants it.
+- **Resolved:** API imports use `make_extractor(llm)`; the Oct 9 audit also switched FactAgent to that current-version factory. Extraction scores above were not remeasured.
 - `offline mode | uses_pattern`: "SQLite cache with sync queue" to "last-write-wins per field" is recorded as a supersession by the heuristic judge in gold replay. It is arguably a refinement (conflict handling added to the cache design). It is unchanged here because `uses_pattern` is single-valued by request.

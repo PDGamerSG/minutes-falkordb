@@ -133,7 +133,7 @@ def _audio_path(source_uri: str | None, data_root: Path) -> Path | None:
             resolved = candidate.resolve()
         except OSError:
             continue
-        if resolved.is_file() and str(resolved).startswith(str(allowed)):
+        if resolved.is_relative_to(allowed) and resolved.is_file():
             return resolved
     return None
 

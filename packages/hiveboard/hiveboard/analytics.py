@@ -10,6 +10,16 @@ from .temporal import now_ms
 RO_TIMEOUT_MS = 3000
 
 
+def owners(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
+    """Explicit assignments (or commitment owners when absent), with citable fact ids."""
+    query = load_cypher("owners")
+    res = db.ro(tenant).ro_query(query, {"name": entity_name}, timeout=RO_TIMEOUT_MS)
+    return CypherRows([
+        {"fact_id": fid, "person": {"id": pid, "name": name}}
+        for fid, pid, name in res.result_set
+    ], query)
+
+
 def who_knows(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
     """People ranked by how many episodes mentioning the entity they spoke, sent or received."""
     query = load_cypher("who_knows")

@@ -31,6 +31,8 @@ const LABELS = [
   "Step",
   "Artifact",
   "Snapshot",
+  "WorkItem",
+  "Document",
 ];
 
 function readPalette(): Palette {

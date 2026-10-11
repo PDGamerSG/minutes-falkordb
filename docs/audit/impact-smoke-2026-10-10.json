@@ -1,0 +1,338 @@
+{
+  "mode": "real FalkorDB 6.0.1; synthetic sources, scripted agents, test embeddings",
+  "summary": {
+    "tracked": 5,
+    "needs_review": 3,
+    "aligned": 1,
+    "closed": 1,
+    "unresolved": 0
+  },
+  "payment_item": {
+    "id": "work_orbit_payment_runbook",
+    "title": "Update the payment integration runbook",
+    "status": "open",
+    "rationale": "The runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.",
+    "owner": {
+      "id": "spk_priya",
+      "name": "Priya"
+    },
+    "assessment": "needs_review",
+    "reason": "The decision this open work depends on has changed.",
+    "baseline": {
+      "id": "fact_ep_mtg_orbit_001_017_00",
+      "kind": "decision",
+      "subject": "Payments Service",
+      "predicate": "uses_vendor",
+      "object": "Razorpay",
+      "text": "payments service uses vendor Razorpay",
+      "confidence": 0.95,
+      "valid_from": 1788755533830,
+      "valid_to": 1790137987022,
+      "created_at": 1791501508835,
+      "expired_at": 1791501520460,
+      "status": "superseded",
+      "speaker": {
+        "id": "spk_aditya",
+        "name": "Aditya"
+      },
+      "meeting": {
+        "id": "mtg_orbit_001",
+        "title": "Orbit kickoff"
+      },
+      "thread": null,
+      "episode_id": "ep_mtg_orbit_001_017",
+      "due_at": null,
+      "entities": [
+        {
+          "id": "ent_payments_service",
+          "name": "Payments Service",
+          "type": "topic"
+        },
+        {
+          "id": "ent_razorpay",
+          "name": "Razorpay",
+          "type": "vendor"
+        }
+      ],
+      "source": {
+        "kind": "utterance",
+        "episode_id": "ep_mtg_orbit_001_017",
+        "container": {
+          "id": "mtg_orbit_001",
+          "title": "Orbit kickoff",
+          "source_uri": "data/meetings/orbit_001.wav",
+          "label": "Meeting"
+        },
+        "t_start": 133830,
+        "t_end": 142430
+      },
+      "supersedes": null,
+      "supersedes_ids": [],
+      "precedent_ids": []
+    },
+    "current": {
+      "id": "fact_ep_mtg_orbit_005_026_00",
+      "kind": "decision",
+      "subject": "Payments Service",
+      "predicate": "uses_vendor",
+      "object": "PayU",
+      "text": "payments service uses vendor PayU",
+      "confidence": 0.95,
+      "valid_from": 1790137987022,
+      "valid_to": null,
+      "created_at": 1791501520460,
+      "expired_at": null,
+      "status": "active",
+      "speaker": {
+        "id": "spk_aditya",
+        "name": "Aditya"
+      },
+      "meeting": {
+        "id": "mtg_orbit_005",
+        "title": "Orbit customer call recap (Meridian)"
+      },
+      "thread": null,
+      "episode_id": "ep_mtg_orbit_005_026",
+      "due_at": null,
+      "entities": [
+        {
+          "id": "ent_payments_service",
+          "name": "Payments Service",
+          "type": "topic"
+        },
+        {
+          "id": "ent_payu",
+          "name": "PayU",
+          "type": "vendor"
+        }
+      ],
+      "source": {
+        "kind": "utterance",
+        "episode_id": "ep_mtg_orbit_005_026",
+        "container": {
+          "id": "mtg_orbit_005",
+          "title": "Orbit customer call recap (Meridian)",
+          "source_uri": "data/meetings/orbit_005.wav",
+          "label": "Meeting"
+        },
+        "t_start": 187022,
+        "t_end": 196722
+      },
+      "supersedes": "fact_ep_mtg_orbit_001_017_00",
+      "supersedes_ids": [
+        "fact_ep_mtg_orbit_001_017_00"
+      ],
+      "precedent_ids": []
+    },
+    "document": {
+      "id": "doc_55b93e2ad1f89f516c7bc302",
+      "title": "Orbit delivery plan \u00b7 dependency register",
+      "uri": "synthetic://orbit/delivery-plan-v1",
+      "content": "Orbit delivery plan \u2014 synthetic demonstration document\n\nThese work items and dependencies are authored fixtures, not inferred from source co-mentions. Each entry below explicitly records a baseline fact, accountable owner and reason for the dependency. They extend the existing synthetic meetings and emails.\n\nUpdate the payment integration runbook\nOwner: spk_priya. Status: open. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThe runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.\n\nReview navigation accessibility tests\nOwner: spk_sana. Status: open. Baseline: [fact_ep_mtg_orbit_001_035_00].\nThe accessibility test plan was written for the bottom tab bar. A new navigation pattern changes focus order and tap-target checks.\n\nRefresh the UPI release handoff\nOwner: spk_rahul. Status: open. Baseline: [fact_ep_mtg_orbit_001_020_00].\nThe release handoff document still records September 24 for the UPI delivery. Review the documented date and completion evidence before sharing it.\n\nMaintain the October release checklist\nOwner: spk_aditya. Status: open. Baseline: [fact_ep_mtg_orbit_001_010_00].\nThe launch checklist is planned against the recorded October 16 release date.\n\nArchive the original vendor sandbox spike\nOwner: spk_priya. Status: completed. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThis completed discovery spike tested the original Razorpay choice. It is retained as history and should not receive a new follow-up.",
+      "synthetic": true
+    },
+    "path": {
+      "nodes": [
+        {
+          "id": "fact_ep_mtg_orbit_005_026_00",
+          "label": "Fact",
+          "props": {
+            "id": "fact_ep_mtg_orbit_005_026_00",
+            "kind": "decision",
+            "subject": "Payments Service",
+            "predicate": "uses_vendor",
+            "object": "PayU",
+            "text": "payments service uses vendor PayU",
+            "confidence": 0.95,
+            "valid_from": 1790137987022,
+            "valid_to": null,
+            "created_at": 1791501520460,
+            "expired_at": null,
+            "status": "active",
+            "speaker": {
+              "id": "spk_aditya",
+              "name": "Aditya"
+            },
+            "meeting": {
+              "id": "mtg_orbit_005",
+              "title": "Orbit customer call recap (Meridian)"
+            },
+            "thread": null,
+            "episode_id": "ep_mtg_orbit_005_026",
+            "due_at": null,
+            "entities": [
+              {
+                "id": "ent_payments_service",
+                "name": "Payments Service",
+                "type": "topic"
+              },
+              {
+                "id": "ent_payu",
+                "name": "PayU",
+                "type": "vendor"
+              }
+            ],
+            "source": {
+              "kind": "utterance",
+              "episode_id": "ep_mtg_orbit_005_026",
+              "container": {
+                "id": "mtg_orbit_005",
+                "title": "Orbit customer call recap (Meridian)",
+                "source_uri": "data/meetings/orbit_005.wav",
+                "label": "Meeting"
+              },
+              "t_start": 187022,
+              "t_end": 196722
+            },
+            "supersedes": "fact_ep_mtg_orbit_001_017_00",
+            "supersedes_ids": [
+              "fact_ep_mtg_orbit_001_017_00"
+            ],
+            "precedent_ids": []
+          }
+        },
+        {
+          "id": "fact_ep_mtg_orbit_001_017_00",
+          "label": "Fact",
+          "props": {
+            "id": "fact_ep_mtg_orbit_001_017_00",
+            "kind": "decision",
+            "subject": "Payments Service",
+            "predicate": "uses_vendor",
+            "object": "Razorpay",
+            "text": "payments service uses vendor Razorpay",
+            "confidence": 0.95,
+            "valid_from": 1788755533830,
+            "valid_to": 1790137987022,
+            "created_at": 1791501508835,
+            "expired_at": 1791501520460,
+            "status": "superseded",
+            "speaker": {
+              "id": "spk_aditya",
+              "name": "Aditya"
+            },
+            "meeting": {
+              "id": "mtg_orbit_001",
+              "title": "Orbit kickoff"
+            },
+            "thread": null,
+            "episode_id": "ep_mtg_orbit_001_017",
+            "due_at": null,
+            "entities": [
+              {
+                "id": "ent_payments_service",
+                "name": "Payments Service",
+                "type": "topic"
+              },
+              {
+                "id": "ent_razorpay",
+                "name": "Razorpay",
+                "type": "vendor"
+              }
+            ],
+            "source": {
+              "kind": "utterance",
+              "episode_id": "ep_mtg_orbit_001_017",
+              "container": {
+                "id": "mtg_orbit_001",
+                "title": "Orbit kickoff",
+                "source_uri": "data/meetings/orbit_001.wav",
+                "label": "Meeting"
+              },
+              "t_start": 133830,
+              "t_end": 142430
+            },
+            "supersedes": null,
+            "supersedes_ids": [],
+            "precedent_ids": []
+          }
+        },
+        {
+          "id": "work_orbit_payment_runbook",
+          "label": "WorkItem",
+          "props": {
+            "id": "work_orbit_payment_runbook",
+            "title": "Update the payment integration runbook",
+            "status": "open",
+            "rationale": "The runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions."
+          }
+        },
+        {
+          "id": "doc_55b93e2ad1f89f516c7bc302",
+          "label": "Document",
+          "props": {
+            "id": "doc_55b93e2ad1f89f516c7bc302",
+            "title": "Orbit delivery plan \u00b7 dependency register",
+            "uri": "synthetic://orbit/delivery-plan-v1",
+            "content": "Orbit delivery plan \u2014 synthetic demonstration document\n\nThese work items and dependencies are authored fixtures, not inferred from source co-mentions. Each entry below explicitly records a baseline fact, accountable owner and reason for the dependency. They extend the existing synthetic meetings and emails.\n\nUpdate the payment integration runbook\nOwner: spk_priya. Status: open. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThe runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.\n\nReview navigation accessibility tests\nOwner: spk_sana. Status: open. Baseline: [fact_ep_mtg_orbit_001_035_00].\nThe accessibility test plan was written for the bottom tab bar. A new navigation pattern changes focus order and tap-target checks.\n\nRefresh the UPI release handoff\nOwner: spk_rahul. Status: open. Baseline: [fact_ep_mtg_orbit_001_020_00].\nThe release handoff document still records September 24 for the UPI delivery. Review the documented date and completion evidence before sharing it.\n\nMaintain the October release checklist\nOwner: spk_aditya. Status: open. Baseline: [fact_ep_mtg_orbit_001_010_00].\nThe launch checklist is planned against the recorded October 16 release date.\n\nArchive the original vendor sandbox spike\nOwner: spk_priya. Status: completed. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThis completed discovery spike tested the original Razorpay choice. It is retained as history and should not receive a new follow-up.",
+            "synthetic": true
+          }
+        },
+        {
+          "id": "spk_priya",
+          "label": "Person",
+          "props": {
+            "id": "spk_priya",
+            "name": "Priya"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "source": "fact_ep_mtg_orbit_005_026_00",
+          "target": "fact_ep_mtg_orbit_001_017_00",
+          "type": "SUPERSEDES",
+          "props": {}
+        },
+        {
+          "source": "work_orbit_payment_runbook",
+          "target": "fact_ep_mtg_orbit_001_017_00",
+          "type": "DEPENDS_ON",
+          "props": {}
+        },
+        {
+          "source": "work_orbit_payment_runbook",
+          "target": "doc_55b93e2ad1f89f516c7bc302",
+          "type": "DOCUMENTED_IN",
+          "props": {}
+        },
+        {
+          "source": "work_orbit_payment_runbook",
+          "target": "spk_priya",
+          "type": "OWNED_BY",
+          "props": {}
+        }
+      ]
+    },
+    "draft": {
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+      "body": "Priya, please review \u201cUpdate the payment integration runbook\u201d.\n\nPayments Service \u00b7 uses vendor changed from Razorpay to PayU.\nPrevious evidence: [fact_ep_mtg_orbit_001_017_00]. Current evidence: [fact_ep_mtg_orbit_005_026_00] in Orbit customer call recap (Meridian).\n\nWhy this work is affected: The runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.\nDependency recorded in Orbit delivery plan \u00b7 dependency register [doc_55b93e2ad1f89f516c7bc302].\n\nPlease confirm whether the work or its delivery plan needs updating. This is a local draft; nothing has been sent.",
+      "created_at": 1791565303236,
+      "current_fact_id": "fact_ep_mtg_orbit_005_026_00",
+      "document_id": "doc_55b93e2ad1f89f516c7bc302",
+      "id": "draft_81d1b67a44024c6c36ed172c",
+      "owner_id": "spk_priya",
+      "status": "draft",
+      "title": "Review Update the payment integration runbook",
+      "work_item_id": "work_orbit_payment_runbook"
+    }
+  },
+  "idempotent_draft": {
+    "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+    "body": "Priya, please review \u201cUpdate the payment integration runbook\u201d.\n\nPayments Service \u00b7 uses vendor changed from Razorpay to PayU.\nPrevious evidence: [fact_ep_mtg_orbit_001_017_00]. Current evidence: [fact_ep_mtg_orbit_005_026_00] in Orbit customer call recap (Meridian).\n\nWhy this work is affected: The runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.\nDependency recorded in Orbit delivery plan \u00b7 dependency register [doc_55b93e2ad1f89f516c7bc302].\n\nPlease confirm whether the work or its delivery plan needs updating. This is a local draft; nothing has been sent.",
+    "created_at": 1791565303236,
+    "current_fact_id": "fact_ep_mtg_orbit_005_026_00",
+    "document_id": "doc_55b93e2ad1f89f516c7bc302",
+    "id": "draft_81d1b67a44024c6c36ed172c",
+    "owner_id": "spk_priya",
+    "status": "draft",
+    "title": "Review Update the payment integration runbook",
+    "work_item_id": "work_orbit_payment_runbook"
+  },
+  "rejections": {
+    "stale": 409,
+    "closed": 409,
+    "other_tenant": 404
+  },
+  "nimbus_items": 0
+}

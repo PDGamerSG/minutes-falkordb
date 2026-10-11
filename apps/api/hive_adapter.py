@@ -90,7 +90,25 @@ class FakeHive(MemoryHive):
         self._tasks: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
         self._skills: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
         self._turns: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+        self._work_items: dict[str, dict[str, Any]] = defaultdict(dict)
+        self._impact_drafts: dict[str, dict[str, Any]] = defaultdict(dict)
         self._ro_password = "fake-ro"
+
+    def import_work_manifest(self, tenant: str, manifest: dict[str, Any]) -> int:
+        from .impact_fake import import_manifest
+        return import_manifest(self, tenant, manifest)
+
+    def work_impacts(self, tenant: str) -> dict[str, Any]:
+        from .impact_fake import work_impacts
+        return work_impacts(self, tenant)
+
+    def save_impact_draft(self, tenant: str, draft: dict[str, Any]) -> dict[str, Any] | None:
+        from .impact_fake import save_draft
+        return save_draft(self, tenant, draft)
+
+    def list_impact_drafts(self, tenant: str) -> list[dict[str, Any]]:
+        from copy import deepcopy
+        return deepcopy(sorted(self._impact_drafts.get(tenant, {}).values(), key=lambda d: (-d["created_at"], d["id"]))[:200])
 
     # -- tenancy -----------------------------------------------------------------------------
     def ping(self) -> bool:
@@ -109,7 +127,7 @@ class FakeHive(MemoryHive):
 
     def delete_tenant(self, slug: str) -> None:
         self.drop_tenant(slug)
-        for bag in (self._tenants, self._snapshots, self._agents, self._tasks, self._skills, self._turns):
+        for bag in (self._tenants, self._snapshots, self._agents, self._tasks, self._skills, self._turns, self._work_items, self._impact_drafts):
             bag.pop(slug, None)
 
     def ensure_schema(self, tenant: str) -> dict[str, int]:
@@ -538,6 +556,30 @@ class FakeHive(MemoryHive):
                 episode_ids.add(episode["id"])
         return episode_ids
 
+    def owners(self, tenant: str, entity_name: str) -> dict[str, Any]:
+        store = self.store(tenant)
+        facts = [f for f in self.active_facts(tenant) if f["subject"].lower() == entity_name.lower()]
+        assignments, assigned = self._assigned_owner(tenant, entity_name)
+        if assignments:
+            rows = [{"fact_id": assignments[0]["id"], "person": assigned}] if assigned else []
+            return {"rows": rows, "cypher": "-- FakeHive (54_owners.cypher in production)"}
+        rows = []
+        for fact in facts:
+            if fact.get("kind") != "commitment":
+                continue
+            person = store.persons.get(fact.get("owner_id"))
+            if person:
+                rows.append({"fact_id": fact["id"], "person": {"id": person["id"], "name": person["name"]}})
+        return {"rows": rows, "cypher": "-- FakeHive (54_owners.cypher in production)"}
+
+    def _assigned_owner(self, tenant: str, subject: str) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        assignments = [f for f in self.active_facts(tenant) if f["predicate"] == "owner" and f["subject"].lower() == subject.lower()]
+        if len(assignments) != 1:
+            return assignments, None
+        value = str(assignments[0]["object"]).lower()
+        people = [p for p in self.store(tenant).persons.values() if value in {str(p.get(k) or "").lower() for k in ("id", "name", "email")}]
+        return assignments, people[0] if len(people) == 1 else None
+
     def who_knows(self, tenant: str, entity_name: str) -> dict[str, Any]:
         store = self.store(tenant)
         counts: dict[str, dict[str, Any]] = {}
@@ -565,12 +607,17 @@ class FakeHive(MemoryHive):
             if fact["kind"] != "commitment":
                 continue
             owner_id = fact.get("owner_id") or fact.get("speaker_id")
-            if person_id and owner_id != person_id:
-                continue
             owner = self.get_person(tenant, owner_id)
+            assignments, assigned = self._assigned_owner(tenant, fact["subject"])
+            if assignments:
+                owner = assigned
+                owner_id = assigned["id"] if assigned else None
             rows.append({**fact, "owner": {"id": owner_id, "name": owner.get("name") if owner else None}})
         rows.sort(key=lambda r: (r.get("due_at") is None, r.get("due_at") or 0))
-        return {"rows": drop_closed_commitments(rows), "cypher": "-- FakeHive (51_open_commitments.cypher in production)"}
+        rows = drop_closed_commitments(rows)
+        if person_id:
+            rows = [r for r in rows if (r.get("owner") or {}).get("id") == person_id]
+        return {"rows": rows, "cypher": "-- FakeHive (51_open_commitments.cypher in production)"}
 
     def contradictions(self, tenant: str) -> dict[str, Any]:
         by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -641,6 +688,22 @@ class RealHive:
             db.configure_ro(tenant, ro_password)
         return hive
 
+    def import_work_manifest(self, tenant: str, manifest: dict[str, Any]) -> int:
+        from hiveboard.impact import import_manifest
+        return import_manifest(self.db, tenant, manifest)
+
+    def work_impacts(self, tenant: str) -> dict[str, Any]:
+        from hiveboard.impact import work_impacts
+        return self._with_cypher(work_impacts(self.db, tenant))
+
+    def save_impact_draft(self, tenant: str, draft: dict[str, Any]) -> dict[str, Any] | None:
+        from hiveboard.impact import save_draft
+        return save_draft(self.db, tenant, draft)
+
+    def list_impact_drafts(self, tenant: str) -> list[dict[str, Any]]:
+        from hiveboard.impact import list_drafts
+        return list_drafts(self.db, tenant)
+
     # -- helpers -----------------------------------------------------------------------------
     @staticmethod
     def _rows(result: Any) -> list[dict[str, Any]]:
@@ -702,7 +765,11 @@ class RealHive:
         self._tenancy.delete_tenant(self.db, slug)
 
     def ensure_schema(self, tenant: str) -> dict[str, int]:
-        return dict(self._schema.ensure_schema(self.db, tenant))
+        result = dict(self._schema.ensure_schema(self.db, tenant))
+        self._tenancy.ensure_tenant_access(self.db, tenant, self.rw_password, self.ro_password)
+        # Surface invalid or disabled configured credentials at startup, before workers run.
+        self._ro(tenant, "RETURN 1")
+        return result
 
     def load_udfs(self) -> None:
         self._schema.load_udfs(self.db)
@@ -1210,6 +1277,9 @@ class RealHive:
         return self._skills.publish_to_commons(self.db, tenant, skill_id)
 
     # -- analytics ---------------------------------------------------------------------------
+    def owners(self, tenant: str, entity_name: str) -> dict[str, Any]:
+        return self._with_cypher(self._analytics.owners(self.db, tenant, entity_name))
+
     def who_knows(self, tenant: str, entity_name: str) -> dict[str, Any]:
         return self._with_cypher(self._analytics.who_knows(self.db, tenant, entity_name))
 

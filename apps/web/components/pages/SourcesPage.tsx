@@ -510,7 +510,7 @@ export function SourcesPage({ team }: { team: string }) {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Sources" description="What the team actually said and wrote. Meetings arrive as diarized recorder exports; email threads as .json, .eml or .mbox. Both become Episodes in the tenant graph." />
+      <PageHeader title="The original conversation." description="Meeting notes and email threads, with every speaker and timestamp intact. Open a source to see where the context began." />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: String(v) })}>
         <TabsList variant="line">
           <TabsTrigger value="meetings">

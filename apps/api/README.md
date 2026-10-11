@@ -9,13 +9,15 @@ touched, the sources and the router decision.
 From the repo root (the package is imported as `apps.api`; `apps` is a namespace package):
 
 ```bash
-uv sync                                   # workspace: hiveboard, ingest, minutes-api
+export LLM_BACKEND=fake EMBED_BACKEND=fake # deterministic local demonstration
+uv sync --all-packages                    # workspace: hiveboard, ingest, minutes-api
 docker compose up -d falkordb             # FalkorDB 6.0.x on localhost:6379
-uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --reset
+uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --extract gold
+uv run --package minutes-api python data/seed_work.py --tenants orbit
 uv run --package minutes-api uvicorn apps.api.main:app --port 8080 --reload
 ```
 
-Port 8000 on this machine is held by Docker Desktop, so the local API listens on 8080
+The documented local API listens on 8080
 (`API_PORT=8080`; `docker compose` maps `8080:8000`; the web app points at 8080).
 
 Tests (no FalkorDB, no models: `FakeHive`, `FakeLLM`, `FakeEmbedder`):
@@ -45,9 +47,9 @@ Container: `docker build -f apps/api/Dockerfile -t minutes-api .` (python:3.12-s
 | `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | the native `/api/chat` is derived from it (thinking disabled, `format: json`) |
 | `GEMINI_API_KEY` / `OPENROUTER_API_KEY` | | required for those backends |
 | `LLM_MAX_TOKENS` / `LLM_TIMEOUT_S` | `1024` / `180` | completion budget and HTTP timeout |
-| `EMBED_BACKEND` | `onnx` | `onnx` (EmbeddingGemma-300m, 768-d) \| `gemini` \| `fake`; onnx falls back to fake with a warning if the model cannot load |
+| `EMBED_BACKEND` | `onnx` | `onnx` (EmbeddingGemma-300m, 768-d) \| `gemini` \| `fake`; startup fails if the requested model cannot load; select fake explicitly for tests |
 | `EMBED_MODEL` | `onnx-community/embeddinggemma-300m-ONNX` | HF repo for the ONNX backend |
-| `HF_HOME` | | model cache (use `D:/hf-cache`) |
+| `HF_HOME` | | optional model cache directory (platform default if unset) |
 | `HIVE_BACKEND` | | set to `fake` to run the API entirely in memory (no FalkorDB) |
 | `API_PORT`, `CORS_ORIGINS` | `8000`, `http://localhost:3001` | CORS also covers any localhost origin |
 | `DATA_DIR` | `data` | `meetings/`, `gold/`, rosters; audio under `data/meetings` |
@@ -59,7 +61,7 @@ Container: `docker build -f apps/api/Dockerfile -t minutes-api .` (python:3.12-s
 
 With `LLM_BACKEND=fake` extraction replays `data/gold/<slug>.json`, supersession follows the gold
 hints (`supersedes`, `follows_precedent`, `confirms`) and the agents follow a scripted tool policy,
-so the whole demo runs offline.
+so the model calls run offline (a real FalkorDB service is still needed unless `HIVE_BACKEND=fake`). Gold replay does not measure extraction quality.
 
 `data/seed.py` dispatches each `data/meetings/<tenant>_*.json` on its top-level key (`meeting` or
 `thread`), loads `<tenant>_roster.json` first, ignores `data/generator/`, and imports sources in
@@ -67,6 +69,8 @@ chronological order (`started_at`) so restatements become confirmations rather t
 `--skip orbit_002` leaves one file out for a live import in the demo; a fact imported later but said
 earlier slots into its supersession chain by `valid_from` without changing the current belief (and
 without waking the Scheduler).
+
+The HTTP API has no user authentication or tenant membership authorization. Database ACL probes are not an HTTP security boundary. Use synthetic data and local access until this is implemented.
 
 ## Routes
 
@@ -96,6 +100,14 @@ Memory
 - `POST /tenants/{t}/snapshots` `{label}` - `{name, taken_at, label}`; `GET /tenants/{t}/snapshots`
 - `GET /tenants/{t}/analytics/who-knows?entity=`, `.../open-commitments?person=`, `.../contradictions`, `.../clusters`, `.../stale-decisions?older_than_days=`
 - `GET /tenants/{t}/entities`
+
+Decision impact
+- `POST /tenants/{t}/work-items/import` - validated explicit dependency manifest; returns `{imported, document_id}`
+- `GET /tenants/{t}/impact` - `{summary, items, cypher}` with original/current facts, owner, dependency document and actual graph paths
+- `POST /tenants/{t}/impact/{work_id}/draft` `{current_fact_id}` - idempotent local draft; 409 if the graph changed or work cannot be reviewed
+- `GET /tenants/{t}/impact/drafts` - persisted local draft history
+
+See [the contract and limitations](../../docs/decision-impact.md). These routes never contact an external service.
 
 Chat
 - `POST /tenants/{t}/chat` `{message, session_id?}` - `{answer, session_id, router: {intent, entities, route, template}, cypher: [..], subgraph, sources: [{fact_id, kind, speaker, meeting?, thread?, t_start?, sent_at?, message_id?, container_id}], model, latency_ms}`

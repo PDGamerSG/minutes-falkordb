@@ -11,6 +11,16 @@ def test_health(client):
     assert body["embeddings"]["dim"] == 768 and body["embeddings"]["backend"] == "fake"
 
 
+def test_health_fails_when_graph_queries_fail_after_ping(client, seeded, monkeypatch):
+    def unavailable():
+        raise RuntimeError("graph module unavailable")
+
+    monkeypatch.setattr(seeded.hive, "list_tenants", unavailable)
+    response = client.get("/health")
+    assert response.status_code == 503
+    assert response.json()["ok"] is False
+
+
 def test_list_tenants_shape(client):
     tenants = client.get("/tenants").json()
     orbit = next(t for t in tenants if t["slug"] == "orbit")

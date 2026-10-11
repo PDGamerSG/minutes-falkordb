@@ -12,7 +12,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from ingest.extract import GoldExtractor, hinted_supersession
+from ingest.extract import GoldExtractor, hinted_supersession, make_extractor
 from ingest.fakes import new_id
 from ingest.gold import find_gold
 from ingest.pipeline import SourceContext, ingest_episode_record
@@ -56,7 +56,7 @@ class FactAgent(BaseAgent):
             day=datetime.fromtimestamp(int(started) / 1000, tz=UTC).date(),
             speakers=self.hive.list_persons(self.tenant),
         )
-        extractor = None
+        extractor = make_extractor(self.llm)
         judge = None
         if getattr(self.llm, "backend", "") == "fake":
             gold = find_gold(self.settings.data_path / "gold", container_id=container_id)
@@ -69,6 +69,8 @@ class FactAgent(BaseAgent):
         summary = f"extracted {stats['items']} items from {episode_id} ({stats['superseded']} superseded)"
         return AgentResult(
             final=summary,
+            failed=bool(stats.get("failed_episodes")),
+            reason="Episode extraction failed; retry when the model is available." if stats.get("failed_episodes") else "",
             steps=[{"tool": "extract", "args": {"episode_id": episode_id}, "result": stats}],
             artifact={"id": new_id("art"), "kind": "extraction", "text": json.dumps(stats, default=str)},
             model=getattr(self.llm, "model", ""),

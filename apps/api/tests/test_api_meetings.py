@@ -63,6 +63,21 @@ def test_audio_404_when_missing(client):
     assert response.json()["error"]["code"] == "audio_not_found"
 
 
+def test_audio_path_rejects_sibling_directory_with_same_prefix(tmp_path):
+    from apps.api.routes.meetings import _audio_path
+
+    allowed = tmp_path / "meetings"
+    sibling = tmp_path / "meetings_private"
+    allowed.mkdir()
+    sibling.mkdir()
+    private = sibling / "private.wav"
+    private.write_bytes(b"private")
+    assert _audio_path(str(private), tmp_path) is None
+    public = allowed / "public.wav"
+    public.write_bytes(b"RIFF")
+    assert _audio_path(str(public), tmp_path) == public
+
+
 def test_audio_served_when_present(client, data_dir):
     wav = data_dir / "meetings" / "orbit_001.wav"
     wav.write_bytes(b"RIFF....WAVEfmt ")

@@ -21,6 +21,7 @@ _WORD = re.compile(r"[a-z0-9]+")
 TEMPLATES = {
     "why": "32_why_path",
     "who_knows": "50_who_knows",
+    "ownership": "54_owners",
     "open_commitments": "51_open_commitments",
     "contradictions": "52_contradictions",
     "stale_decisions": "53_stale_decisions",
@@ -29,8 +30,9 @@ TEMPLATES = {
 }
 
 _INTENT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("ownership", re.compile(r"\b(who owns|who is (responsible|accountable)|owner of|who.*assigned to)\b", re.IGNORECASE)),
     ("contradictions", re.compile(r"\b(contradict\w*|conflict\w*|disagree\w*|inconsisten\w*)\b", re.IGNORECASE)),
-    ("who_knows", re.compile(r"\b(who (knows|talked|spoke|is familiar|has context|owns|worked)|who should i ask|who can tell|expert on)\b", re.IGNORECASE)),
+    ("who_knows", re.compile(r"\b(who (knows|talked|spoke|is familiar|has context|worked)|who should i ask|who can tell|expert on)\b", re.IGNORECASE)),
     ("open_commitments", re.compile(r"\b(open commitments?|outstanding|what (is|are) \w+ (working on|owed?|promised)|what did \w+ (promise|commit)|what does \w+ owe|commitments? (for|of|by)|action items?|to-?dos?)\b", re.IGNORECASE)),
     ("stale_decisions", re.compile(r"\b(stale|outdated|old decisions?|decisions? (we|that) (never|have not|haven't))\b", re.IGNORECASE)),
     ("belief_at", re.compile(r"\b(what did we (believe|think|know)|as of|at the time|back (on|in)|before the|on \d{1,2}(st|nd|rd|th)? \w+|on \w+ \d{1,2})\b", re.IGNORECASE)),
@@ -176,6 +178,8 @@ def route(message: str, entities: list[dict[str, Any]], persons: list[dict[str, 
         intent = "status"
 
     if intent in ("contradictions", "stale_decisions"):
+        return RouterDecision(intent, names, "template", TEMPLATES[intent], entity_ids, person_ids)
+    if intent == "ownership":
         return RouterDecision(intent, names, "template", TEMPLATES[intent], entity_ids, person_ids)
     if intent == "who_knows" and names:
         return RouterDecision(intent, names, "template", TEMPLATES[intent], entity_ids, person_ids)

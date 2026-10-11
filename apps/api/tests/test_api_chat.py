@@ -82,3 +82,57 @@ def test_chat_no_match(client):
     body = _ask(client, "zzzz qqqq")
     assert body["router"]["route"] == "vector"
     assert isinstance(body["answer"], str) and body["answer"]
+
+
+def test_owner_lookup_is_not_a_mentions_ranking(client):
+    body = _ask(client, "Who owns the UPI flow?")
+    assert body["router"]["template"] == "54_owners"
+    assert "Priya" in body["answer"] and "Aditya" not in body["answer"]
+    assert "[fact_" in body["answer"]
+    assert any(e["type"] == "OWNED_BY" for e in body["subgraph"]["edges"])
+    unassigned = _ask(client, "Who owns the payment gateway?")
+    assert "No commitment owner is recorded" in unassigned["answer"]
+
+
+def test_entity_filter_does_not_fall_back_to_other_projects(client):
+    body = _ask(client, "Open commitments for the payment gateway")
+    assert body["sources"] == []
+    assert "No open commitments match" in body["answer"]
+    assert "PayU Integration" not in body["answer"]
+
+
+def test_followup_uses_persisted_session_topic(client):
+    first = _ask(client, "When is the UPI flow due?")
+    followup = _ask(client, "Who owns it?", first["session_id"])
+    assert followup["router"]["entities"] == ["UPI Flow"]
+    assert "Priya" in followup["answer"]
+    fresh = _ask(client, "Who owns it?")
+    assert fresh["router"]["entities"] == []
+    assert "Name the project" in fresh["answer"]
+    other = client.post("/tenants/nimbus/chat", json={"message": "Who owns it?", "session_id": first["session_id"]}).json()
+    assert other["router"]["entities"] == []
+
+
+def test_explicit_followup_topic_overrides_previous_topic(client):
+    first = _ask(client, "When is the UPI flow due?")
+    body = _ask(client, "Who owns the PayU integration?", first["session_id"])
+    assert body["router"]["entities"] == ["PayU Integration"]
+
+
+def test_empty_chat_is_rejected_before_creating_history(client):
+    response = client.post("/tenants/orbit/chat", json={"message": "  \n\t  "})
+    assert response.status_code == 422
+
+
+def test_explicit_assignment_overrides_the_person_announcing_deadline(client, seeded):
+    entity = next(e for e in seeded.hive.list_entities("orbit") if e["name"] == "UPI Flow")
+    seeded.hive.remember_fact("orbit", {
+        "id": "fact_owner_assignment", "kind": "decision", "subject": "UPI Flow",
+        "predicate": "owner", "object": "Rahul", "speaker_id": "spk_aditya",
+        "entity_ids": [entity["id"]], "episode_id": "ep_mtg_orbit_001_000",
+    })
+    response = _ask(client, "Who owns the UPI flow?")
+    assert "Rahul" in response["answer"] and "Priya" not in response["answer"]
+    assert "[fact_owner_assignment]" in response["answer"]
+    rows = client.get("/tenants/orbit/analytics/open-commitments", params={"person": "spk_rahul"}).json()
+    assert any(r["subject"] == "UPI Flow" and r["owner"]["name"] == "Rahul" for r in rows)

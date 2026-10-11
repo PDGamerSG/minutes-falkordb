@@ -1,5 +1,8 @@
 import hiveboard as hb
-from conftest import BASE, DAY
+import pytest
+from hiveboard.analytics import owners
+
+from .conftest import BASE, DAY
 
 
 def test_who_knows_counts_speakers(db, tenant, seeded):
@@ -12,6 +15,45 @@ def test_who_knows_counts_speakers(db, tenant, seeded):
     assert [(r["person"]["name"], r["mentions"]) for r in upi] == [("Aditya", 1), ("Priya", 1)]
     assert upi[0]["last_at"] >= BASE and upi.cypher.startswith("MATCH (en:Entity)")
     assert hb.who_knows(db, tenant, "nothing") == []
+
+
+def test_owners_follow_assignment_not_mentions(db, tenant, seeded):
+    rows = owners(db, tenant, "UPI flow")
+    assert len(rows) == 1 and rows[0]["person"]["id"] == "spk_priya"
+    assert rows[0]["fact_id"] and "OWNED_BY" in rows.cypher
+    assert owners(db, tenant, "payments gateway") == []
+
+
+def test_explicit_owner_fact_overrides_commitment_speaker(db, tenant, seeded):
+    assignment = hb.remember_fact(db, tenant, {
+        "subject": "UPI flow", "predicate": "owner", "object": "Aditya", "kind": "decision",
+        "speaker_id": seeded["priya"], "episode_id": "ep1",
+        "entity_ids": [seeded["entities"]["UPI flow"]],
+    })
+    rows = owners(db, tenant, "UPI flow")
+    assert [(r["fact_id"], r["person"]["id"]) for r in rows] == [(assignment["id"], "spk_aditya")]
+    rows = hb.open_commitments(db, tenant, "spk_aditya")
+    assert len(rows) == 1 and rows[0]["id"] == seeded["fact"]
+    assert rows[0]["owner"]["id"] == "spk_aditya"
+    assert hb.open_commitments(db, tenant, "spk_priya") == []
+
+
+@pytest.mark.parametrize("case", ["unknown_person", "duplicate_name", "conflicting_assignments"])
+def test_uncertain_assignment_never_falls_back_to_announcer(db, tenant, seeded, case):
+    if case == "duplicate_name":
+        hb.remember_person(db, tenant, {"id": "spk_aditya_2", "name": "Aditya"})
+    for person in (["Aditya", "Priya"] if case == "conflicting_assignments" else
+                   ["Unknown Person" if case == "unknown_person" else "Aditya"]):
+        hb.remember_fact(db, tenant, {
+            "subject": "UPI flow", "predicate": "owner", "object": person, "kind": "decision",
+            "speaker_id": seeded["priya"], "episode_id": "ep1",
+            "entity_ids": [seeded["entities"]["UPI flow"]],
+        })
+    assert owners(db, tenant, "UPI flow") == []
+    rows = hb.open_commitments(db, tenant)
+    assert len(rows) == 1 and not (rows[0].get("owner") or {}).get("id")
+    assert rows[0]["speaker"]["id"] == seeded["priya"]
+    assert hb.open_commitments(db, tenant, seeded["priya"]) == []
 
 
 def test_open_commitments_contradictions_and_stale_decisions(db, tenant, seeded):

@@ -1,131 +1,77 @@
-# Demo script (3:00), Minutes on FalkorDB
+# Minutes: a three-minute Company Brain demo
 
-Status: v1, written against the contracts in `docs/contracts/` and the corpus in `data/meetings/`. Rehearse three times on the live URL (Day 3). Every expected answer below is traceable to a segment or a message index listed in `data/meetings/README.md`.
+Updated October 10, 2026. Keep the original audit/work dates and the eligibility disclosure in the readiness report. Use the README setup, synthetic data, a real FalkorDB and visible model-mode labels.
 
-## Before you press record
+## Before recording
 
-Seed state (`data/seed.py`, Stream B):
+Seed meetings/emails with `--extract gold`, then run `data/seed_work.py --tenants orbit`. The expected overview has 5 tracked work items: 3 need review, 1 aligned, 1 closed. The manifests name the reviewed gold facts; they are not automatically generated dependencies.
 
-- `nimbus` and `quill`: both meetings and the thread ingested.
-- `orbit`: `orbit_001`, `orbit_003`, `orbit_004`, `orbit_005`, `orbit_006` and all five threads ingested. **`orbit_002` is held back** and imported live in step 2. Ingestion is bi-temporal (`valid_from` = `t_occurred`), so the Sep 14 facts slot between the Sep 7 and Sep 17 facts and the UPI chain reads 24 to 25 to 28 after the import.
-- Agents registered for `orbit`: `fact`, `scheduler`, `followup`, `standup`, `answer`. The standup Skill exists (StandupAgent learned it after `orbit_004`, the second standup).
-- `GET /bench/results` has at least two runs (6.0.1 and 4.22.0, local and Railway).
-- Browser: 1440x900, two tabs open on `/` and `/bench`; API warm (hit `/health` once).
+The verified local demonstration uses `LLM_BACKEND=fake EMBED_BACKEND=fake`: scripted answers and deterministic test vectors. Leave GitHub credentials unset. Frontend `NEXT_PUBLIC_MOCK` must be unset. Check `/health`, `/t/orbit`, and the source links. Audio is optional; transcript evidence must work.
 
-Plan B if mid-chain insertion is not ready: seed all six orbit meetings and import `nimbus_002` live in step 2 instead (its stats panel shows `superseded: 2`); everything else is unchanged.
+Say once: “These are synthetic meetings, emails and a delivery register in a real FalkorDB. Reviewed labels and scripted agent policies make this demo reproducible. Live extraction is evaluated separately.”
 
-The chat page shows the Why panel on the right: router decision, Cypher, subgraph, sources with "play at timestamp" (microphone icon) for utterances and "open email" (envelope icon) for emails.
+## 0:00–0:20 — Enter the company memory
 
----
+Open the Chrome-inspired entrance, then Orbit. Explain: “A team changes a decision. The people doing the work need to know what that change affects.”
 
-## 0:00 to 0:20  Tenants and isolation
+The sculpture illustrates connected memory; it is not the actual graph. The source and decision counts below it come from FalkorDB.
 
-**Click:** `/` (tenant switcher). Three cards: orbit, nimbus, quill, each with graph name, usage in MB, counts.
+## 0:20–1:15 — The relationship that changes the action
 
-**Say:** "Minutes is a shared, time-aware memory for a team of agents, built from what people actually said. One FalkorDB graph per team. This is orbit, four people shipping a mobile app."
+In **The ripple effect**, open **Update the payment integration runbook**.
 
-**Click:** on the orbit card, the ACL rule line (`%RW~team_orbit %R~commons`), then the button **"Try to read nimbus as orbit"** (`GET /tenants/orbit/acl-probe?target=nimbus`).
+Expected: **Razorpay → PayU**, with **Priya** responsible. Open **Original decision** and **Current decision** to inspect their transcript evidence. Open **Dependency document** to show the authored rule: this runbook contains vendor-specific API instructions.
 
-**Expected:** a red toast with the FalkorDB permission error, `allowed: false`. **Say:** "The database enforces tenancy, not our code."
+Say: “It isn't enough that these records mention payments. This document explicitly says the runbook depends on that vendor decision. FalkorDB follows the real supersession chain to identify the work that needs review.”
 
-## 0:20 to 0:45  Import a meeting live
+Expand **Recorded graph relationships** to show the actual nodes and edges. The work points to its baseline fact, owner and dependency document; the current fact points back through `SUPERSEDES`. **How FalkorDB found the impact** exposes the executed query.
 
-**Click:** orbit card, then **Sources**, tab **Meetings**. Five meetings listed with episode and fact counts; standup 1 is missing.
+## 1:15–1:45 — An accountable next step
 
-**Click:** **Import**, pick `data/meetings/orbit_002.json`. Progress bar runs through stages: episodes, entities, facts.
+Use **Prepare follow-up**. Show the local draft with the owner, changed values, both fact IDs, and dependency-document ID. Reload and reopen the work: the saved draft remains.
 
-**Expected stats when done:** `episodes` about 20 (46 segments merged into 30 to 60 s same-speaker chunks), `facts` about 10, `superseded: 1`. **Say:** "Forty-six segments of a Monday standup. The fact agent found ten facts and one of them replaced something we already believed. Let's see which."
+Say: “This draft stays in Minutes. Nothing has been sent.” If a rehearsal already created it, show the existing saved draft instead of pretending a new one was generated.
 
-## 0:45 to 1:15  Chat: a date that moved three times
+Select **Closed**: the completed vendor sandbox spike receives no new draft. Select **Aligned**: the release checklist still agrees with October 16. These counterexamples are part of the demonstration, not incidental data.
 
-**Click:** **Chat**. **Type:** `When is the UPI flow due?`
+## 1:45–2:20 — Who owns the work?
 
-**Expected answer:** "The UPI flow was due **Monday, September 28** and is now completed. It moved twice: Priya committed to Thursday Sep 24 at the kickoff (Sep 7), moved it to Friday Sep 25 at standup 1 (Sep 14, 'move it to Friday'), then to Monday Sep 28 by email on Sep 17, which she confirmed at standup 2 (Sep 21). She reported it done on Sep 29 by email and at the retro on Sep 30."
+Open Chat and ask **Who owns the decision log?**
 
-**Why panel should show:**
-- Router: `intent: when`, entities `[UPI flow]`, route `template`, template `51_open_commitments` plus `32_why_path`.
-- Chain, newest first, as `SUPERSEDES` hops: `2026-09-28` (email, Priya, `thr_orbit_002` message `msg_orbit_002_1` = message index 0, Sep 17 14:02, **open email**) to `2026-09-25` (Priya, Orbit standup 1, segment 6 at 0:38, **play**) to `2026-09-24` (Priya, Orbit kickoff, segment 23 at 2:35, **play**). Plus the confirmation from standup 2 (segment 16 at 1:33) attached to the 28th, not as a new hop.
-- Cypher visible and copyable.
+Expected: **Rahul**, citing the September 29 email. Open **Why this answer** and the source email. Aditya announces the assignment; Rahul owns the work and accepts it. This distinguishes ownership from participation.
 
-**Click:** **play** on the 0:38 hop. Transcript segment highlights: "So I need to move it to Friday. Friday the 25th, instead of the 24th." (Audio plays if the wav is present.)
+## 2:20–2:45 — What was known then?
 
-**Click:** **open email** on the 28th hop. Drawer shows Priya's message: "So I'm moving the UPI flow from Friday the 25th to Monday the 28th."
+Ask **What did we believe about the UPI flow as of 2026-09-10?**
 
-**Say:** "Three sources, two media, one chain. Every hop has a who and a when, and the email hop is a first-class episode in the same graph."
+Expected: **September 24**, with kickoff evidence and no later deadline evidence. The present recorded deadline is September 28, and the flow is completed. A historical due date does not mean the work is still overdue.
 
-## 1:15 to 1:40  Chat: why
+## 2:45–3:00 — Boundaries and close
 
-**Type:** `Why did we choose the side drawer?`
+Switch to Nimbus. Its impact view has no imported work dependencies; this does not mean the whole company is healthy. Orbit records do not appear in that tenant graph. HTTP user authentication remains future work.
 
-**Expected answer:** "Because of Meridian Bank's accessibility checklist: primary navigation targets must be at least 56 dp on their 5-inch rugged devices, and the bottom tab bar measured about 48 dp. Aditya recorded the reversal at the design review on Sep 16, explicitly overriding the kickoff decision (Sep 7, bottom tab bar, rationale: discoverability). Meridian compliance (Farah) confirmed 56 dp is a hard minimum and approved the drawer mockup by email on Sep 18."
+Close: “Minutes connects the decision, the evidence, the affected work and the accountable person. FalkorDB determines which follow-up is justified.”
 
-**Why panel should show:**
-- `Decision: side drawer` (Aditya, Orbit design review, 1:44) with `SUPERSEDES` to `Decision: bottom tab bar` (Aditya, Orbit kickoff, 4:25); `PRECEDENT_FOR` edges out to "checklist is the baseline" (2:39) and "56 dp buttons" (3:24).
-- Sources: design review segment 3 at 0:21 (Sana states the rule), segment 14 at 1:44 (Aditya's decision), thread 003 message index 1 (Farah, **open email**).
+## Backup demonstration
 
-**Click:** **play** at 1:44: "We're reversing that. Decision: navigation is a side drawer. Rationale is Meridian's accessibility requirement..."
+Board's **Simulate “move it to Friday”** changes the PayU integration date and triggers Scheduler → FollowUp task handoff. Show claimed/handed-off/artifact/completed trace and the **simulated** label. This is a source-state simulation, not live document extraction or a real issue being created. Use a fresh disposable corpus if you need repeatable before/after dates.
 
-**Say (optional, if ahead of time):** "At the retro two weeks later, Sana remembered this wrong, 'the tab bar couldn't fit five sections', and Priya corrected her. The graph never had the wrong version."
+## Interactive decision-impact rehearsal
 
-## 1:40 to 1:55  Chat: who knows
+Use a disposable tenant seeded with the Orbit kickoff and customer-call recap via gold extraction. Keep the five-item Orbit fixture intact for the timed script. Each **Connect work** submission creates an additional tracked item; reseeding a delivery manifest does not delete these additions.
 
-**Type:** `Who knows about PayU?`
+1. Click **Connect work**. Enter **Prepare the vendor onboarding guide**, choose **Priya**, and keep status **Open**.
+2. Search **Payments Service**, choose the earlier **Razorpay** vendor decision, and explain: “The guide contains vendor-specific API and merchant setup instructions that must be reviewed when the provider changes.” Check **This is synthetic demo work** and save.
+3. Show **Needs review**, **Razorpay → PayU**, and **Priya**. Inspect the source evidence, dependency note and graph path. Prepare a follow-up, reload, and show the same saved draft.
+4. Open the pencil action. Click **Use current decision: PayU** and update the explanation to record that the guide has been reviewed against PayU. Save. The work becomes **Aligned** and the old draft leaves the current item while remaining in history. This action records a review; it does not modify an external document.
+5. Edit the work again, set **Completed**, and save. Show **Closed**, with no new follow-up action.
 
-**Expected answer (from `50_who_knows`, counting SPOKEN_BY, SENT_BY and SENT_TO):** Aditya (13 mentions, last Sep 30), Priya (12, last Sep 30), Rahul (3), Sana (2), and one external: Nikhil Rao, Razorpay account manager (2, received, Sep 24). **Say:** "Ask Aditya or Priya. And yes, the Razorpay account manager knows, because Priya told him by email."
+This is the interactive extension of the main demo: an explicitly recorded relationship changes a review recommendation, and the user's review changes the graph's result.
 
-## 1:55 to 2:20  Board: agents hand work to each other
+## Submission evidence
 
-**Click:** **Board**. Five agents idle. Open commitments listed; **PayU integration, due Thu Oct 1 (Priya)** is at the top with a button **"Move it to Friday"**.
-
-**Click:** the button. It calls `POST /tenants/orbit/demo/supersede` with `{fact_id: <PayU integration | due>, new_object: "2026-10-02", speaker_id: "spk_priya"}`.
-
-**Expected, live over SSE, within about 5 seconds:**
-1. `fact.superseded` event; the commitment row flips to Oct 2 with a `SUPERSEDES` badge.
-2. SchedulerAgent wakes (`task.claimed`, CAS version 1 to 2), updates the commitment's `due_at`, submits a `followup` task and **hands it off** (`task.handed_off`) with `subgraph_ids` = the two facts and Priya's Person node.
-3. FollowUpAgent claims it, calls `open_commitments(Priya)` and `create_issue`, produces an **Artifact**: a nudge "PayU integration moved to Fri Oct 2; code freeze is Oct 9" that links to `https://github.com/orbit-app/mobile/issues/42` (the decision log issue from thread 005).
-4. `task.completed`. Trace view shows claimed, handed_off, completed in order.
-
-**Click:** **"Induce double claim"** if there is time: `winners: 1, losers: 24`. **Say:** "Claims are compare-and-set in Cypher. Twenty-five agents, one winner, no locks in our code."
-
-## 2:20 to 2:40  Timeline: what we believed on Sep 10
-
-**Click:** **Timeline**. Drag the scrubber to **Sep 10, 2026**.
-
-**Expected belief-at-T panel (`31_belief_at_time`):** UPI flow due **Sep 24** (Priya, kickoff), payments vendor **Razorpay**, navigation **bottom tab bar**, onboarding tour **three cards** (Aditya's email of Sep 9). Facts created after Sep 10 are greyed out; the Sep 14 fact imported five minutes ago sits in the right place because `valid_from` came from the meeting time, not the import time.
-
-**Drag** to **today**: UPI flow completed (Sep 28), PayU, side drawer. **Say:** "Bi-temporal: when it was true, and when we learned it."
-
-## 2:40 to 2:55  Skills: the standup routine the agents learned
-
-**Click:** **Skills**. One skill: `goal: run the Monday standup`, `version 1`, `runs 1`, learned from `mtg_orbit_002` and `mtg_orbit_004`. Steps: `open_commitments(person)` for each attendee, `decisions_since(last standup)`, `stale_commitments(older than 7 days)`, `compose_summary`.
-
-**Click:** **Run**. StandupAgent retrieves the skill by vector match on the goal, runs the steps, posts an Artifact: per-person status, open commitments (PayU integration Oct 2, Kestrel onboarding variant Oct 7, decision log Oct 2, retro notes Oct 1), decisions since the last standup (PayU, Kestrel pilot uses PayU, November scope), stale: none.
-
-**Click:** **Accept**. `success_rate` updates, `runs: 2`, PageRank column visible. **Say:** "Procedural memory. It learned the shape of a standup from two of them."
-
-## 2:55 to 3:00  Bench
-
-**Switch tab** to `/bench`. Chart: read p50/p95/p99 and write p50/p95/p99 for FalkorDB 6.0.1 vs 4.22.0, local vs Railway, 200 agents over 20 tenant graphs; CAS panel `attempts 25, winners 1, losers 24` per task.
-
-**Say:** "Reads under 300 ms at p99 on a one-gigabyte Railway box, 200 agents, twenty tenants. Remove FalkorDB and nothing here works. Thanks."
-
----
-
-## Questions to have ready if judges type their own
-
-| Question | Expected | Source |
-|---|---|---|
-| `What did we decide about offline mode?` | local-first SQLite cache with sync queue (kickoff); last-write-wins per field, server timestamp (design review); forms and inspections only, no payments (customer call) | orbit_001 seg 32, orbit_003 seg 38, orbit_005 seg 4 |
-| `Who owns payments?` | Priya | orbit_001 seg 15 |
-| `What is still open for Priya?` | PayU integration (Oct 1, or Oct 2 after the board demo) | orbit_005 seg 26, thread 004 message index 3 |
-| `What did Meridian's compliance team require?` | PayU, 7-year audit log of payment attempts, India data residency, 56 dp navigation targets | orbit_005 segs 9, 13; thread 003 message index 1 |
-| `Who is Kestrel?` | second customer, 120 drivers, iOS, pilot Nov 16, uses PayU | orbit_005 segs 36-38, orbit_006 seg 42 |
-| `What lessons did we record?` | the three lessons from the retro | orbit_006 segs 23, 30, 34 |
-| `When is the newsletter sent?` (switch to quill) | Tuesdays, superseding Thursdays | quill_002 seg 8 |
-| any orbit question while on nimbus | no results; the Why panel shows the Cypher ran against `team_nimbus` only | tenancy |
-
-## Timing notes from rehearsal
-
-- The import in step 2 must finish in under 25 s. If extraction is slower on the free tier, start it at 0:10 while talking about tenants.
-- Ask the UPI question **before** pressing "Move it to Friday"; the button targets the PayU integration commitment precisely so the UPI chain stays clean, but do not tempt fate.
-- If audio files are not in place, "play at timestamp" shows the highlighted transcript segment; say "transcript" instead of "clip".
+- Record from a reproducible setup with source links and model modes visible.
+- Disclose AI assistance and work dates; retain the rules/eligibility note.
+- Include public source, setup instructions, key Cypher and the declared Track 3.
+- Report live extraction separately. The existing P .42 / R .59 / F1 .49 evaluation was not improved or rerun by these changes.
+- Use test and HTTP smoke evidence from `docs/audit`; do not present it as a live-model or hosted-performance evaluation.

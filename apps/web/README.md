@@ -1,12 +1,12 @@
 # Minutes · web
 
-Next.js 16 (App Router) front end for Minutes: a shared, time-aware memory for agent teams on FalkorDB. It consumes the HTTP API in `docs/contracts/http-api.md` (plus the email additions in `docs/contracts/email-format.md`) and falls back to realistic mock data for the `orbit` tenant whenever the API is unreachable.
+Next.js 16 (App Router) front end for Minutes: a shared, time-aware memory for agent teams on FalkorDB. It consumes the HTTP API in `docs/contracts/http-api.md` (plus the email additions in `docs/contracts/email-format.md`) and surfaces API failures. Fixture data is available only in explicitly selected preview mode.
 
 ## Run
 
 ```bash
 cd apps/web
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev          # http://localhost:3001  (port 3000 is taken by FalkorDB Browser)
 pnpm build && pnpm start
 pnpm lint
@@ -15,7 +15,7 @@ pnpm lint
 Docker (standalone output, `node:20-alpine`):
 
 ```bash
-docker build -t minutes-web apps/web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000
+docker build -t minutes-web apps/web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080
 docker run -p 3001:3000 minutes-web
 ```
 
@@ -25,12 +25,12 @@ The repo-level `docker-compose.yml` builds this image and maps `3001:3000`.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of `apps/api`. Inlined at build time. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8080` | Base URL of `apps/api`. Inlined at build time. |
 | `NEXT_PUBLIC_MOCK` | unset | `1` forces mock data even when the API is up. |
 
 ## Mock data and live data
 
-`lib/api.ts` is the typed client for every route in the contract. Each call runs against the API and falls back to `lib/mock.ts` when the request fails at the network level, times out, or returns 5xx; 4xx errors propagate to the UI. Routes that fell back are recorded in `lib/mock-state.ts` and the shell shows a **mock data** badge (hover it to see which routes and why). As soon as a route answers, its entry clears. `GET /health` is never mocked: the nav shows "API offline" when it cannot be reached.
+`lib/api.ts` is the typed client. Network errors, timeouts and server errors propagate to the UI; they never fabricate successful imports or agent actions. `NEXT_PUBLIC_MOCK=1` selects fixture data and shows the mock badge. The shell separately labels scripted LLM answers, test embeddings and an in-memory API backend. A dropped SSE connection does not change the data mode.
 
 The mock store is stateful. Demo actions (supersede, double claim, imports, skill outcomes, snapshots, chat) mutate it and publish events on a local bus (`lib/bus.ts`) that `lib/useEvents.ts` merges with the server's SSE stream, so the Board animates the Scheduler → FollowUp hand-off even with no API running.
 
@@ -44,7 +44,7 @@ The mock store is stateful. Demo actions (supersede, double claim, imports, skil
 | `/t/[team]/board` | Agents and tasks in five A2A state columns, live via SSE. Task drawer with payload and the trace timeline (submitted, claimed, handed off with summary and subgraph ids, completed, failed; artifacts such as simulated GitHub issues). Demo buttons: **Simulate "move it to Friday"** (`POST /demo/supersede`) and **Induce double claim** (`POST /demo/double-claim`). |
 | `/t/[team]/timeline` | Time slider across the tenant's events with coloured markers and snapshots. Shows `GET /belief?t=` (believed at T) beside the facts active now, with superseded-since / new-since markers, the Cypher that ran, the snapshot list and **Take snapshot**. |
 | `/t/[team]/skills` | Skills table (goal, version, runs, success-rate bar, PageRank), expandable steps (order, tool, args template, guard), **Accept** / **Reject** outcome buttons and **Run standup skill**. |
-| `/bench` | Read and write p50/p95/p99 by engine (6.0.1 vs 4.22.0) and target (local, Railway), compare-and-set winners and losers, all runs, and a dev-only run dialog. |
+| `/bench` | Read and write p50/p95/p99 from the stored benchmark runs (inspect each run’s actual target), compare-and-set winners and losers, all runs, and a dev-only run dialog. |
 
 Shared: `components/AppShell.tsx` (left nav, tenant, API status from `/health`, mock badge), `components/GraphView.tsx` (react-force-graph-2d, node colour by label, click → props panel → **Why** calls `/why/{id}`), `components/CypherBlock.tsx`, `components/StateBadge.tsx`, `components/WhyPanel.tsx`, `components/EmailThreadView.tsx`, `components/ArtifactView.tsx`.
 

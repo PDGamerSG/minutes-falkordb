@@ -196,6 +196,7 @@ class MemoryHive:
             "text": fact.get("text") or f"{subject} {predicate} {fact.get('object', '')}",
             "confidence": float(fact.get("confidence", 0.8)),
             "speaker_id": fact.get("speaker_id") or episode.get("speaker_id"),
+            "owner_id": fact.get("owner_id") or fact.get("speaker_id"),
             "episode_id": fact.get("episode_id"),
             "container_id": episode.get("container_id"),
             "entity_ids": list(fact.get("entity_ids") or []),

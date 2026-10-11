@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
-import { ChartColumn, Clock, Database, Layers, Menu, MessageSquare, SquareKanban, Workflow } from "lucide-react";
+import { ArrowUpRight, ChartColumn, Clock, Database, Layers, Menu, MessageSquare, Orbit, SquareKanban, Workflow } from "lucide-react";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { useMockState } from "@/lib/mock-state";
@@ -12,13 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StateDot } from "@/components/StateBadge";
+import { CommandMenu } from "@/components/CommandMenu";
+import "@/app/workspace.css";
 import { LandingAssistantProvider } from "@/components/landing/LandingAssistant";
 import { LandingNavigation } from "@/components/landing/LandingNavigation";
 
 const TEAM_PAGES = [
+  { slug: "", label: "Overview", icon: Orbit },
   { slug: "sources", label: "Sources", icon: Layers },
-  { slug: "chat", label: "Chat", icon: MessageSquare },
-  { slug: "board", label: "Board", icon: SquareKanban },
+  { slug: "chat", label: "Ask Minutes", icon: MessageSquare },
+  { slug: "board", label: "Agent board", icon: SquareKanban },
   { slug: "timeline", label: "Timeline", icon: Clock },
   { slug: "skills", label: "Skills", icon: Workflow },
 ] as const;
@@ -40,7 +43,7 @@ function NavLink({ href, active, icon: Icon, children, onNavigate }: { href: str
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors",
+        "nav-link flex h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors",
         active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
       )}
     >
@@ -92,7 +95,7 @@ export function MockBadge({ className }: { className?: string }) {
 function ApiStatus() {
   const { data: health, loading } = useResource(() => api.health(), [], { refreshMs: 30_000 });
   const state = loading && health === undefined ? "connecting" : health?.ok ? "live" : health ? "failed" : "offline";
-  const label = loading && health === undefined ? "checking API" : health?.ok ? `FalkorDB ${health.falkordb.version}` : health ? "API degraded" : "API offline";
+  const label = loading && health === undefined ? "checking API" : health?.ok ? (health.falkordb.kind === "fake" ? "In-memory preview" : `FalkorDB ${health.falkordb.version}`) : health ? "API degraded" : "API offline";
   return (
     <Tooltip>
       <TooltipTrigger render={<div className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs" />}>
@@ -102,6 +105,8 @@ function ApiStatus() {
           <div className="truncate font-mono text-[10px] text-muted-foreground">
             {health?.ok ? `${health.llm.backend}/${health.llm.model} · ${health.embeddings.dim}d` : api.base.replace(/^https?:\/\//, "")}
           </div>
+          {health?.llm.backend === "fake" && <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">Scripted answers · demo mode</div>}
+          {health?.embeddings.backend === "fake" && <div className="text-[11px] text-amber-700 dark:text-amber-400">Test embeddings</div>}
         </div>
       </TooltipTrigger>
       <TooltipContent side="right">
@@ -109,7 +114,7 @@ function ApiStatus() {
           <div>GET {api.base}/health</div>
           {health?.ok && (
             <>
-              <div>graphs: {health.falkordb.graphs}</div>
+              <div>graphs: {health.falkordb.graphs.join(", ")}</div>
               <div>embeddings: {health.embeddings.model}</div>
             </>
           )}
@@ -119,104 +124,48 @@ function ApiStatus() {
   );
 }
 
+export function Brand({ onNavigate }: { onNavigate?: () => void }) {
+  return <Link href="/" className="brand" onClick={onNavigate} aria-label="Minutes home"><span className="brand-mark" aria-hidden><i /><i /><i /></span><span>minutes<span className="brand-period">.</span></span></Link>;
+}
+
 function NavBody({ team, pathname, onNavigate }: { team: string | null; pathname: string; onNavigate?: () => void }) {
   const { data: tenants } = useResource(() => api.tenants.list(), [], { enabled: !!team });
   const tenant = tenants?.find((t) => t.slug === team);
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-12 items-center gap-2 px-3">
-        <Link href="/" onClick={onNavigate} className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="inline-block size-2.5 rounded-sm bg-primary" aria-hidden />
-          Minutes
-        </Link>
-        <MockBadge className="ml-auto" />
-      </div>
-
-      {team && (
-        <div className="mx-2 mb-1 rounded-md border bg-card px-2.5 py-2">
-          <div className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Tenant</div>
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="truncate text-sm font-medium">{tenant?.display_name ?? team}</div>
-            <Link href="/" onClick={onNavigate} className="text-[11px] text-muted-foreground hover:text-foreground">
-              switch
-            </Link>
-          </div>
-          <div className="truncate font-mono text-[10px] text-muted-foreground">{tenant?.graph ?? `team_${team}`}</div>
-        </div>
-      )}
-
-      <nav className="flex-1 space-y-4 overflow-auto px-2 py-1">
-        {team && (
-          <div className="space-y-0.5">
-            {TEAM_PAGES.map((p) => {
-              const href = `/t/${encodeURIComponent(team)}/${p.slug}`;
-              return (
-                <NavLink key={p.slug} href={href} active={pathname.startsWith(href)} icon={p.icon} onNavigate={onNavigate}>
-                  {p.label}
-                </NavLink>
-              );
-            })}
-          </div>
-        )}
-        <div className="space-y-0.5">
-          {team && <div className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Global</div>}
-          {GLOBAL_PAGES.map((p) => (
-            <NavLink key={p.href} href={p.href} active={pathname.startsWith(p.href)} icon={p.icon} onNavigate={onNavigate}>
-              {p.label}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
-
-      <div className="border-t p-2">
-        <ApiStatus />
-      </div>
-    </div>
-  );
+  return <div className="workspace-navigation flex h-full flex-col">
+    <div className="sidebar-brand"><Link href="/" onClick={onNavigate} aria-label="Minutes home" className="workspace-brand"><span className="workspace-mark" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span><span>minutes<span>.</span></span></Link></div>
+    {team && <div className="workspace-switch"><span className="workspace-avatar">{(tenant?.display_name ?? team).slice(0, 1)}</span><div><strong>{tenant?.display_name ?? team}</strong><span>Company workspace</span></div><Link href="/workspaces" onClick={onNavigate} aria-label="Switch workspace"><ArrowUpRight size={16} /></Link></div>}
+    <nav className="flex-1 space-y-7 overflow-auto px-3 py-4" aria-label="Main navigation">
+      {team && <div className="space-y-1">{TEAM_PAGES.map((p) => {
+        const href = `/t/${encodeURIComponent(team)}${p.slug ? `/${p.slug}` : ""}`;
+        return <NavLink key={p.slug} href={href} active={p.slug ? pathname.startsWith(href) : pathname === href} icon={p.icon} onNavigate={onNavigate}>{p.label}</NavLink>;
+      })}</div>}
+      <div className="space-y-1 border-t pt-5"><span className="sidebar-label">Workspace tools</span>{GLOBAL_PAGES.map(p => <NavLink key={p.href} href={p.href} active={pathname === p.href} icon={p.icon} onNavigate={onNavigate}>{p.label}</NavLink>)}</div>
+    </nav>
+    <div className="sidebar-foot"><div className="sidebar-foot-label">Connected knowledge<Orbit size={15} /></div><ApiStatus /><MockBadge /></div>
+  </div>;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const team = useMemo(() => teamFromPath(pathname), [pathname]);
   const [open, setOpen] = useState(false);
-
-  const current = team ? TEAM_PAGES.find((p) => pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`))?.label : GLOBAL_PAGES.find((p) => pathname.startsWith(p.href))?.label;
-
-  if (pathname === "/" || pathname === "/workspaces") return (
+  const current = team ? TEAM_PAGES.find((p) => p.slug ? pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`) : pathname === `/t/${encodeURIComponent(team)}`)?.label : GLOBAL_PAGES.find(p => p.href === pathname)?.label ?? "Workspace";
+  if (pathname === "/") return (
     <LandingAssistantProvider key={pathname}>
-    <div className="entrance-shell">
-      <a className="m-skip-link" href="#main-content">Skip to content</a>
-      <LandingNavigation />
-      <main id="main-content">{children}</main>
-    </div>
+      <div className="entrance-shell">
+        <a className="m-skip-link" href="#main-content">Skip to content</a>
+        <LandingNavigation />
+        <main id="main-content">{children}</main>
+      </div>
     </LandingAssistantProvider>
   );
-
-  return (
-    <div className="minutes-workspace-shell flex min-h-dvh">
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground md:block">
-        <NavBody team={team} pathname={pathname} />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur md:hidden">
-          <Button size="icon-sm" variant="ghost" onClick={() => setOpen(true)} aria-label="Open navigation">
-            <Menu />
-          </Button>
-          <span className="font-semibold">Minutes</span>
-          {team && <span className="text-muted-foreground">/ {team}</span>}
-          {current && <span className="text-muted-foreground">/ {current}</span>}
-          <MockBadge className="ml-auto" />
-        </header>
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="left" className="w-64 p-0 sm:max-w-64" showCloseButton={false}>
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <NavBody team={team} pathname={pathname} onNavigate={() => setOpen(false)} />
-          </SheetContent>
-        </Sheet>
-
-        <main className="min-w-0 flex-1 px-4 py-4 md:px-6 md:py-5">{children}</main>
-      </div>
+  return <div className="minutes-workspace-shell flex min-h-dvh">
+    <a className="skip-link" href="#main-content">Skip to content</a>
+    <aside className="workspace-sidebar sticky top-0 hidden h-dvh shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block"><NavBody team={team} pathname={pathname} /></aside>
+    <div className="flex min-w-0 flex-1 flex-col">
+      <header className="workspace-header"><div className="flex items-center gap-3"><Button size="icon-sm" variant="ghost" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu /></Button><Link className="workspace-breadcrumb" href={team ? `/t/${encodeURIComponent(team)}` : "/workspaces"}>{team ?? "Minutes"}</Link><span className="breadcrumb-divider">/</span><span>{current}</span></div><CommandMenu team={team} /><MockBadge /></header>
+      <Sheet open={open} onOpenChange={setOpen}><SheetContent side="left" className="workspace-mobile-nav w-64 p-0 sm:max-w-64" showCloseButton={true}><SheetTitle className="sr-only">Navigation</SheetTitle><NavBody team={team} pathname={pathname} onNavigate={() => setOpen(false)} /></SheetContent></Sheet>
+      <main id="main-content" key={team ?? "global"} className="workspace-main min-w-0 flex-1" tabIndex={-1}>{children}</main>
     </div>
-  );
+  </div>;
 }

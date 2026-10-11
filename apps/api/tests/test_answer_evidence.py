@@ -22,7 +22,8 @@ class SpyLLM:
 
     def complete(self, system: str, user: str, temperature: float = 0.1, max_tokens: int = 2048) -> str:
         self.calls.append((system, user))
-        return "spy answer [fact_x]"
+        citation = re.search(r"\[(fact_[^\]]+)\]", user)
+        return f"spy answer [{citation.group(1)}]" if citation else "No recorded evidence."
 
 
 def _agent(seeded, llm: Any = None) -> AnswerAgent:
@@ -32,7 +33,7 @@ def _agent(seeded, llm: Any = None) -> AnswerAgent:
 def test_prompt_carries_full_history_oldest_first_with_sources(seeded):
     spy = SpyLLM()
     response = _agent(seeded, spy).answer("When is the UPI flow due?")
-    assert response["answer"] == "spy answer [fact_x]"
+    assert response["answer"].startswith("spy answer [fact_")
     system, user = spy.calls[0]
     assert "Never call an email or an email thread a meeting" in system
 
@@ -113,3 +114,64 @@ def test_why_tool_history_is_oldest_first(seeded):
     result = toolset.execute("why", {"node_id": head["id"]})
     assert [h["object"] for h in result["history"]][:3] == ["2026-09-24", "2026-09-25", "2026-09-28"]
     assert result["source_kind"] == "email" and result["meeting"] is None and "wrote" in result
+
+
+def test_unknown_model_citation_is_replaced_with_grounded_fallback(seeded):
+    class InventedCitation(SpyLLM):
+        def complete(self, *args, **kwargs):
+            return "A made-up owner approved this [fact_not_in_this_tenant]."
+
+    response = _agent(seeded, InventedCitation()).answer("When is the UPI flow due?")
+    assert "made-up" not in response["answer"]
+    assert "2026-09-28" in response["answer"]
+    cited = set(re.findall(r"\[(fact_[^\]]+)\]", response["answer"]))
+    assert cited <= {s["fact_id"] for s in response["sources"]}
+
+
+def test_explanation_uses_real_provenance_edges(client):
+    response = client.post("/tenants/orbit/chat", json={"message": "When is the UPI flow due?"}).json()
+    types = {edge["type"] for edge in response["subgraph"]["edges"]}
+    assert "CONTAINS" not in types
+    assert {"HAS_EPISODE", "DERIVED_FROM", "SUPERSEDES"} <= types
+
+
+def test_uncited_model_claim_is_replaced_with_grounded_evidence(seeded):
+    class UncitedAnswer(SpyLLM):
+        def complete(self, *args, **kwargs):
+            return "The project was cancelled by the CEO."
+
+    response = _agent(seeded, UncitedAnswer()).answer("When is the UPI flow due?")
+    assert "cancelled" not in response["answer"]
+    assert "2026-09-28" in response["answer"]
+    assert "[fact_" in response["answer"]
+
+
+def test_historical_question_does_not_send_future_evidence_to_model(seeded):
+    spy = SpyLLM()
+    response = _agent(seeded, spy).answer("What did we believe about the UPI flow as of 2026-09-10?")
+    assert response["router"]["intent"] == "belief_at"
+    _, prompt = spy.calls[0]
+    assert "2026-09-24" in prompt
+    assert "2026-09-25" not in prompt
+    assert "2026-09-28" not in prompt
+    assert response["sources"] and all(s["container_id"] == "mtg_orbit_001" for s in response["sources"])
+    assert all(e["meeting"] == "Orbit kickoff" for e in response["episodes"])
+
+
+def test_historical_rows_with_missing_provenance_keep_the_original_source(seeded, monkeypatch):
+    original = seeded.hive.belief_at_result
+
+    def without_container(*args, **kwargs):
+        result = original(*args, **kwargs)
+        # The real belief query supplies facts and speakers, but not joined containers.
+        result["rows"] = [{**row, "meeting": None, "thread": None, "episode_id": None}
+                          for row in result["rows"]]
+        return result
+
+    monkeypatch.setattr(seeded.hive, "belief_at_result", without_container)
+    spy = SpyLLM()
+    response = _agent(seeded, spy).answer("What did we believe about the UPI flow as of 2026-09-10?")
+    assert "Orbit kickoff" in spy.calls[0][1]
+    assert "2026-09-28" not in spy.calls[0][1]
+    assert any(n["id"] == "mtg_orbit_001" for n in response["subgraph"]["nodes"])
+    assert all(s["container_id"] == "mtg_orbit_001" for s in response["sources"])

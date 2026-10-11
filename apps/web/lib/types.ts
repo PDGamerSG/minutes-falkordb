@@ -27,6 +27,14 @@ export type Tenant = {
   acl: { rw_user: string; ro_user: string; rules: string[] };
 };
 
+export type ImpactDraft = { id: string; title: string; body: string; status: "draft" | string; created_at: number; work_item_id: string; current_fact_id: string };
+export type ImpactItem = { id: string; title: string; status: "open" | "completed" | "cancelled"; owner: PersonRef | null; assessment: "needs_review" | "aligned" | "closed" | "unresolved"; reason: string; baseline: Fact; current: Fact | null; document: { id: string; title: string; uri: string; content: string; synthetic: boolean }; rationale: string; path: Subgraph; draft: ImpactDraft | null };
+export type ImpactResponse = { summary: { tracked: number; needs_review: number; aligned: number; closed: number; unresolved: number }; items: ImpactItem[]; cypher: string };
+export type WorkManifest = {
+  document: { title: string; uri: string; content: string; synthetic: boolean };
+  items: { id: string; title: string; status: ImpactItem["status"]; owner_id: string; baseline_fact_id: string; rationale: string }[];
+};
+
 export type AclProbe = { allowed: boolean; error: string };
 
 // ---------- People / sources ----------
@@ -397,7 +405,7 @@ export type BenchResult = {
 // ---------- Health ----------
 export type Health = {
   ok: boolean;
-  falkordb: { version: string; graphs: number };
+  falkordb: { version: string; graphs: string[]; kind?: string };
   llm: { backend: string; model: string };
-  embeddings: { model: string; dim: number };
+  embeddings: { model: string; dim: number; backend?: string };
 };

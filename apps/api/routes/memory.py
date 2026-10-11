@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -15,6 +15,15 @@ router = APIRouter(prefix="/tenants/{tenant}", tags=["memory"])
 STATUSES = {"active", "superseded", "retracted", "all"}
 PROVENANCE_KEYS = ("speaker", "meeting", "thread", "source", "episode_id", "supersedes", "entities")
 KINDS = {"fact", "decision", "commitment"}
+
+
+@router.get("/people")
+def list_people(tenant: str, ctx: Annotated[AppContext, Depends(get_ctx)]) -> list[dict[str, Any]]:
+    """Recorded people are explicit owner choices, independent of who stated a fact."""
+    ctx.ensure_tenant(tenant)
+    people = [{k: p[k] for k in ("id", "name", "email", "role") if p.get(k) is not None}
+              for p in ctx.hive.list_persons(tenant)]
+    return sorted(people, key=lambda p: (str(p.get("name", "")).casefold(), p["id"]))
 
 
 def fact_view(fact: dict[str, Any]) -> dict[str, Any]:

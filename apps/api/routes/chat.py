@@ -6,7 +6,7 @@ import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..agents.answer_agent import AnswerAgent
 from ..state import AppContext, get_ctx
@@ -17,6 +17,13 @@ router = APIRouter(prefix="/tenants/{tenant}", tags=["chat"])
 class ChatBody(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     session_id: str | None = Field(default=None, max_length=120)
+
+    @field_validator("message")
+    @classmethod
+    def nonblank_message(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("message must contain text")
+        return value.strip()
 
 
 @router.post("/chat")

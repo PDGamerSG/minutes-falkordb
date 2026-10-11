@@ -105,7 +105,7 @@ def _ingest_episode_rows(db: HiveDB, tenant: str, container_id: str, rows: list[
         return 0
     graph = db.graph(tenant)
     rows.sort(key=lambda r: r["seq"])
-    prev = _first(graph.query(load_cypher("last_episode"), {"container_id": container_id}))
+    prev = _first(graph.query(load_cypher("last_episode"), {"container_id": container_id, "before_seq": rows[0]["seq"]}))
     for row in rows:
         row["prev_id"] = prev
         prev = row["id"]

@@ -2,9 +2,10 @@ import uuid
 
 import hiveboard as hb
 import pytest
-from conftest import cleanup_tenant
 from falkordb import FalkorDB
 from redis.exceptions import NoPermissionError, ResponseError
+
+from .conftest import cleanup_tenant
 
 
 @pytest.fixture
@@ -102,3 +103,23 @@ def test_snapshot_copies_graph_and_lists_metadata(db, created):
     snaps = hb.list_snapshots(db, slug)
     assert [(s["name"], s["label"], s["exists"]) for s in snaps] == [(name, "after kickoff", True)]
     assert db.usage(slug)["total_mb"] >= 0 and "raw" in db.usage(slug)
+
+
+def test_missing_access_users_can_be_restored_without_recreating_graph(db, created):
+    from hiveboard.tenancy import ensure_tenant_access
+
+    slug, _ = created
+    hb.remember_person(db, slug, {"id": "surviving_record", "name": "Preserved"})
+    db.connection.execute_command("ACL", "DELUSER", db.ro_user(slug), db.rw_user(slug))
+    ensure_tenant_access(db, slug, "rw-secret", "ro-secret")
+    assert db.ro(slug).ro_query("MATCH (p:Person) RETURN p.name").result_set == [["Preserved"]]
+
+
+def test_access_recovery_does_not_reenable_or_rotate_existing_users(db, created):
+    from hiveboard.tenancy import ensure_tenant_access
+
+    slug, _ = created
+    db.connection.execute_command("ACL", "SETUSER", db.ro_user(slug), "off")
+    before = db.connection.execute_command("ACL", "GETUSER", db.ro_user(slug))
+    ensure_tenant_access(db, slug, "different-rw", "different-ro")
+    assert db.connection.execute_command("ACL", "GETUSER", db.ro_user(slug)) == before

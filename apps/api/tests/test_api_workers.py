@@ -105,3 +105,20 @@ async def test_failed_agent_marks_task_failed(data_dir):
         assert any(e["event"] == "task.failed" for e in ctx.hive.events["orbit"])
     finally:
         await pool.stop()
+
+def test_fact_agent_reports_extraction_outage_as_failure(seeded):
+    from apps.api.agents.fact_agent import FactAgent
+
+    class UnavailableModel:
+        backend = "unavailable"
+        model = "unavailable"
+
+        def complete_json(self, *args, **kwargs):
+            raise RuntimeError("model unavailable")
+
+    agent = FactAgent("orbit", seeded.hive, UnavailableModel(), seeded.embedder, seeded.settings)
+    result = agent.run({"kind": "extract_episode", "payload": {"episode_id": "ep_mtg_orbit_001_001"}})
+    assert result.failed is True
+    assert "extract" in result.reason.lower()
+    assert result.steps[0]["result"]["failed_episodes"] == ["ep_mtg_orbit_001_001"]
+

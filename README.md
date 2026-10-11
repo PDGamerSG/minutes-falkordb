@@ -1,10 +1,12 @@
 # Minutes
 
-Shared, time-aware memory for agent teams, built on FalkorDB. Minutes turns what a team said in meetings and wrote in email into a graph that a team of agents reads, writes and hands work through. Every answer comes back with the path that produced it: who said it, in which meeting or email, at what time, and what it replaced.
+A Company Brain that remembers **who owns the work, why decisions changed, and what the team knew at the time**. Minutes connects meeting transcripts and email threads to people, decisions and commitments in FalkorDB. A changed deadline can trigger an agent handoff and an evidence-linked follow-up.
 
-Built for Graph Hacks: Context for AI Agents (WeMakeDevs x FalkorDB, Oct 15 to 18, 2026). Tracks entered: 2 (Agent Memory and Coordination) and 3 (Company Brain).
+Target: **Track 3 — Company Brain**, Graph Hacks: Context for AI Agents (Oct 15–18, 2026). Multi-agent memory supports that use case.
 
-> Status: under construction. Sections marked TODO are filled in as the build lands.
+**Status (Oct 9): local prototype, pre-event work.** The [event rules](https://www.wemakedevs.org/hackathons/falkordb/rules) require main coding/design to begin after the event starts. Confirm permitted reuse with organizers before submitting; this repository and audit must not be presented as work begun on Oct 15.
+
+Read the [visual design notes](docs/frontend-design.md), [decision-impact contract](docs/decision-impact.md), [audit and Track 3 assessment](docs/track3-readiness.md) and the [three-minute demo](docs/demo-script.md). Local graph behavior is verified; real-model extraction quality and production access control remain gaps.
 
 ## Team Vulcan
 
@@ -18,10 +20,11 @@ Built for Graph Hacks: Context for AI Agents (WeMakeDevs x FalkorDB, Oct 15 to 1
 ## What it does
 
 - **Episodic memory**: every utterance and every email becomes an `Episode` with a speaker or sender, a timestamp and an embedding, chained in order.
-- **Semantic memory**: facts, decisions and commitments are extracted by Gemma 4, validated, and stored bi-temporally (`valid_from`, `valid_to`). When a date moves or a vendor changes, the old fact is expired and linked with `SUPERSEDES`, even when the change came from a different source (a meeting commitment moved by an email).
+- **Semantic memory**: facts, decisions and commitments are extracted by the configured model (or replayed from gold labels in demo mode), validated, and stored bi-temporally (`valid_from`, `valid_to`). When a date moves or a vendor changes, the old fact is expired and linked with `SUPERSEDES`, even when the change came from a different source (a meeting commitment moved by an email).
 - **Procedural memory**: recurring routines (the standup) are learned as `Skill` nodes with ordered `Step`s and a success rate that updates every time an agent runs them.
 - **Coordination**: agents claim tasks with a compare-and-set Cypher query, hand off through `HANDED_OFF` edges that carry subgraph ids, and wake each other over Redis pub/sub on the same server. Task states follow A2A (submitted, working, input_required, completed, failed).
-- **Tenancy**: one FalkorDB graph per team plus a shared `commons` graph, enforced with per-graph ACL users. Remove FalkorDB and nothing works: memory, tasks, skills, tenancy and answers all live in the graph.
+- **Tenancy**: one FalkorDB graph per team plus a shared `commons` graph, with per-graph database ACL users. The HTTP API does not yet authenticate users or authorize tenant membership. Remove FalkorDB and nothing works: memory, tasks, skills, tenancy and answers all live in the graph.
+- **Decision impact**: a versioned delivery document explicitly links work to a decision and an owner. On a reversal, the overview identifies open work that needs review, preserves aligned/closed work, and saves an evidence-linked follow-up draft in FalkorDB. Nothing is sent externally.
 - **Explainability**: the Why panel shows the Cypher that ran, the subgraph it touched, the router decision, and a "play at timestamp" or "open email" link for every source.
 
 ## Repository
@@ -38,16 +41,45 @@ docs/                research, plan, contracts, demo script, benchmark results
 
 ## Run locally
 
+Prerequisites: Docker, Python 3.12 or 3.13, `uv`, Node.js 20+, and pnpm. Run this deterministic demonstration against **real FalkorDB**, with scripted agents and test embeddings:
+
 ```bash
-cp .env.example .env
-docker compose up -d falkordb          # FalkorDB 6.0.x on 6379, Browser on 3000
-uv sync
-uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --reset
-uv run --package minutes-api uvicorn apps.api.main:app --port 8000
-cd apps/web && pnpm install && pnpm dev -p 3001
+cp .env.example .env                  # on first setup only
+export LLM_BACKEND=fake EMBED_BACKEND=fake
+docker compose up -d falkordb         # image 6.0.1; DB 6379, browser 3000
+uv sync --all-packages
+uv run --package minutes-api python data/seed.py --tenants orbit,nimbus,quill --extract gold
+uv run --package minutes-api python data/seed_work.py --tenants orbit
+uv run --package minutes-api uvicorn apps.api.main:app --port 8080
 ```
 
-Models: default `.env` uses Ollama with `gemma4:e4b` locally (`ollama pull gemma4:e4b`). For the Gemini API set `LLM_BACKEND=gemini` and `GEMINI_API_KEY`; for OpenRouter set `LLM_BACKEND=openrouter` and `OPENROUTER_API_KEY`. Embeddings: EmbeddingGemma 768-d via ONNX Runtime on CPU (`EMBED_BACKEND=onnx`), or `fake` for tests.
+In a second terminal:
+
+```bash
+cd apps/web
+pnpm install --frozen-lockfile
+pnpm dev                             # http://localhost:3001
+```
+
+The work manifest references the exact reviewed gold facts. Import it after gold seeding; do not use these IDs as inferred links for live-model extraction. The Orbit fixture produces 5 tracked items: 3 need review, 1 is aligned, and 1 is closed.
+
+The web client defaults to API port 8080. On macOS with Colima, use your active Docker context (`docker --context colima compose ...` if needed). `--reset` deletes the selected tenant data; use it only for a disposable demo.
+
+`--extract gold` is the seed default and is **label replay, not live extraction**. With `LLM_BACKEND=fake`, agents follow scripted policies and answers use graph evidence templates. `EMBED_BACKEND=fake` is a deterministic test vectorizer. The shell labels both modes. Frontend-only fixtures require `NEXT_PUBLIC_MOCK=1`; connection failures do not switch to them.
+
+For live models, configure one supported provider in `.env`: Ollama (`LLM_BACKEND=ollama`), Gemini (`gemini` plus `GEMINI_API_KEY`) or OpenRouter (`openrouter` plus `OPENROUTER_API_KEY`). Verify your selected model ID and availability. Use `EMBED_BACKEND=onnx` with the configured EmbeddingGemma model, or `gemini` with a compatible `EMBED_MODEL` and key. API startup fails when a requested embedding backend cannot load. Keep the same embedding backend/model when seeding and querying; changing it requires rebuilding embeddings in a disposable or migrated graph.
+
+Live extraction must be selected explicitly with `data/seed.py --extract real`. The existing [extraction evaluation](docs/eval/extraction.md) reports precision **0.42**, recall **0.59**, F1 **0.49**; the audit did not rerun a real model. Keep live experiments separate from the demonstration data.
+
+Verify:
+
+```bash
+FALKORDB_URL=falkor://localhost:6379 uv run --all-packages pytest -q
+cd apps/web
+pnpm typecheck
+pnpm lint
+pnpm build
+```
 
 ## Graph data model
 
@@ -69,6 +101,11 @@ flowchart LR
     F -->|STATED_BY| P
     F -->|SUPERSEDES| F0[older Fact]
     F -->|PRECEDENT_FOR| F1[Fact]
+    W[WorkItem] -->|DEPENDS_ON| F0
+    W -->|OWNED_BY| P
+    W -->|DOCUMENTED_IN| D[Document]
+    FD[FollowUpDraft] -->|FOR_WORK| W
+    FD -->|BASED_ON| F
   end
   subgraph Procedural memory
     S[Skill goal, runs, success_rate, version, embedding] -->|STEP order| ST[Step tool, args_template, guard]
@@ -93,6 +130,7 @@ flowchart LR
 | Episode | id, seq, source_kind (utterance, email), text, t_start, t_end, t_occurred, t_ingested, embedding | episodic memory, chained by NEXT |
 | Entity | id, name, type, embedding | what episodes and facts are about; CO_MENTIONED edges feed WCC |
 | Fact (+Decision, +Commitment label) | id, key (subject plus predicate), object, text, confidence, valid_from, valid_to, created_at, expired_at, status, due_at | semantic memory, bi-temporal; status active, superseded or retracted |
+| WorkItem, Document, FollowUpDraft | work id/status/rationale; versioned document content; persisted draft payload | explicit decision dependencies and local follow-up evidence |
 | Task | id, kind, status (submitted, working, input_required, completed, failed), version, owner_agent, priority, payload | blackboard; version is the compare-and-set token |
 | Agent, Capability | id, name, model; name | who can claim what |
 | Skill, Step, FailureMode | id, goal, runs, success_rate, version, status, embedding; order, tool, args_template, guard | procedural memory with outcome statistics |
@@ -101,12 +139,14 @@ flowchart LR
 
 Indexes per tenant graph: range indexes on ids, timestamps and status; full-text on Episode, Fact and Decision text; HNSW vector indexes (768-d cosine, EmbeddingGemma) on Episode, Fact, Skill and Entity. See `cypher/00_schema.cypher`.
 
-Tenancy is enforced with Redis ACL users per graph. On FalkorDB 6.0.1 (and 4.22.0) the read-only key selector `%R~graph` that the docs show for read-only users rejects even `GRAPH.RO_QUERY`, because both graph commands declare their key with read-write flags (`%RW~` and `~` work). Minutes therefore enforces read-only access at the command level and isolation with key patterns:
+Database isolation is enforced for the tenant Redis ACL users. The current API uses an administrative connection and accepts tenant slugs without user authentication; these ACL tests do not establish HTTP authorization. On FalkorDB 6.0.1 (and 4.22.0) the read-only key selector `%R~graph` that the docs show for read-only users rejects even `GRAPH.RO_QUERY`, because both graph commands declare their key with read-write flags (`%RW~` and `~` work). Minutes therefore enforces read-only access at the command level and isolation with key patterns:
 
 ```
 ACL SETUSER team_<slug>_rw reset on ><pw> +INFO +PING +CLIENT|SETINFO +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.QUERY +GRAPH.PROFILE ~team_<slug> ~commons
 ACL SETUSER team_<slug>_ro reset on ><pw> +INFO +PING +CLIENT|SETINFO +GRAPH.RO_QUERY +GRAPH.EXPLAIN ~team_<slug> ~commons
 ```
+
+API startup restores missing runtime ACL users after a Redis restart, validates the read-only connection, and preserves existing credentials/policies (including disabled users). Startup failure prevents workers from starting.
 
 The read-only user cannot run `GRAPH.QUERY`, `GRAPH.RO_QUERY` rejects write clauses, and neither user can touch another tenant's graph (tested).
 
@@ -132,12 +172,13 @@ Every query the product depends on lives in `cypher/` and is loaded by name from
 - `60_pagerank_skills`: `algo.pageRank` over Task-USED-Skill
 - `61_wcc_entities`: `algo.WCC` over CO_MENTIONED entities
 - `70` to `74`: snapshot metadata and tenant registry in `commons`
+- `80` to `83`: atomic dependency import, impact traversal, version-checked local draft creation, draft history
 
 The retrieval policy is a JavaScript UDF stored in the database (`packages/hiveboard/hiveboard/udf/score.js`, loaded with `GRAPH.UDF LOAD REPLACE hive`): `hive.score(valid_from, confidence, distance, now)` = recency (exp of minus age in days over 30) times importance (confidence) times similarity (1 minus cosine distance).
 
 ## Benchmarks
 
-Harness: `packages/hiveboard/bench/harness.py`. N simulated agents across M tenant graphs, 80 percent reads (hybrid recall, active facts, task listing) and 20 percent writes (facts with supersession, claims, completions), plus a compare-and-set race on one task per tenant. `--procs` splits the client across processes so Python's GIL does not cap the load. Full method, machine and interpretation: [`docs/bench/README.md`](docs/bench/README.md); raw JSON in `docs/bench/`.
+These are recorded prior runs from the repository, not new measurements from the Oct 9 audit. No hosted performance claim is made. Harness: `packages/hiveboard/bench/harness.py`. N simulated agents across M tenant graphs, 80 percent reads (hybrid recall, active facts, task listing) and 20 percent writes (facts with supersession, claims, completions), plus a compare-and-set race on one task per tenant. `--procs` splits the client across processes so Python's GIL does not cap the load. Full method, machine and interpretation: [`docs/bench/README.md`](docs/bench/README.md); raw JSON in `docs/bench/`.
 
 Machine: one laptop (i9-13900HX, 48 GB RAM, Docker Desktop on WSL2), client and server on the same host, FalkorDB image defaults (THREAD_COUNT 32). These are not server-capacity numbers.
 
@@ -161,11 +202,11 @@ FalkorDB findings from this work, drafted as issues in [`docs/falkordb-issues.md
 
 ## Deployment
 
-TODO: Railway (FalkorDB template with volume + API) and Vercel (web). See `infra/`.
+Local operation is verified. Hosted deployment is not verified. See [deployment notes](infra/README.md), including the access-control work required before using private company data.
 
 ## AI assistance disclosure
 
-Claude Code was used for implementation, test generation and documentation under the team's direction. The graph model, architecture, Cypher and design decisions are the team's, and every member can explain them.
+Claude Code assisted the initial implementation, tests and documentation. Codex assisted the Oct 9 pre-event audit, sponsor research, bug fixes, regression tests and documentation. Team members must review this work, explain the implementation, and disclose assistance and permitted pre-event reuse accurately in the submission.
 
 ## License
 

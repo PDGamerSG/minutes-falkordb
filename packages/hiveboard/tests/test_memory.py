@@ -1,7 +1,8 @@
 import hiveboard as hb
 import pytest
-from conftest import BASE, DAY
 from hiveboard.embed import fake_embedding
+
+from .conftest import BASE, DAY
 
 
 def test_remember_episodes_creates_next_chain(db, tenant, seeded):
@@ -78,6 +79,19 @@ def test_remember_fact_and_supersede_fact_build_chain(db, tenant, seeded):
         hb.supersede_fact(
             db, tenant, old_id, {"subject": "UPI flow", "predicate": "due", "object": "x", "kind": "fact"}
         )
+
+
+def test_reimport_does_not_create_backwards_or_self_episode_links(db, tenant, seeded):
+    rows = [
+        {"id": f"ep{i}", "seq": i, "speaker_id": seeded["priya"], "text": f"Line {i}", "t_occurred": BASE + i}
+        for i in (1, 2, 3)
+    ]
+    hb.remember_episodes(db, tenant, seeded["meeting"], rows)
+    hb.remember_episodes(db, tenant, seeded["meeting"], rows[-1:])
+    edges = db.graph(tenant).query(
+        "MATCH (a:Episode)-[:NEXT]->(b:Episode) RETURN a.id, b.id ORDER BY a.id, b.id"
+    ).result_set
+    assert edges == [["ep1", "ep2"], ["ep2", "ep3"]]
 
 
 def test_remember_fact_auto_supersede_and_conflicts(db, tenant, seeded):

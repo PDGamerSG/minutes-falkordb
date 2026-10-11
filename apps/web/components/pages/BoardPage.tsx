@@ -352,8 +352,8 @@ export function BoardPage({ team }: { team: string }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Board"
-        description="Agents coordinate through the graph: submit, claim with compare-and-set, hand off with a subgraph reference, complete or fail. Live via SSE."
+        title="Work in motion."
+        description="Follow your agents from the first task to the final handoff. Shared context, visible progress, and a clear trail of what happened."
         actions={
           <>
             <StateBadge state={status} label={status === "open" ? "live" : status} pulse={status === "connecting" || status === "reconnecting"} />

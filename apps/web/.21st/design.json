@@ -1,0 +1,416 @@
+{
+  "version": 1,
+  "project": {
+    "name": "@minutes/web",
+    "productType": null,
+    "stack": [
+      "nextjs",
+      "react",
+      "shadcn",
+      "tailwind-v4"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "app/globals.css"
+    ],
+    "components": [
+      "components/ui"
+    ],
+    "assets": [],
+    "instructions": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "design": {
+    "colorMode": "light-and-dark",
+    "colors": {
+      "--color-background": {
+        "value": "var(--background)",
+        "source": "app/globals.css"
+      },
+      "--color-foreground": {
+        "value": "var(--foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-ring": {
+        "value": "var(--sidebar-ring)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-border": {
+        "value": "var(--sidebar-border)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-accent-foreground": {
+        "value": "var(--sidebar-accent-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-accent": {
+        "value": "var(--sidebar-accent)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-primary-foreground": {
+        "value": "var(--sidebar-primary-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-primary": {
+        "value": "var(--sidebar-primary)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar-foreground": {
+        "value": "var(--sidebar-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-sidebar": {
+        "value": "var(--sidebar)",
+        "source": "app/globals.css"
+      },
+      "--color-chart-5": {
+        "value": "var(--chart-5)",
+        "source": "app/globals.css"
+      },
+      "--color-chart-4": {
+        "value": "var(--chart-4)",
+        "source": "app/globals.css"
+      },
+      "--color-chart-3": {
+        "value": "var(--chart-3)",
+        "source": "app/globals.css"
+      },
+      "--color-chart-2": {
+        "value": "var(--chart-2)",
+        "source": "app/globals.css"
+      },
+      "--color-chart-1": {
+        "value": "var(--chart-1)",
+        "source": "app/globals.css"
+      },
+      "--color-ring": {
+        "value": "var(--ring)",
+        "source": "app/globals.css"
+      },
+      "--color-input": {
+        "value": "var(--input)",
+        "source": "app/globals.css"
+      },
+      "--color-border": {
+        "value": "var(--border)",
+        "source": "app/globals.css"
+      },
+      "--color-destructive": {
+        "value": "var(--destructive)",
+        "source": "app/globals.css"
+      },
+      "--color-accent-foreground": {
+        "value": "var(--accent-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-accent": {
+        "value": "var(--accent)",
+        "source": "app/globals.css"
+      },
+      "--color-muted-foreground": {
+        "value": "var(--muted-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-muted": {
+        "value": "var(--muted)",
+        "source": "app/globals.css"
+      },
+      "--color-secondary-foreground": {
+        "value": "var(--secondary-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-secondary": {
+        "value": "var(--secondary)",
+        "source": "app/globals.css"
+      },
+      "--color-primary-foreground": {
+        "value": "var(--primary-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-primary": {
+        "value": "var(--primary)",
+        "source": "app/globals.css"
+      },
+      "--color-popover-foreground": {
+        "value": "var(--popover-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-popover": {
+        "value": "var(--popover)",
+        "source": "app/globals.css"
+      },
+      "--color-card-foreground": {
+        "value": "var(--card-foreground)",
+        "source": "app/globals.css"
+      },
+      "--color-card": {
+        "value": "var(--card)",
+        "source": "app/globals.css"
+      },
+      "--color-state-submitted": {
+        "value": "var(--state-submitted)",
+        "source": "app/globals.css"
+      },
+      "--color-state-working": {
+        "value": "var(--state-working)",
+        "source": "app/globals.css"
+      },
+      "--color-state-input-required": {
+        "value": "var(--state-input-required)",
+        "source": "app/globals.css"
+      },
+      "--color-state-completed": {
+        "value": "var(--state-completed)",
+        "source": "app/globals.css"
+      },
+      "--color-state-failed": {
+        "value": "var(--state-failed)",
+        "source": "app/globals.css"
+      },
+      "--color-fact-active": {
+        "value": "var(--fact-active)",
+        "source": "app/globals.css"
+      },
+      "--color-fact-superseded": {
+        "value": "var(--fact-superseded)",
+        "source": "app/globals.css"
+      },
+      "--color-fact-retracted": {
+        "value": "var(--fact-retracted)",
+        "source": "app/globals.css"
+      },
+      "--background": {
+        "value": "oklch(0.16 0.008 255)",
+        "source": "app/globals.css"
+      },
+      "--foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--card-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--popover-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--primary": {
+        "value": "oklch(0.74 0.13 255)",
+        "source": "app/globals.css"
+      },
+      "--primary-foreground": {
+        "value": "oklch(0.15 0.01 255)",
+        "source": "app/globals.css"
+      },
+      "--secondary": {
+        "value": "oklch(0.26 0.008 255)",
+        "source": "app/globals.css"
+      },
+      "--secondary-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--muted": {
+        "value": "oklch(0.26 0.008 255)",
+        "source": "app/globals.css"
+      },
+      "--muted-foreground": {
+        "value": "oklch(0.7 0.01 255)",
+        "source": "app/globals.css"
+      },
+      "--accent": {
+        "value": "oklch(0.28 0.012 255)",
+        "source": "app/globals.css"
+      },
+      "--accent-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--destructive": {
+        "value": "oklch(0.7 0.18 22)",
+        "source": "app/globals.css"
+      },
+      "--border": {
+        "value": "oklch(1 0 0 / 10%)",
+        "source": "app/globals.css"
+      },
+      "--ring": {
+        "value": "oklch(0.74 0.13 255)",
+        "source": "app/globals.css"
+      },
+      "--chart-1": {
+        "value": "#4f7fe0",
+        "source": "app/globals.css"
+      },
+      "--chart-2": {
+        "value": "oklch(0.6 0.1 255)",
+        "source": "app/globals.css"
+      },
+      "--chart-3": {
+        "value": "#c47a30",
+        "source": "app/globals.css"
+      },
+      "--chart-4": {
+        "value": "oklch(0.62 0.1 60)",
+        "source": "app/globals.css"
+      },
+      "--chart-5": {
+        "value": "oklch(0.65 0.01 255)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-primary": {
+        "value": "oklch(0.74 0.13 255)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-primary-foreground": {
+        "value": "oklch(0.15 0.01 255)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-accent": {
+        "value": "oklch(0.26 0.01 255)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-accent-foreground": {
+        "value": "oklch(0.95 0.005 250)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-border": {
+        "value": "oklch(1 0 0 / 10%)",
+        "source": "app/globals.css"
+      },
+      "--sidebar-ring": {
+        "value": "oklch(0.74 0.13 255)",
+        "source": "app/globals.css"
+      }
+    },
+    "typography": {
+      "--font-sans": {
+        "value": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\",\n    Arial, \"Noto Sans\", sans-serif",
+        "source": "app/globals.css"
+      },
+      "--font-mono": {
+        "value": "ui-monospace, \"Cascadia Code\", \"JetBrains Mono\", \"Fira Code\", Menlo, Consolas,\n    \"Liberation Mono\", monospace",
+        "source": "app/globals.css"
+      },
+      "--font-heading": {
+        "value": "var(--font-sans)",
+        "source": "app/globals.css"
+      },
+      "--graph-text": {
+        "value": "oklch(0.85 0.01 255)",
+        "source": "app/globals.css"
+      }
+    },
+    "spacing": {},
+    "radius": {
+      "--radius-sm": {
+        "value": "calc(var(--radius) * 0.6)",
+        "source": "app/globals.css"
+      },
+      "--radius-md": {
+        "value": "calc(var(--radius) * 0.8)",
+        "source": "app/globals.css"
+      },
+      "--radius-lg": {
+        "value": "var(--radius)",
+        "source": "app/globals.css"
+      },
+      "--radius-xl": {
+        "value": "calc(var(--radius) * 1.4)",
+        "source": "app/globals.css"
+      },
+      "--radius-2xl": {
+        "value": "calc(var(--radius) * 1.8)",
+        "source": "app/globals.css"
+      },
+      "--radius-3xl": {
+        "value": "calc(var(--radius) * 2.2)",
+        "source": "app/globals.css"
+      },
+      "--radius-4xl": {
+        "value": "calc(var(--radius) * 2.6)",
+        "source": "app/globals.css"
+      },
+      "--radius": {
+        "value": "0.5rem",
+        "source": "app/globals.css"
+      }
+    },
+    "shadows": {},
+    "motion": {},
+    "density": "unknown"
+  },
+  "components": {
+    "installed": [
+      "badge",
+      "button",
+      "card",
+      "dialog",
+      "input",
+      "scroll-area",
+      "separator",
+      "sheet",
+      "skeleton",
+      "slider",
+      "sonner",
+      "table",
+      "tabs",
+      "textarea",
+      "tooltip"
+    ],
+    "preferredPrimitives": [],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [],
+    "avoid": []
+  },
+  "decisions": [],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "components/ui"
+    },
+    {
+      "fact": "design.colorMode:light-and-dark",
+      "source": "app/globals.css"
+    },
+    {
+      "fact": "design.tokens",
+      "source": "app/globals.css"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "AGENTS.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "CLAUDE.md"
+    },
+    {
+      "fact": "project.stack:nextjs",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:shadcn",
+      "source": "components.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v4",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-10-09T13:30:19.606Z"
+}

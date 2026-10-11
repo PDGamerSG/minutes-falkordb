@@ -1,6 +1,6 @@
 # Contract: HTTP API (`apps/api`, FastAPI) consumed by `apps/web`
 
-Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). JSON everywhere. Errors: `{"error": {"code": str, "message": str}}` with 4xx/5xx. All timestamps epoch ms. `tenant` is a team slug (`orbit`, `nimbus`, `quill` in the seed).
+Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8080`). JSON everywhere. Errors: `{"error": {"code": str, "message": str}}` with 4xx/5xx. All timestamps epoch ms. `tenant` is a team slug (`orbit`, `nimbus`, `quill` in the seed).
 
 ## Tenants
 - `GET /tenants` → `[{slug, display_name, graph, usage_mb, nodes, edges, counts: {episodes, facts, decisions, commitments, tasks, skills}, acl: {rw_user, ro_user, rules: [str]}}]`
@@ -18,6 +18,7 @@ Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). JSON everywhe
 - `GET /tenants/{tenant}/meetings/{id}/audio` → audio file if present (source_uri under data/meetings), else 404
 
 ## Memory
+- `GET /tenants/{tenant}/people` → `[{id, name, email?, role?}]`, sorted by case-insensitive name then ID. Only people recorded in this tenant are returned; an unknown tenant returns 404. Used for explicit work-owner selection.
 - `GET /tenants/{tenant}/facts?status=active&entity=...&kind=fact|decision|commitment` → `[{id, kind, subject, predicate, object, text, confidence, valid_from, valid_to, status, speaker: {id,name}, meeting: {id,title}, episode_id, due_at?}]`
 - `GET /tenants/{tenant}/why/{node_id}` → `{node, speaker, meeting, episode: {id, text, t_start, t_end}, history: [...], cypher, subgraph: {nodes: [{id, label, props}], edges: [{source, target, type, props}]}}`
 - `GET /tenants/{tenant}/belief?t={ms}&entity={id?}` → `{t, facts: [...], cypher}`
@@ -27,6 +28,15 @@ Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). JSON everywhe
 - `GET /tenants/{tenant}/analytics/open-commitments?person=...` → `[...]`
 - `GET /tenants/{tenant}/analytics/contradictions` → `[{key, facts: [a, b]}]`
 - `GET /tenants/{tenant}/analytics/clusters` → `[{component, entities: [...]}]`
+
+## Decision impact
+
+- `POST /tenants/{tenant}/work-items/import` → `{imported, document_id}`. Accepts a versioned dependency document and 1–200 work items with explicit owner and baseline fact IDs. Used by both the seed script and the overview's connect/edit form.
+- `GET /tenants/{tenant}/impact` → `{summary, items, cypher}`. Items include original/current evidence, owner, assessment, dependency document, graph path and a matching local draft.
+- `POST /tenants/{tenant}/impact/{work_id}/draft` `{current_fact_id}` → persisted local draft. Repeated creation is idempotent; stale or nonreviewable requests return 409.
+- `GET /tenants/{tenant}/impact/drafts` → historical local drafts, including those from earlier dependency versions.
+
+See [decision-impact.md](../decision-impact.md) for complete manifest fields, assessment rules, versioning and result limits.
 
 ## Chat (AnswerAgent)
 - `POST /tenants/{tenant}/chat` `{message, session_id?}` → `{answer, session_id, router: {intent, entities: [str], route: "vector"|"graph"|"template"|"freeform_ro", template?: str}, cypher: [str], subgraph: {nodes, edges}, sources: [{fact_id, speaker, meeting, t_start}], episodes: [{episode_id, kind, speaker, container_id, meeting|thread, t_start|sent_at, text, t, score}], model, latency_ms}`. `episodes` are the raw utterances and emails retrieved by episode recall (vector KNN plus full-text, fused by reciprocal rank) and shown to the model as evidence; the Why subgraph includes them.

@@ -1,7 +1,6 @@
 // Typed client for docs/contracts/http-api.md (+ email-format.md additions).
-// Every call falls back to lib/mock.ts when the API is unreachable, times out,
-// or returns 5xx; 4xx errors propagate. Fallbacks are recorded in mock-state so
-// the shell can show a "mock data" badge. NEXT_PUBLIC_MOCK=1 forces mock mode.
+// Mock data is available only through explicit NEXT_PUBLIC_MOCK=1 preview mode.
+// Live failures propagate: an import or action must never report fabricated success.
 
 import * as mock from "./mock";
 import { isForcedMock, markLive, markMock } from "./mock-state";
@@ -34,7 +33,7 @@ import type {
   WhyResponse,
 } from "./types";
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -95,33 +94,15 @@ async function request<T>(path: string, opts: ReqOpts = {}): Promise<T> {
   }
 }
 
-function canFallBack(e: unknown): boolean {
-  if (e instanceof ApiError) return e.status >= 500;
-  return true; // network error, CORS, abort/timeout
-}
-
-function reasonOf(e: unknown): string {
-  if (e instanceof ApiError) return `${e.status} ${e.code}`;
-  if (e instanceof DOMException && e.name === "AbortError") return "timeout";
-  if (e instanceof Error) return e.message || e.name;
-  return "unreachable";
-}
-
-/** Run a live call; on failure use the mock. `mock` returning null means 404. */
+/** Run a live call, or an explicitly selected preview. `mock` returning null means 404. */
 async function withMock<T>(route: string, live: () => Promise<T>, mockFn: () => T | null): Promise<T> {
   if (isForcedMock()) {
     markMock(route, "NEXT_PUBLIC_MOCK=1");
     return resolveMock(route, mockFn);
   }
-  try {
-    const r = await live();
-    markLive(route);
-    return r;
-  } catch (e) {
-    if (!canFallBack(e)) throw e;
-    markMock(route, reasonOf(e));
-    return resolveMock(route, mockFn);
-  }
+  const r = await live();
+  markLive(route);
+  return r;
 }
 
 function resolveMock<T>(route: string, mockFn: () => T | null): T {
@@ -202,18 +183,20 @@ export const api = {
     /** HEAD-ish probe: true only when the API serves audio for this meeting. */
     async hasAudio(tenant: string, meetingId: string): Promise<boolean> {
       if (isForcedMock()) return false;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 3000);
         const res = await fetch(api.meetings.audioUrl(tenant, meetingId), {
           method: "GET",
           headers: { Range: "bytes=0-0" },
           signal: ctrl.signal,
         });
-        clearTimeout(t);
+        await res.body?.cancel();
         return res.ok;
       } catch {
         return false;
+      } finally {
+        clearTimeout(t);
       }
     },
   },
@@ -303,6 +286,21 @@ export const api = {
       ),
     clusters: (tenant: string) =>
       withMock("GET /tenants/{t}/analytics/clusters", () => request<Cluster[]>(`/tenants/${enc(tenant)}/analytics/clusters`), mock.mockClusters),
+  },
+  impact: {
+    get: (tenant: string) => withMock("GET /tenants/{t}/impact", () => request<import("./types").ImpactResponse>(`/tenants/${enc(tenant)}/impact`), () => null),
+    draft: (tenant: string, workItemId: string, currentFactId: string) => request<import("./types").ImpactDraft>(`/tenants/${enc(tenant)}/impact/${enc(workItemId)}/draft`, { method: "POST", body: { current_fact_id: currentFactId }, timeoutMs: 15000 }),
+    drafts: (tenant: string) => request<import("./types").ImpactDraft[]>(`/tenants/${enc(tenant)}/impact/drafts`),
+  },
+  people: {
+    list: (tenant: string) => isForcedMock()
+      ? Promise.reject(new ApiError(409, "preview_mode", "Connecting work requires a live workspace. This preview uses fixture data."))
+      : request<import("./types").PersonRef[]>(`/tenants/${enc(tenant)}/people`),
+  },
+  work: {
+    save: (tenant: string, body: import("./types").WorkManifest) => isForcedMock()
+      ? Promise.reject(new ApiError(409, "preview_mode", "Connecting work requires a live workspace. This preview uses fixture data."))
+      : request<{ imported: number; document_id: string }>(`/tenants/${enc(tenant)}/work-items/import`, { method: "POST", body, timeoutMs: 15000 }),
   },
 
   // ---------- chat ----------

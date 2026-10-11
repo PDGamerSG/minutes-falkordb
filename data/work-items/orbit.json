@@ -1,0 +1,50 @@
+{
+  "document": {
+    "title": "Orbit delivery plan \u00b7 dependency register",
+    "uri": "synthetic://orbit/delivery-plan-v1",
+    "content": "Orbit delivery plan \u2014 synthetic demonstration document\n\nThese work items and dependencies are authored fixtures, not inferred from source co-mentions. Each entry below explicitly records a baseline fact, accountable owner and reason for the dependency. They extend the existing synthetic meetings and emails.\n\nUpdate the payment integration runbook\nOwner: spk_priya. Status: open. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThe runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions.\n\nReview navigation accessibility tests\nOwner: spk_sana. Status: open. Baseline: [fact_ep_mtg_orbit_001_035_00].\nThe accessibility test plan was written for the bottom tab bar. A new navigation pattern changes focus order and tap-target checks.\n\nRefresh the UPI release handoff\nOwner: spk_rahul. Status: open. Baseline: [fact_ep_mtg_orbit_001_020_00].\nThe release handoff document still records September 24 for the UPI delivery. Review the documented date and completion evidence before sharing it.\n\nMaintain the October release checklist\nOwner: spk_aditya. Status: open. Baseline: [fact_ep_mtg_orbit_001_010_00].\nThe launch checklist is planned against the recorded October 16 release date.\n\nArchive the original vendor sandbox spike\nOwner: spk_priya. Status: completed. Baseline: [fact_ep_mtg_orbit_001_017_00].\nThis completed discovery spike tested the original Razorpay choice. It is retained as history and should not receive a new follow-up.",
+    "synthetic": true
+  },
+  "items": [
+    {
+      "id": "work_orbit_payment_runbook",
+      "title": "Update the payment integration runbook",
+      "status": "open",
+      "owner_id": "spk_priya",
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+      "rationale": "The runbook specifies Razorpay APIs and onboarding steps; a vendor change requires a review of those instructions."
+    },
+    {
+      "id": "work_orbit_navigation_qa",
+      "title": "Review navigation accessibility tests",
+      "status": "open",
+      "owner_id": "spk_sana",
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_035_00",
+      "rationale": "The accessibility test plan was written for the bottom tab bar. A new navigation pattern changes focus order and tap-target checks."
+    },
+    {
+      "id": "work_orbit_release_handoff",
+      "title": "Refresh the UPI release handoff",
+      "status": "open",
+      "owner_id": "spk_rahul",
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_020_00",
+      "rationale": "The release handoff document still records September 24 for the UPI delivery. Review the documented date and completion evidence before sharing it."
+    },
+    {
+      "id": "work_orbit_launch_checklist",
+      "title": "Maintain the October release checklist",
+      "status": "open",
+      "owner_id": "spk_aditya",
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_010_00",
+      "rationale": "The launch checklist is planned against the recorded October 16 release date."
+    },
+    {
+      "id": "work_orbit_sandbox_spike",
+      "title": "Archive the original vendor sandbox spike",
+      "status": "completed",
+      "owner_id": "spk_priya",
+      "baseline_fact_id": "fact_ep_mtg_orbit_001_017_00",
+      "rationale": "This completed discovery spike tested the original Razorpay choice. It is retained as history and should not receive a new follow-up."
+    }
+  ]
+}

@@ -1440,7 +1440,7 @@ export function mockRunSkill(goal: string): { task_id: string } {
 export const mockBench = (): BenchResult[] => BENCH;
 export const mockHealth = (): Health => ({
   ok: true,
-  falkordb: { version: "6.0.1", graphs: 4 },
+  falkordb: { version: "simulated", graphs: ["team_orbit", "team_nimbus", "team_quill"], kind: "fake" },
   llm: { backend: "ollama", model: "gemma4:e4b" },
   embeddings: { model: "embeddinggemma-300m", dim: 768 },
 });
