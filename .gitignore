@@ -25,7 +25,3 @@ docs/03-linkedin-post.md
 docs/04-falkordb-alignment.md
 docs/05-decision-and-stack.md
 docs/team-brief.html
-
-# Claude Code local state
-.claude/scheduled_tasks.lock
-.claude/settings.local.json

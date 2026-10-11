@@ -16,12 +16,12 @@ Sources, in build priority: 1. meetings (the spine), 2. email threads (same extr
 | When | What is allowed | What we do |
 |---|---|---|
 | Now to Oct 14 | Ideas, notes, graph model, diagrams, data you own, accounts, reading. Reusing general libraries, templates and infrastructure. | Everything in Phase 0 below: schema frozen, diagrams, meeting scripts recorded and diarized, gold facts labelled, accounts and keys, local environment, prompt drafts, test cases written as specs, this plan. **No application code in the submission repo.** |
-| Oct 15 (Day 1) | Coding starts 00:01 IST | **Build day.** Teammates drive Claude Code through Phases 1 to 6 in parallel streams. Target: end-to-end working by evening. |
+| Oct 15 (Day 1) | Coding starts 00:01 IST | **Build day.** Teammates drive an AI coding assistant through Phases 1 to 6 in parallel streams. Target: end-to-end working by evening. |
 | Oct 16 to 18 | Build continues | Hardening: tests, extraction eval, load test, demo rehearsal, video, README, blog, LinkedIn, submit Oct 18 by 9 PM IST. |
 
-Why this still fits your constraint: the build is mostly Claude Code executing a plan that is already specified to the file level. Your teammates need to run it, review it and answer design questions; you can join when the interview is done. Days 2 to 4 are the rigorous testing you want.
+Why this still fits your constraint: the build is mostly an AI coding assistant executing a plan that is already specified to the file level. Your teammates need to run it, review it and answer design questions; you can join when the interview is done. Days 2 to 4 are the rigorous testing you want.
 
-AI disclosure (goes in the README): "Claude Code was used for implementation, test generation and documentation under the team's direction; the graph model, architecture, Cypher and all design decisions are the team's and every member can explain them."
+AI disclosure (goes in the README): "AI coding assistants were used for implementation, test generation and documentation under the team's direction; the graph model, architecture, Cypher and all design decisions are the team's and every member can explain them."
 
 ---
 
@@ -36,7 +36,7 @@ AI disclosure (goes in the README): "Claude Code was used for implementation, te
                                                       |  remember / recall / claim / handoff / reflect       one graph per team
                                                       |  Redis pub/sub on the same server (agent wake-ups)   + commons graph
                                                       v                                                     + ACL user per team
-                                               [packages/hiveboard/mcp_server.py]  (MCP: memory-semantic tools for Claude / Cursor)
+                                               [packages/hiveboard/mcp_server.py]  (MCP: memory-semantic tools for MCP clients)
 ```
 
 Design rules (what judges have praised, in writing):
@@ -336,7 +336,7 @@ Agents and their tools:
 
 ## 6. Build day (Oct 15): three parallel streams, hour by hour (IST)
 
-Each stream is a teammate driving Claude Code with this document open. Streams own disjoint directories to avoid merge conflicts.
+Each stream is a teammate driving an AI coding assistant with this document open. Streams own disjoint directories to avoid merge conflicts.
 
 | Hour | Stream A: substrate (`packages/hiveboard`) | Stream B: ingestion + agents (`packages/ingest`, `apps/api`) | Stream C: web + ops (`apps/web`, `infra`, `docs`) |
 |---|---|---|---|
@@ -431,7 +431,7 @@ Definition of done for Day 1: the demo path above runs on the live URL without m
 | FalkorDB 6.0 edge cases | medium | pin after the first-hour test; 4.22 fallback; file issues |
 | Extraction quality on our recordings | medium | we wrote the scripts, so gold is exact; two prompt iterations max; show the drop rate honestly |
 | Railway cost creep | low | one 1 GB container, keep-warm every 10 min, budget $15; Oracle VM as the $0 escape |
-| Team member unavailable on Day 1 | known | streams are independent; Claude Code executes; the plan is file-level |
+| Team member unavailable on Day 1 | known | streams are independent; the coding assistant executes; the plan is file-level |
 | Scope creep | high | Definition of done is the Day-1 demo path; everything else is stretch |
 
 ---

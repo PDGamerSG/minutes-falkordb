@@ -206,7 +206,7 @@ Local operation is verified. Hosted deployment is not verified. See [deployment 
 
 ## AI assistance disclosure
 
-Claude Code assisted the initial implementation, tests and documentation. Codex assisted the Oct 9 pre-event audit, sponsor research, bug fixes, regression tests and documentation. Team members must review this work, explain the implementation, and disclose assistance and permitted pre-event reuse accurately in the submission.
+AI coding assistants were used for parts of the implementation, tests, research, audits and documentation, under the team's direction. Team members must review this work, explain the implementation, and disclose assistance and permitted pre-event reuse accurately in the submission.
 
 ## License
 

@@ -46,7 +46,7 @@ v5 scores precision 0.42 and recall 0.59 strict, but 32 of 44 misses have a near
 
 1. Per-tenant API key plus admin token (S). Unlocks a public deployment and makes the ACL probe an HTTP boundary too.
 2. Task lease and reaper plus deterministic Scheduler claim (S). Makes the coordination demo survive restarts.
-3. MCP over HTTP with the real embedder (S to M). A Claude or Cursor session recalling team memory live is a strong Track 2 moment; today the MCP server is stdio-only and recalls with fake vectors.
+3. MCP over HTTP with the real embedder (S to M). An IDE assistant recalling team memory live over MCP is a strong Track 2 moment; today the MCP server is stdio-only and recalls with fake vectors.
 4. Forgetting with audit: `retract_fact` exists in the substrate with no route; add `POST /facts/{id}/retract`, an archive job and a `GET /audit` (M). The Cognee hackathon winner won on exactly this.
 5. Handoff visualisation data and an A2A task surface with an agent card (S each). The README already claims A2A states.
 6. Streaming chat so the Why panel fills while the 7 to 17 s answer is written (M).

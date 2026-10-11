@@ -16,7 +16,7 @@ Generated from project sources at 2026-10-09T13:30:19.606Z.
 - Tokens: app/globals.css
 - Components: components/ui
 - Assets: None detected
-- Instructions: AGENTS.md, CLAUDE.md
+- Instructions: AGENTS.md
 
 ## Components
 

@@ -19,8 +19,7 @@
     ],
     "assets": [],
     "instructions": [
-      "AGENTS.md",
-      "CLAUDE.md"
+      "AGENTS.md"
     ]
   },
   "design": {
@@ -390,10 +389,6 @@
     {
       "fact": "project.instructions",
       "source": "AGENTS.md"
-    },
-    {
-      "fact": "project.instructions",
-      "source": "CLAUDE.md"
     },
     {
       "fact": "project.stack:nextjs",
