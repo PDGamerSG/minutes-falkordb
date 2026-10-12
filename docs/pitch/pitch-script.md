@@ -65,7 +65,7 @@ In words: start at each work item and the fact it depends on; find the active fa
 3. **Say nothing the data does not support.** The demo graph is synthetic and replays reviewed gold labels; one live import is shown separately and live extraction is scored on its own (P 0.42 / R 0.59 strict). The work dependencies come from an authored, synthetic delivery register, not from inference. There is no HTTP user auth yet.
 4. **Do not click "Prepare follow-up" in the timed take.** The board's FollowUp agent drafts the follow-up in this script. If a rehearsal saved a local draft on the runbook, the row shows it; reseed to clear it.
 5. **Leave `GITHUB_TOKEN` unset** so the FollowUp artifact shows **simulated**. Make sure `NEXT_PUBLIC_MOCK` is unset (no mock badge on screen).
-6. **Rehearse the board twice before the take.** The Scheduler-to-FollowUp handoff and the Scheduler wake-up are being fixed (`docs/review/README.md`, P0-3 and P0-4). If the trace lacks `handed_off`, reseed and record that shot again. "Induce double claim" registers 25 throwaway agents; the board then shows them as one summary card, which is fine on camera.
+6. **Rehearse the board once before the take.** The Scheduler-to-FollowUp handoff is deterministic since the Oct 12 fixes (verified live: claimed by scheduler, handed_off "moved from 2026-10-01 to 2026-10-02, owned by Priya", claimed by followup, simulated artifact, completed). Each run moves the date again, so reseed with `--reset` (and re-run the work register seed) right before the take. "Induce double claim" reuses the same 25 demo agents; the board shows them as one summary card.
 7. **Health check:** `http://localhost:8080/health` returns 200. `/t/orbit` shows the 5 tracked items, and the runbook row reads Razorpay → PayU with Priya.
 8. **Browser:** Chrome, window 1600x900, zoom 100%, light theme, a clean profile with no extensions, bookmarks bar hidden. Use one tab per URL below, opened in order.
 9. **Tenant:** Orbit for everything.
@@ -78,7 +78,7 @@ In words: start at each work item and the fact it depends on; find the active fa
     - `http://localhost:3001/t/orbit/timeline?t=1789540200000` (Sept 16 2026 12:00 IST. For Sept 10, use `t=1789021800000`)
     - `http://localhost:3001/t/orbit/skills`
 11. **Audio:** meeting `.wav` files are not in the repo. Without them, the evidence links show the transcript line at that offset. Say "transcript line", not "recording".
-12. **Disclose in the submission:** synthetic data, gold-label replay with one live import, scripted versus Gemma answer modes, no HTTP auth, AI assistance, and the open question of pre-event reuse recorded in `docs/track3-readiness.md`.
+12. **Disclose in the submission:** synthetic data, gold-label replay with one live import, scripted versus Gemma answer modes, that per-tenant API keys exist but are off in the local demo (`TENANT_KEYS_REQUIRED`), AI assistance, and the open question of pre-event reuse recorded in `docs/track3-readiness.md`.
 13. **Do not show** any `.env` file, the FalkorDB Browser on port 3000, or the ACL passwords.
 
 ## Speaking notes: eight lines not to get wrong

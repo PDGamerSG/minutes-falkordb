@@ -1,5 +1,11 @@
 # Backend review, 2026-10-12: consolidated findings and fix plan
 
+## Status (updated 2026-10-12, evening)
+
+All priority 0 and priority 1 items below are fixed, tested and committed (substrate `8c2a01c`, ingest `059766f`, API `e71f3a6`, follow-ups `70c0d75`, `7a6c07a`). Tests: 86 substrate (real FalkorDB 6.0.1), 111 ingestion, 172 API, all passing together. The interface the three streams agreed on is in [fix-contract.md](fix-contract.md). Verified live on the demo database after a fresh seed: the decision-impact overview shows 5 tracked work items (3 need review, 1 aligned, 1 closed); the UPI chain reads 24 -> 25 -> 28 across speech and email; the ACL probe refuses a cross-tenant read; "move it to Friday" runs scheduler claim -> handoff ("moved from 2026-10-01 to 2026-10-02, owned by Priya") -> followup claim -> simulated issue -> completed; the 25-agent race has exactly one winner. The API container builds, bakes the embedding model in, runs offline as a non-root user and reports healthy.
+
+Still open (priority 2 and features): no UI to enter API keys (set them in browser storage for now); no per-person identity inside a tenant; the only rate limit is the model token budget; the multipart mbox path parses before its size check (the Content-Length precheck covers normal uploads); on Linux the Hugging Face cache's symlinked weights must be flattened for ONNX Runtime (the Dockerfile does this; `packages/ingest/ingest/embed.py` does not yet); extraction quality (strict P 0.42 / R 0.59; partial credit P 0.49 / R 0.69); and the feature list at the end of this file.
+
 Three read-only audits, one per layer, against FalkorDB 6.0.1: [substrate and Cypher](01-substrate.md) (27 findings), [ingestion and seed](02-ingest.md) (20 findings), [API, agents, LLM, operations](03-api.md) (30 findings). Baseline at review time: 44 substrate, 81 ingestion and 109 API tests pass. Every finding below cites a file and line in its report.
 
 ## What works, verified
