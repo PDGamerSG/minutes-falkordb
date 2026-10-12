@@ -32,4 +32,4 @@ Priority 0 and priority 1 items from `docs/review/README.md` are being fixed in 
 
 ## Rules for every stream
 
-No git commands. No mention of Claude or Anthropic anywhere in code, comments, docs, prompts or test data. Keep all storage on drive D. Never touch the demo database on 6379; use the scratch FalkorDB on 6383.
+No git commands. No AI-assistant product names anywhere in code, comments, docs, prompts or test data. Keep all storage on drive D. Never touch the demo database on 6379; use the scratch FalkorDB on 6383.
