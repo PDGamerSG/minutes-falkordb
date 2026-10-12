@@ -1,4 +1,5 @@
-// 51_open_commitments: ACTIVE commitments with owner and the person who stated them, optionally for one person, soonest due first. Params: $person (or NULL).
+// 51_open_commitments: ACTIVE commitments with owner and the person who stated them, optionally for one person, soonest due first.
+// Params: $person (or NULL), $limit.
 MATCH (c:Fact:Commitment {status: 'active'})
 OPTIONAL MATCH (c)-[:OWNED_BY]->(p:Person)
 WITH c, p
@@ -22,3 +23,4 @@ RETURN c {.id, .kind, .subject, .predicate, .object, .key, .text, .confidence, .
        sp {.id, .name, .role, .email, labels: labels(sp)} AS speaker,
        collect(DISTINCT en {.id, .name, .type, labels: labels(en)}) AS entities
 ORDER BY coalesce(c.due_at, 9223372036854775807) ASC, c.valid_from DESC
+LIMIT $limit

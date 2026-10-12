@@ -68,7 +68,7 @@ async def test_mcp_server_exposes_tools_and_runs_recall(db, tenant, seeded):
     assert recalled["items"][0]["id"] == seeded["fact"] and "hive.score" in recalled["cypher"]
     belief = _tool_payload(await server.call_tool("belief_at", {"tenant": tenant, "t_ms": hb.now_ms()}))
     assert [f["object"] for f in belief["facts"]] == ["Thursday"]
-    hb.register_agent(db, tenant, "agt_mcp", "MCP", ["followup"], "claude")
+    hb.register_agent(db, tenant, "agt_mcp", "MCP", ["followup"], "assistant")
     task_id = hb.submit_task(db, tenant, "followup", {}, ["followup"])
     won = _tool_payload(
         await server.call_tool(

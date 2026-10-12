@@ -8,6 +8,7 @@ from .records import CypherRows, brief, props
 from .temporal import now_ms
 
 RO_TIMEOUT_MS = 3000
+DEFAULT_LIMIT = 500
 
 
 def owners(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
@@ -20,10 +21,10 @@ def owners(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
     ], query)
 
 
-def who_knows(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
+def who_knows(db: HiveDB, tenant: str, entity_name: str, limit: int = DEFAULT_LIMIT) -> CypherRows:
     """People ranked by how many episodes mentioning the entity they spoke, sent or received."""
     query = load_cypher("who_knows")
-    res = db.ro(tenant).ro_query(query, {"name": entity_name}, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(query, {"name": entity_name, "limit": int(limit)}, timeout=RO_TIMEOUT_MS)
     rows = [
         {"person": {"id": pid, "name": name}, "mentions": mentions, "last_at": last_at, "via": via}
         for pid, name, mentions, last_at, via in res.result_set
@@ -31,10 +32,12 @@ def who_knows(db: HiveDB, tenant: str, entity_name: str) -> CypherRows:
     return CypherRows(rows, query)
 
 
-def open_commitments(db: HiveDB, tenant: str, person_id: str | None = None) -> CypherRows:
+def open_commitments(
+    db: HiveDB, tenant: str, person_id: str | None = None, limit: int = DEFAULT_LIMIT
+) -> CypherRows:
     """ACTIVE commitments (optionally one owner), soonest due first, with `owner`, `speaker` and `entities`."""
     query = load_cypher("open_commitments")
-    res = db.ro(tenant).ro_query(query, {"person": person_id}, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(query, {"person": person_id, "limit": int(limit)}, timeout=RO_TIMEOUT_MS)
     rows = []
     for c, owner, speaker, entities in res.result_set:
         rec = props(c) or {}
@@ -45,10 +48,10 @@ def open_commitments(db: HiveDB, tenant: str, person_id: str | None = None) -> C
     return CypherRows(rows, query)
 
 
-def contradictions(db: HiveDB, tenant: str) -> CypherRows:
+def contradictions(db: HiveDB, tenant: str, limit: int = DEFAULT_LIMIT) -> CypherRows:
     """Pairs of ACTIVE facts sharing a key with different objects: `[{key, facts: [a, b]}]`."""
     query = load_cypher("contradictions")
-    res = db.ro(tenant).ro_query(query, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(query, {"limit": int(limit)}, timeout=RO_TIMEOUT_MS)
     return CypherRows([{"key": key, "facts": [props(a), props(b)]} for key, a, b in res.result_set], query)
 
 
@@ -61,11 +64,13 @@ def entity_clusters(db: HiveDB, tenant: str) -> CypherRows:
     )
 
 
-def stale_decisions(db: HiveDB, tenant: str, older_than_ms: int) -> CypherRows:
+def stale_decisions(db: HiveDB, tenant: str, older_than_ms: int, limit: int = DEFAULT_LIMIT) -> CypherRows:
     """ACTIVE decisions older than `older_than_ms` (an age, not a timestamp) with decider, entities and `age_ms`."""
     query = load_cypher("stale_decisions")
     now = now_ms()
-    res = db.ro(tenant).ro_query(query, {"cutoff": now - int(older_than_ms)}, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(
+        query, {"cutoff": now - int(older_than_ms), "limit": int(limit)}, timeout=RO_TIMEOUT_MS
+    )
     rows = []
     for d, decider, entities in res.result_set:
         rec = props(d) or {}

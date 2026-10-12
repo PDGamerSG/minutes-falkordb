@@ -6,16 +6,18 @@ from .board import (
     complete,
     fail,
     handoff,
+    heartbeat,
     list_agents,
     list_tasks,
     need_input,
     next_open_task,
+    reap_expired,
     register_agent,
     submit_task,
     task_trace,
 )
-from .db import HiveDB
-from .embed import fake_embedding
+from .db import HiveDB, validate_slug
+from .embed import fake_embedding, validate_embedding
 from .errors import Conflict, HiveError, NotFound
 from .events import asubscribe, publish, subscribe
 from .memory import (
@@ -23,7 +25,9 @@ from .memory import (
     belief_at,
     fact_key,
     fulltext,
+    insert_fact_in_chain,
     link_mentions,
+    normalize_object,
     recall,
     remember_email_episodes,
     remember_entities,
@@ -56,8 +60,11 @@ from .tenancy import (
     acl_rules,
     create_tenant,
     delete_tenant,
+    ensure_tenant_access,
+    get_tenant_meta,
     list_registered_tenants,
     list_snapshots,
+    set_tenant_meta,
     snapshot,
 )
 
@@ -79,13 +86,17 @@ __all__ = [
     "deprecate_skill",
     "ensure_commons_schema",
     "ensure_schema",
+    "ensure_tenant_access",
     "entity_clusters",
     "fact_key",
     "fail",
     "fake_embedding",
     "fulltext",
     "get_skill",
+    "get_tenant_meta",
     "handoff",
+    "heartbeat",
+    "insert_fact_in_chain",
     "iso_to_ms",
     "learn_skill",
     "link_mentions",
@@ -100,10 +111,12 @@ __all__ = [
     "ms_to_iso",
     "need_input",
     "next_open_task",
+    "normalize_object",
     "now_ms",
     "open_commitments",
     "publish",
     "publish_to_commons",
+    "reap_expired",
     "recall",
     "record_outcome",
     "register_agent",
@@ -117,6 +130,7 @@ __all__ = [
     "remember_thread",
     "retract_fact",
     "retrieve_skill",
+    "set_tenant_meta",
     "skill_pagerank",
     "snapshot",
     "stale_decisions",
@@ -126,6 +140,8 @@ __all__ = [
     "task_trace",
     "to_ms",
     "upsert_entities",
+    "validate_embedding",
+    "validate_slug",
     "who_knows",
     "why",
 ]

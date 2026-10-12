@@ -97,3 +97,25 @@ def test_closed_work_and_changed_owner_reject_inflight_draft(db, tenant, seeded)
     assert impact.save_draft(db, tenant, draft) is None
     impact.import_manifest(db, tenant, manifest(seeded, owner_id=seeded["priya"]))
     assert impact.save_draft(db, tenant, draft) is None
+
+
+def test_draft_validation_and_id_reuse_are_refused(db, tenant, seeded):
+    newer, draft = _draft(db, tenant, seeded)
+    with pytest.raises(ValueError, match="missing"):
+        impact.save_draft(db, tenant, {k: v for k, v in draft.items() if k != "owner_id"})
+    with pytest.raises(ValueError, match="missing"):
+        impact.save_draft(db, tenant, {**draft, "document_id": ""})
+    # the same draft id for a second work item is a conflict, never a second attachment
+    second = manifest(seeded)
+    second["items"][0] = {**second["items"][0], "id": "work_other"}
+    impact.import_manifest(db, tenant, second)
+    with pytest.raises(hb.Conflict, match="another work item"):
+        impact.save_draft(db, tenant, {**draft, "work_item_id": "work_other"})
+    assert len(impact.list_drafts(db, tenant)) == 1
+    assert db.graph(tenant).query("MATCH (d:FollowUpDraft) RETURN count(d), collect(d.work_item_id)").result_set == [
+        [1, ["work_release"]]
+    ]
+    with pytest.raises(ValueError, match="distinct"):
+        impact.import_manifest(db, tenant, {"document": {"id": "d"}, "items": []})
+    with pytest.raises(ValueError, match="missing"):
+        impact.import_manifest(db, tenant, {"document": {"id": "d"}, "items": [{"id": "w"}]})

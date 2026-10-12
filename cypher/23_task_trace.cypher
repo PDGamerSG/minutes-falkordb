@@ -8,5 +8,7 @@ OPTIONAL MATCH (t)-[:PRODUCED]->(ar:Artifact)
 WITH t, claims, handoffs, collect({t: ar.created_at, type: 'artifact', artifact: {id: ar.id, kind: ar.kind, uri: ar.uri, text: ar.text}}) AS artifacts
 OPTIONAL MATCH (t)-[:USED]->(s:Skill)
 WITH t, claims, handoffs, artifacts, collect({t: t.updated_at, type: 'skill_used', skill: {id: s.id, goal: s.goal}}) AS skills
+OPTIONAL MATCH (t)-[l:LEASE_EXPIRED]->(la:Agent)
+WITH t, claims, handoffs, artifacts, skills, collect({t: l.at, type: 'lease_expired', agent: la.id}) AS leases
 OPTIONAL MATCH (t)-[:ABOUT]->(x)
-RETURN t, claims, handoffs, artifacts, skills, collect(DISTINCT x.id) AS about
+RETURN t, claims, handoffs, artifacts, skills, leases, collect(DISTINCT x.id) AS about

@@ -1,8 +1,10 @@
 // 10_ingest_episode: upsert Episodes under one container (Meeting or EmailThread) with provenance edges.
 // Params: $container_id, $now, $rows = [{id, seq, text, t_start?, t_end?, t_occurred, source_kind ('utterance'|'email'|'doc_chunk'),
 //   speaker_id? (utterance -> SPOKEN_BY + ATTENDED), sender_id? (email -> SENT_BY), recipients? [{id, cc}] (email -> SENT_TO{cc}),
-//   in_reply_to_id? (email -> REPLIES_TO), prev_id? (-> NEXT chain), message_id?, embedding? (768 floats)}].
-// Rows must be ordered by seq; the caller fills prev_id with the previous episode id. Returns the number of episodes touched.
+//   in_reply_to_id? (email -> REPLIES_TO), message_id?, embedding? (768 floats)}].
+// NEXT edges are NOT written here: memory._ingest_episode_rows re-links the affected window afterwards with 1B_episode_window and
+// 1C_relink_next, because FalkorDB runs FOREACH writes after the whole batch has matched, so a per-row re-wire cannot see its own batch.
+// Returns the number of episodes touched.
 UNWIND $rows AS r
 MATCH (m {id: $container_id}) WHERE m:Meeting OR m:EmailThread
 MERGE (e:Episode {id: r.id})
@@ -17,10 +19,7 @@ FOREACH (p IN CASE WHEN sp IS NULL THEN [] ELSE [sp] END | MERGE (e)-[:SPOKEN_BY
 WITH e, r
 OPTIONAL MATCH (sb:Person {id: r.sender_id})
 FOREACH (p IN CASE WHEN sb IS NULL THEN [] ELSE [sb] END | MERGE (e)-[:SENT_BY]->(p))
-WITH e, r
-OPTIONAL MATCH (prev:Episode {id: r.prev_id})
-FOREACH (p IN CASE WHEN prev IS NULL THEN [] ELSE [prev] END | MERGE (p)-[:NEXT]->(e))
-WITH e, r
+WITH DISTINCT e, r
 OPTIONAL MATCH (parent:Episode {id: r.in_reply_to_id})
 FOREACH (p IN CASE WHEN parent IS NULL THEN [] ELSE [parent] END | MERGE (e)-[:REPLIES_TO]->(p))
 WITH e, r

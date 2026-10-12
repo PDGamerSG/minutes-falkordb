@@ -26,12 +26,13 @@ def cypher_dirs() -> list[Path]:
 
 @cache
 def cypher_path(name: str) -> Path:
-    """Resolve `claim_task` or `20_claim_task` to its file."""
+    """Resolve `claim_task` or `20_claim_task` to its file. The prefix is two characters: a decade digit and a
+    digit or capital letter (`2A_reap_tasks` follows `29_list_agents` when a decade runs out of digits)."""
     for directory in cypher_dirs():
         exact = directory / f"{name}.cypher"
         if exact.is_file():
             return exact
-        matches = sorted(directory.glob(f"[0-9][0-9]_{name}.cypher"))
+        matches = sorted(directory.glob(f"[0-9][0-9A-Z]_{name}.cypher"))
         if matches:
             return matches[0]
     raise FileNotFoundError(f"no cypher file for {name!r} in {[str(d) for d in cypher_dirs()]}")
@@ -58,6 +59,6 @@ def list_queries() -> list[str]:
     """Names (without extension) of every Cypher file visible to the loader."""
     seen: dict[str, None] = {}
     for directory in cypher_dirs():
-        for path in sorted(directory.glob("[0-9][0-9]_*.cypher")):
+        for path in sorted(directory.glob("[0-9][0-9A-Z]_*.cypher")):
             seen.setdefault(path.stem, None)
     return list(seen)

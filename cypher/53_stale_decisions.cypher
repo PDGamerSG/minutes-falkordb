@@ -1,6 +1,7 @@
-// 53_stale_decisions: ACTIVE decisions decided before $cutoff (epoch ms) that nothing has superseded. Params: $cutoff.
+// 53_stale_decisions: ACTIVE decisions decided before $cutoff (epoch ms) that nothing has superseded. Params: $cutoff, $limit.
 MATCH (d:Fact:Decision {status: 'active'})
 WHERE coalesce(d.decided_at, d.valid_from) < $cutoff
+WITH d
 OPTIONAL MATCH (d)-[:MADE_BY]->(p:Person)
 OPTIONAL MATCH (d)-[:ABOUT]->(en:Entity)
 RETURN d {.id, .kind, .subject, .predicate, .object, .key, .text, .confidence, .status, .valid_from, .valid_to, .created_at,
@@ -8,3 +9,4 @@ RETURN d {.id, .kind, .subject, .predicate, .object, .key, .text, .confidence, .
        p {.id, .name, .role, .email, labels: labels(p)} AS decider,
        collect(DISTINCT en {.id, .name, .type, labels: labels(en)}) AS entities
 ORDER BY coalesce(d.decided_at, d.valid_from) ASC
+LIMIT $limit

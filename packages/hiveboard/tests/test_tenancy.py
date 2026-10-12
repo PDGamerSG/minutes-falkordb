@@ -10,7 +10,7 @@ from .conftest import cleanup_tenant
 
 @pytest.fixture
 def created(db):
-    slug = f"test_{uuid.uuid4().hex[:12]}"
+    slug = f"test-{uuid.uuid4().hex[:12]}"
     info = hb.create_tenant(db, slug, "Test Team", "rw-secret", "ro-secret")
     yield slug, info
     cleanup_tenant(db, slug)

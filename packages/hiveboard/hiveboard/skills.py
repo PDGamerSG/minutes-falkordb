@@ -1,5 +1,6 @@
 """Procedural memory: Skills with ordered Steps, retrieval by goal embedding, outcome tracking, PageRank and
-publication into the shared `commons` graph."""
+publication into the shared `commons` graph. Read paths project skills without their 768-d embedding; only
+`publish_to_commons` reads the whole node (it needs the vector to copy it)."""
 
 from __future__ import annotations
 
@@ -8,6 +9,7 @@ from typing import Any
 from falkordb import Node
 
 from .db import HiveDB
+from .embed import validate_embedding
 from .errors import NotFound
 from .events import publish
 from .ids import new_id
@@ -64,7 +66,7 @@ def learn_skill(
             "id": skill_id,
             "goal": goal,
             "version": int(version),
-            "embedding": None if embedding is None else [float(x) for x in embedding],
+            "embedding": validate_embedding(embedding),
             "steps": rows,
             "learned_from": list(learned_from),
             "now": now_ms(),
@@ -84,7 +86,7 @@ def retrieve_skill(db: HiveDB, tenant: str, goal_embedding: list[float], k: int 
     query = load_cypher("skill_retrieve")
     res = db.ro(tenant).ro_query(
         query,
-        {"goal": [float(x) for x in goal_embedding], "n": max(10, k * 4), "k": int(k)},
+        {"goal": validate_embedding(goal_embedding), "n": max(10, k * 4), "k": int(k)},
         timeout=RO_TIMEOUT_MS,
     )
     return CypherRows(
@@ -145,23 +147,25 @@ def skill_pagerank(db: HiveDB, tenant: str) -> CypherRows:
 
 def get_skill(db: HiveDB, tenant: str, skill_id: str) -> dict[str, Any]:
     """One skill with steps and `learned_from` ids."""
-    res = db.ro(tenant).ro_query(load_cypher("export_skill"), {"id": skill_id}, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(
+        load_cypher("export_skill"), {"id": skill_id, "with_embedding": False}, timeout=RO_TIMEOUT_MS
+    )
     if not res.result_set:
         raise NotFound(f"skill {skill_id!r} does not exist in team_{tenant}")
     s, steps, learned_from = res.result_set[0]
     return _skill_record(s, steps, learned_from)
 
 
-def list_skills(db: HiveDB, tenant: str, status: str | None = None) -> CypherRows:
-    """All skills (optionally by status) with steps and provenance, newest first."""
+def list_skills(db: HiveDB, tenant: str, status: str | None = None, limit: int = 500) -> CypherRows:
+    """All skills (optionally by status) with steps and provenance, newest first (at most `limit`)."""
     query = load_cypher("list_skills")
-    res = db.ro(tenant).ro_query(query, {"status": status}, timeout=RO_TIMEOUT_MS)
+    res = db.ro(tenant).ro_query(query, {"status": status, "limit": int(limit)}, timeout=RO_TIMEOUT_MS)
     return CypherRows([_skill_record(s, steps, lf) for s, steps, lf in res.result_set], query)
 
 
 def publish_to_commons(db: HiveDB, tenant: str, skill_id: str) -> str:
     """Copy a Skill and its Steps into `commons` with `origin_tenant`; returns the commons skill id."""
-    res = db.graph(tenant).query(load_cypher("export_skill"), {"id": skill_id})
+    res = db.graph(tenant).query(load_cypher("export_skill"), {"id": skill_id, "with_embedding": True})
     if not res.result_set:
         raise NotFound(f"skill {skill_id!r} does not exist in team_{tenant}")
     s, steps, _learned_from = res.result_set[0]
@@ -179,7 +183,7 @@ def publish_to_commons(db: HiveDB, tenant: str, skill_id: str) -> str:
             "origin_id": skill_id,
             "runs": s.properties.get("runs", 0),
             "success_rate": s.properties.get("success_rate", 0.0),
-            "embedding": None if embedding is None else [float(x) for x in embedding],
+            "embedding": validate_embedding(embedding),
             "steps": rows,
             "now": now_ms(),
         },

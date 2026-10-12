@@ -1,5 +1,10 @@
 """Coordination board: agents, capabilities and tasks with A2A-shaped states
-(submitted | working | input_required | completed | failed), compare-and-set claims and subgraph hand-offs."""
+(submitted | working | input_required | completed | failed), compare-and-set claims, leases and subgraph hand-offs.
+
+The state machine is enforced in Cypher (finding 5): `claim` only takes an unaddressed task or one handed off to the
+claimant; `handoff` needs a WORKING task owned by `from_agent`; `fail`/`need_input` need a WORKING or INPUT_REQUIRED
+task owned by the agent; `next_open_task` orders by priority, then age. A claim carries a lease (`lease_until`), the
+owner extends it with `heartbeat`, and `reap_expired` returns tasks whose lease lapsed to `submitted`."""
 
 from __future__ import annotations
 
@@ -18,6 +23,7 @@ from .temporal import now_ms
 
 RO_TIMEOUT_MS = 3000
 TASK_STATES = ("submitted", "working", "input_required", "completed", "failed")
+DEFAULT_LEASE_MS = 120_000
 
 
 def _task_record(t: Node, requires: list | None = None, about: list | None = None) -> dict[str, Any]:
@@ -81,21 +87,66 @@ def submit_task(
     return task_id
 
 
-def claim(db: HiveDB, tenant: str, task_id: str, agent_id: str, expected_version: int) -> int | None:
-    """Compare-and-set claim; returns the new version, or None when another agent won (zero rows)."""
+def claim(
+    db: HiveDB,
+    tenant: str,
+    task_id: str,
+    agent_id: str,
+    expected_version: int,
+    lease_ms: int = DEFAULT_LEASE_MS,
+) -> int | None:
+    """Compare-and-set claim with a lease of `lease_ms`; returns the new version, or None when another agent won,
+    the version is stale, or the task was handed off to someone else (zero rows)."""
+    now = now_ms()
     res = db.graph(tenant).query(
         load_cypher("claim_task"),
-        {"id": task_id, "v": int(expected_version), "agent": agent_id, "now": now_ms()},
+        {"id": task_id, "v": int(expected_version), "agent": agent_id, "now": now, "lease_ms": int(lease_ms)},
     )
     if not res.result_set:
         return None
     version = int(res.result_set[0][0])
-    publish(db, tenant, "task.claimed", {"task_id": task_id, "agent_id": agent_id, "version": version})
+    publish(
+        db,
+        tenant,
+        "task.claimed",
+        {"task_id": task_id, "agent_id": agent_id, "version": version, "lease_until": now + int(lease_ms)},
+    )
     return version
 
 
+def heartbeat(
+    db: HiveDB, tenant: str, task_id: str, agent_id: str, lease_ms: int = DEFAULT_LEASE_MS
+) -> bool:
+    """Extend the lease of a WORKING task the agent owns; False when it is not the owner or the task is not working."""
+    res = db.graph(tenant).query(
+        load_cypher("heartbeat_task"),
+        {"id": task_id, "agent": agent_id, "now": now_ms(), "lease_ms": int(lease_ms)},
+    )
+    return bool(res.result_set)
+
+
+def reap_expired(
+    db: HiveDB, tenant: str, now: int | None = None, lease_ms: int = DEFAULT_LEASE_MS
+) -> list[str]:
+    """Return WORKING tasks whose lease expired (`lease_until < now`; tasks without a lease use `updated_at + lease_ms`)
+    to `submitted` with version + 1, owner cleared and a LEASE_EXPIRED edge to the former owner. Returns the task ids;
+    publishes `task.lease_expired` per task."""
+    now = now_ms() if now is None else int(now)
+    res = db.graph(tenant).query(load_cypher("reap_tasks"), {"now": now, "lease_ms": int(lease_ms)})
+    reaped = []
+    for task_id, agent, version in res.result_set:
+        reaped.append(task_id)
+        publish(
+            db,
+            tenant,
+            "task.lease_expired",
+            {"task_id": task_id, "agent_id": agent, "version": int(version), "at": now},
+        )
+    return reaped
+
+
 def next_open_task(db: HiveDB, tenant: str, agent_id: str) -> dict[str, Any] | None:
-    """Oldest `submitted` task whose REQUIRES is a subset of the agent's HAS (and not addressed to someone else)."""
+    """Highest-priority, then oldest `submitted` task whose REQUIRES is a subset of the agent's HAS (and not addressed to someone else)."""
     res = db.ro(tenant).ro_query(load_cypher("next_open_task"), {"agent": agent_id}, timeout=RO_TIMEOUT_MS)
     if not res.result_set:
         return None
@@ -113,7 +164,8 @@ def handoff(
     summary: str,
     subgraph_ids: list[str],
 ) -> int | None:
-    """Hand a task to another agent with a subgraph reference; returns the new version or None if the version was stale."""
+    """Hand a WORKING task to another agent with a subgraph reference; returns the new version or None when the version
+    is stale, `from_agent` is not the owner, or the task is not working (completed/failed/parked tasks stay put)."""
     res = db.graph(tenant).query(
         load_cypher("handoff_task"),
         {
@@ -146,7 +198,7 @@ def handoff(
 
 
 def complete(db: HiveDB, tenant: str, task_id: str, agent_id: str, artifact: dict | None = None) -> None:
-    """Owner completes a working task, optionally PRODUCED -> Artifact `{kind, uri?, text?}`."""
+    """Owner completes a working (or input_required) task, optionally PRODUCED -> Artifact `{kind, uri?, text?}`."""
     art = None
     if artifact is not None:
         art = {
@@ -174,12 +226,12 @@ def _set_state(db: HiveDB, tenant: str, task_id: str, agent_id: str, status: str
         {"id": task_id, "agent": agent_id, "status": status, "note": note, "now": now_ms()},
     )
     if not res.result_set:
-        raise NotFound(f"task {task_id!r} is not owned by {agent_id!r}")
+        raise NotFound(f"task {task_id!r} is not a working/input_required task owned by {agent_id!r}")
     return int(res.result_set[0][0])
 
 
 def fail(db: HiveDB, tenant: str, task_id: str, agent_id: str, reason: str) -> None:
-    """Owner fails a task with a reason (stored as `failure_reason`)."""
+    """Owner fails a working task with a reason (stored as `failure_reason`)."""
     version = _set_state(db, tenant, task_id, agent_id, "failed", reason)
     publish(
         db,
@@ -190,7 +242,7 @@ def fail(db: HiveDB, tenant: str, task_id: str, agent_id: str, reason: str) -> N
 
 
 def need_input(db: HiveDB, tenant: str, task_id: str, agent_id: str, question: str) -> None:
-    """Owner parks a task in `input_required` with the question for a human."""
+    """Owner parks a working task in `input_required` with the question for a human."""
     version = _set_state(db, tenant, task_id, agent_id, "input_required", question)
     publish(
         db,
@@ -221,13 +273,16 @@ def list_agents(db: HiveDB, tenant: str) -> CypherRows:
 
 
 def task_trace(db: HiveDB, tenant: str, task_id: str) -> dict[str, Any]:
-    """`{task, events: [...], about, cypher}` with claims, hand-offs, artifacts, skills and the terminal state in time order."""
+    """`{task, events: [...], about, cypher}` with claims, hand-offs, lease expiries, artifacts, skills and the terminal
+    state in time order."""
     query = load_cypher("task_trace")
     res = db.ro(tenant).ro_query(query, {"id": task_id}, timeout=RO_TIMEOUT_MS)
     if not res.result_set:
         raise NotFound(f"task {task_id!r} does not exist in team_{tenant}")
-    t, claims, handoffs, artifacts, skills, about = res.result_set[0]
-    events = [dict(e) for group in (claims, handoffs, artifacts, skills) for e in group if _present(e)]
+    t, claims, handoffs, artifacts, skills, leases, about = res.result_set[0]
+    events = [
+        dict(e) for group in (claims, handoffs, artifacts, skills, leases) for e in group if _present(e)
+    ]
     task = _task_record(t, None, about)
     if task.get("status") in ("completed", "failed", "input_required"):
         events.append(

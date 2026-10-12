@@ -63,10 +63,9 @@ def test_handoff_bumps_version_and_records_subgraph(db, tenant, agents):
         ["fact_1", "ep2"],
         "agt_sched",
     ]
-    # the receiving agent re-claims at the new version, nobody else can
-    assert (
-        hb.claim(db, tenant, task, "agt_all", 2) == 3
-    )  # any agent may still CAS-claim, next_open_task is what routes
+    # only the addressee can claim a handed-off task (finding 5); anyone else loses the CAS
+    assert hb.claim(db, tenant, task, "agt_all", 2) is None
+    assert hb.claim(db, tenant, task, "agt_follow", 2) == 3
     trace = hb.task_trace(db, tenant, task)
     assert [e["type"] for e in trace["events"]] == ["claimed", "handed_off", "claimed"]
     assert (

@@ -34,7 +34,7 @@ def cleanup_tenant(db: hb.HiveDB, slug: str) -> None:
 
 @pytest.fixture
 def tenant(db):
-    slug = f"test_{uuid.uuid4().hex[:12]}"
+    slug = f"test-{uuid.uuid4().hex[:12]}"
     hb.ensure_schema(db, slug)
     yield slug
     cleanup_tenant(db, slug)
@@ -42,7 +42,7 @@ def tenant(db):
 
 @pytest.fixture
 def other_tenant(db):
-    slug = f"test_{uuid.uuid4().hex[:12]}"
+    slug = f"test-{uuid.uuid4().hex[:12]}"
     hb.ensure_schema(db, slug)
     yield slug
     cleanup_tenant(db, slug)
@@ -134,3 +134,44 @@ def seeded(db, tenant) -> dict:
         },
     )
     return {"priya": priya, "aditya": aditya, "meeting": meeting, "entities": ids, "fact": fact["id"]}
+
+
+class EventCapture:
+    """Subscribe to a tenant's channel in a background thread and collect every event until `stop()`."""
+
+    def __init__(self, db: hb.HiveDB, slug: str):
+        import threading
+
+        self.events: list[dict] = []
+        self._stop = threading.Event()
+        self._ready = threading.Event()
+        self._thread = threading.Thread(target=self._run, args=(db, slug), daemon=True)
+
+    def _run(self, db, slug):
+        gen = hb.subscribe(db, slug, idle_timeout=None)
+        self._ready.set()
+        for event in gen:
+            if event["event"] == "__stop__":
+                break
+            self.events.append(event)
+
+    def start(self):
+        self._thread.start()
+        assert self._ready.wait(5)
+        return self
+
+    def stop(self, db: hb.HiveDB, slug: str) -> list[dict]:
+        hb.publish(db, slug, "__stop__", {})
+        self._thread.join(10)
+        return self.events
+
+    def named(self, name: str) -> list[dict]:
+        return [e["payload"] for e in self.events if e["event"] == name]
+
+
+@pytest.fixture
+def capture(db, tenant):
+    cap = EventCapture(db, tenant).start()
+    yield cap
+    if cap._thread.is_alive():
+        cap.stop(db, tenant)

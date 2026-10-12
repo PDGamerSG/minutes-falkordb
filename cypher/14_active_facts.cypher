@@ -1,10 +1,11 @@
-// 14_active_facts: ACTIVE facts, optionally filtered by entity id and/or key, with speaker and source container. Params: $entity, $key, $limit.
+// 14_active_facts: ACTIVE facts, optionally filtered by key, with speaker and source container. Params: $key (or NULL), $limit.
+// With an entity filter the caller uses 1A_active_facts_for_entity, which starts from the Entity index instead of scanning.
 // Nodes are returned as map projections without the 768-d embedding (returning whole nodes costs ~0.5 ms per node on the wire).
 MATCH (f:Fact {status: 'active'})
 WHERE $key IS NULL OR f.key = $key
+WITH f
 OPTIONAL MATCH (f)-[:ABOUT]->(en:Entity)
 WITH f, collect(DISTINCT en {.id, .name, .type, labels: labels(en)}) AS entities
-WHERE $entity IS NULL OR any(x IN entities WHERE x.id = $entity)
 OPTIONAL MATCH (f)-[:STATED_BY]->(p:Person)
 OPTIONAL MATCH (f)-[:DERIVED_FROM]->(ep:Episode)
 OPTIONAL MATCH (c)-[:HAS_EPISODE]->(ep)
