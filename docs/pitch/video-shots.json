@@ -1,0 +1,601 @@
+{
+  "base_url": "http://localhost:3001",
+  "api_url": "http://localhost:8080",
+  "shots": [
+    {
+      "id": "s1",
+      "min_hold": 7,
+      "caption_x": 250,
+      "narration": "A team changes a decision in a meeting. The people doing the work never find out.",
+      "caption": "A decision changes. The people doing the work never find out.",
+      "script_time": "0:00-0:08",
+      "actions": [
+        {
+          "type": "wait",
+          "seconds": 1.8
+        },
+        {
+          "type": "scroll",
+          "y": 420,
+          "seconds": 4.5,
+          "at": [
+            800,
+            500
+          ]
+        }
+      ],
+      "url": "/"
+    },
+    {
+      "id": "s2",
+      "min_hold": 8,
+      "caption_x": 250,
+      "narration": "The runbook still says Razorpay. The test plan still assumes a tab bar. Nobody connected the change.",
+      "caption": "Changed decisions, stale work",
+      "script_time": "0:08-0:16",
+      "actions": [
+        {
+          "type": "scroll",
+          "y": -420,
+          "seconds": 0.9
+        },
+        {
+          "type": "click",
+          "selector": "header a:has-text('Open workspace'), a:has-text('Open workspace')",
+          "after": 0.8
+        },
+        {
+          "type": "wait_for_selector",
+          "selector": "a[href='/t/orbit']"
+        },
+        {
+          "type": "wait",
+          "seconds": 1.0
+        },
+        {
+          "type": "click",
+          "selector": "a[href='/t/orbit']",
+          "after": 0.4
+        },
+        {
+          "type": "cut_start"
+        },
+        {
+          "type": "wait_for_js",
+          "expr": "() => document.body.innerText.includes('282') && document.body.innerText.includes('Needs review')",
+          "timeout": 60
+        },
+        {
+          "type": "cut_end"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "min_hold": 11.5,
+      "caption_x": 250,
+      "narration": "This is Minutes: a company memory in FalkorDB, built from meetings and email. It knows who owns what, why it changed, and what the change affects.",
+      "caption": "Minutes: a company memory in FalkorDB, built from meetings + email",
+      "script_time": "0:16-0:29",
+      "actions": [
+        {
+          "type": "wait_for",
+          "text": "The whole picture."
+        },
+        {
+          "type": "wait",
+          "seconds": 2.0
+        },
+        {
+          "type": "hover",
+          "text": "Source entries",
+          "exact": true,
+          "after": 1.6
+        },
+        {
+          "type": "hover",
+          "text": "Decisions",
+          "exact": true,
+          "after": 1.6
+        },
+        {
+          "type": "hover",
+          "text": "Commitments",
+          "exact": true,
+          "after": 1.6
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "min_hold": 9,
+      "caption_x": 250,
+      "narration": "Orbit is a synthetic team: six meetings, five email threads. Five work items are tracked, and three need review.",
+      "caption": "Synthetic meetings and emails · reviewed labels replayed · real FalkorDB 6.0.1",
+      "script_time": "0:29-0:38",
+      "actions": [
+        {
+          "type": "scroll_to",
+          "role": "heading",
+          "name": "The ripple effect.",
+          "top": 90,
+          "seconds": 1.4
+        },
+        {
+          "type": "hover",
+          "text": "Needs review",
+          "exact": false,
+          "after": 1.0,
+          "selector": "button:has-text('Needs review')"
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "min_hold": 10.5,
+      "caption_x": 250,
+      "narration": "This is the ripple effect. The payment integration runbook needs review: the vendor moved from Razorpay to PayU, and Priya is the person responsible.",
+      "caption": "Needs review: Razorpay → PayU · owner Priya",
+      "script_time": "0:38-0:49",
+      "actions": [
+        {
+          "type": "wait",
+          "seconds": 1.2
+        },
+        {
+          "type": "click",
+          "selector": "xpath=//button[contains(@class,'impact-select')][contains(normalize-space(.),'Update the payment integration runbook')]/following::button[normalize-space()='Review' or normalize-space()='Close'][1]",
+          "after": 1.2
+        },
+        {
+          "type": "scroll",
+          "y": 0,
+          "seconds": 0.1
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "min_hold": 11,
+      "caption_x": 250,
+      "narration": "Original decision: Aditya at the kickoff, September seventh. Current decision: the customer call on the twenty-third, because Meridian's compliance team mandates PayU.",
+      "caption": "Kickoff, Sept 7: Razorpay → customer call, Sept 23: PayU",
+      "script_time": "0:49-1:00",
+      "actions": [
+        {
+          "type": "wait",
+          "seconds": 0.8
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Original decision",
+          "after": 3.4
+        },
+        {
+          "type": "press",
+          "key": "Escape",
+          "after": 0.8
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Current decision",
+          "after": 3.4
+        },
+        {
+          "type": "press",
+          "key": "Escape",
+          "after": 0.8
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "min_hold": 10,
+      "caption_x": 250,
+      "narration": "This is not a keyword match. The dependency document says the runbook holds Razorpay API steps. That link was written down, not guessed.",
+      "caption": "Explicit DEPENDS_ON from an authored document · no co-mention, no similarity",
+      "script_time": "1:00-1:10",
+      "actions": [
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Dependency document",
+          "after": 1.0
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "min_hold": 11,
+      "caption_x": 250,
+      "narration": "FalkorDB follows the work to its baseline decision, then the supersedes chain back from the current one. Here is the path, and the query that ran.",
+      "caption": "WorkItem -DEPENDS_ON→ Razorpay ←SUPERSEDES- PayU · cypher/81_work_impacts",
+      "script_time": "1:10-1:22",
+      "actions": [
+        {
+          "type": "press",
+          "key": "Escape",
+          "after": 0.8
+        },
+        {
+          "type": "click",
+          "text": "Recorded graph relationships",
+          "after": 1.0
+        },
+        {
+          "type": "scroll_to",
+          "text": "Recorded graph relationships",
+          "top": 110,
+          "seconds": 1.2
+        },
+        {
+          "type": "wait",
+          "seconds": 2.6
+        },
+        {
+          "type": "click",
+          "text": "How FalkorDB found the impact",
+          "after": 0.8
+        },
+        {
+          "type": "scroll_to",
+          "selector": "pre:has-text('SUPERSEDES*0..24')",
+          "top": 120,
+          "seconds": 1.6
+        }
+      ]
+    },
+    {
+      "id": "s9",
+      "min_hold": 10,
+      "caption_x": 250,
+      "narration": "In chat: who owns the decision log? Rahul, from Aditya's email on September twenty-ninth. Minutes keeps the owner apart from the announcer.",
+      "caption": "Ownership template (cypher/54_owners) · Rahul · email, Sept 29",
+      "script_time": "1:22-1:32",
+      "actions": [
+        {
+          "type": "click",
+          "selector": "aside a[href='/t/orbit/chat']",
+          "after": 0.8
+        },
+        {
+          "type": "wait_for_selector",
+          "selector": "textarea"
+        },
+        {
+          "type": "type",
+          "selector": "textarea",
+          "value": "Who owns the decision log?",
+          "delay": 50
+        },
+        {
+          "type": "press",
+          "key": "Enter",
+          "after": 0.5
+        },
+        {
+          "type": "cut_start"
+        },
+        {
+          "type": "wait_for",
+          "text": "Recorded owners",
+          "timeout": 90
+        },
+        {
+          "type": "cut_end"
+        },
+        {
+          "type": "wait",
+          "seconds": 0.5
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "min_hold": 10.5,
+      "caption_x": 250,
+      "narration": "Why is the UPI flow due on the twenty-eighth? Priya said the twenty-fourth at kickoff, the twenty-fifth at standup, then wrote the twenty-eighth in email.",
+      "caption": "Sept 24 (kickoff, speech) → Sept 25 (standup, speech) → Sept 28 (email)",
+      "script_time": "1:32-1:44",
+      "actions": [
+        {
+          "type": "cooldown",
+          "seconds": 25
+        },
+        {
+          "type": "type",
+          "selector": "textarea",
+          "value": "Why is the UPI flow due on the 28th?",
+          "delay": 50
+        },
+        {
+          "type": "press",
+          "key": "Enter",
+          "after": 0.5
+        },
+        {
+          "type": "cut_start"
+        },
+        {
+          "type": "wait_for_js",
+          "expr": "() => !document.body.innerText.includes('Thinking') && (document.body.innerText.match(/Why this answer/g) || []).length >= 2",
+          "timeout": 90
+        },
+        {
+          "type": "cut_end"
+        },
+        {
+          "type": "assert_text",
+          "text": "History: UPI flow due",
+          "absent": true
+        },
+        {
+          "type": "scroll",
+          "selector": ".chat-messages",
+          "y": 330,
+          "seconds": 1.0
+        }
+      ]
+    },
+    {
+      "id": "s11",
+      "min_hold": 13,
+      "caption_x": 250,
+      "narration": "The Why panel shows that chain across speech and email. Old dates are expired, not deleted. Open email shows Priya's actual message.",
+      "caption": "Bi-temporal facts · SUPERSEDES across sources · every claim links to its source",
+      "script_time": "1:44-1:54",
+      "actions": [
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Why this answer",
+          "nth": 1,
+          "after": 1.0
+        },
+        {
+          "type": "click",
+          "text": "Query and routing details",
+          "after": 0.5
+        },
+        {
+          "type": "scroll_to",
+          "text": "Router decision",
+          "exact": false,
+          "top": 40,
+          "seconds": 1.2
+        },
+        {
+          "type": "wait",
+          "seconds": 1.2
+        },
+        {
+          "type": "scroll",
+          "selector": ".chat-messages",
+          "y": 260,
+          "seconds": 1.0
+        },
+        {
+          "type": "wait",
+          "seconds": 0.8
+        },
+        {
+          "type": "scroll",
+          "selector": ".chat-messages",
+          "y": -9000,
+          "seconds": 1.2
+        },
+        {
+          "type": "scroll",
+          "selector": ".chat-messages",
+          "y": 430,
+          "seconds": 0.8
+        },
+        {
+          "type": "click",
+          "row_text": "fact_ep_thr_orbit_002_000_b91b8666",
+          "button": "Open email",
+          "after": 2.2
+        }
+      ]
+    },
+    {
+      "id": "s12",
+      "min_hold": 10.5,
+      "caption_x": 250,
+      "narration": "A change can also start work. On the board, I simulate \"move it to Friday\": the PayU integration moves from October first to the second.",
+      "caption": "PayU integration: Oct 1 → Fri Oct 2",
+      "script_time": "1:54-2:05",
+      "actions": [
+        {
+          "type": "press",
+          "key": "Escape",
+          "after": 0.8
+        },
+        {
+          "type": "click",
+          "selector": "aside a[href='/t/orbit/board']",
+          "after": 0.8
+        },
+        {
+          "type": "wait_for",
+          "text": "Work in motion."
+        },
+        {
+          "type": "wait",
+          "seconds": 1.0
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Simulate",
+          "after": 0.5
+        }
+      ]
+    },
+    {
+      "id": "s13",
+      "min_hold": 9.5,
+      "caption_x": 250,
+      "narration": "The Scheduler agent claims the task and hands it to FollowUp, which drafts the follow-up. The GitHub issue is marked simulated.",
+      "caption": "Scheduler claims → HANDED_OFF → FollowUp · issue simulated (no GitHub token)",
+      "script_time": "2:05-2:15",
+      "actions": [
+        {
+          "type": "cut_start"
+        },
+        {
+          "type": "wait_for_js",
+          "expr": "() => /completed\\s+1\\s+Reschedule/.test(document.body.innerText.replace(/\\s+/g, ' '))",
+          "timeout": 90
+        },
+        {
+          "type": "cut_end"
+        },
+        {
+          "type": "click",
+          "text": "Reschedule",
+          "after": 1.4
+        },
+        {
+          "type": "hover",
+          "text": "handed off",
+          "exact": true,
+          "after": 1.4
+        },
+        {
+          "type": "hover",
+          "text": "Follow up: PayU integration",
+          "after": 1.2
+        }
+      ],
+      "caption_wrap": 52
+    },
+    {
+      "id": "s14",
+      "min_hold": 8.5,
+      "caption_x": 250,
+      "narration": "The timeline shows what we believed on September sixteenth: UPI due the twenty-fifth, vendor still Razorpay.",
+      "caption": "Belief at Sept 16: UPI due Sept 25 · vendor Razorpay",
+      "script_time": "2:15-2:23",
+      "actions": [
+        {
+          "type": "wait",
+          "seconds": 0.3
+        },
+        {
+          "type": "scroll",
+          "y": 420,
+          "seconds": 0.9,
+          "at": [
+            800,
+            500
+          ]
+        },
+        {
+          "type": "type",
+          "selector": "input[placeholder^='Filter facts']",
+          "value": "UPI",
+          "delay": 90,
+          "after": 1.5
+        },
+        {
+          "type": "fill",
+          "selector": "input[placeholder^='Filter facts']",
+          "value": ""
+        },
+        {
+          "type": "type",
+          "selector": "input[placeholder^='Filter facts']",
+          "value": "vendor",
+          "delay": 90,
+          "after": 1.3
+        }
+      ],
+      "url": "/t/orbit/timeline?t=1789540200000"
+    },
+    {
+      "id": "s15",
+      "min_hold": 9.5,
+      "caption_x": 250,
+      "narration": "For Track two: twenty-five agents race for one task, and one compare-and-set wins. The standup became a learned skill.",
+      "caption": "Track 2 · 25 agents · 1 compare-and-set winner · standup learned as a Skill",
+      "script_time": "2:23-2:32",
+      "actions": [
+        {
+          "type": "click",
+          "selector": "aside a[href='/t/orbit/board']",
+          "after": 0.8
+        },
+        {
+          "type": "wait_for",
+          "text": "Work in motion."
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Induce double claim",
+          "after": 0.2
+        },
+        {
+          "type": "wait",
+          "seconds": 3.4
+        },
+        {
+          "type": "click",
+          "selector": "aside a[href='/t/orbit/skills']",
+          "after": 0.8
+        },
+        {
+          "type": "cut_start"
+        },
+        {
+          "type": "wait_for",
+          "text": "Run the orbit standup routine",
+          "timeout": 60
+        },
+        {
+          "type": "cut_end"
+        },
+        {
+          "type": "wait",
+          "seconds": 0.5
+        },
+        {
+          "type": "click",
+          "text": "Run the orbit standup routine",
+          "after": 2.6
+        }
+      ]
+    },
+    {
+      "id": "s16",
+      "min_hold": 9.5,
+      "images": [
+        "D:/tmp-minutes/video/slides/slide9.png",
+        "D:/tmp-minutes/video/slides/slide7.png"
+      ],
+      "narration": "Under the hood: one graph per team, with its own database users. Facts are bi-temporal; belief at any time is one query.",
+      "caption": "team_<slug> graph + ACL users per team · SUPERSEDES across sources · cypher/31_belief_at_time",
+      "script_time": "2:32-2:42"
+    },
+    {
+      "id": "s17",
+      "min_hold": 9.8,
+      "image": "D:/tmp-minutes/video/slides/slide10.png",
+      "narration": "On one laptop: about eighteen hundred operations a second, and two hundred agents across twenty graphs with zero errors, one winner per race.",
+      "caption": "6.0.1: ~1,800 ops/s vs ~1,360 on 4.22.0 · 200 agents × 20 graphs: 2,608 ops/s, 0 errors · one laptop",
+      "script_time": "2:42-2:52"
+    },
+    {
+      "id": "s18",
+      "min_hold": 8,
+      "image": "D:/tmp-minutes/video/slides/slide12.png",
+      "narration": "Synthetic data, a real FalkorDB, open Gemma models. Repo below. We're Team Vulcan: tracks three and two.",
+      "caption": "github.com/Hydra-Of-Malice/FalkorDB · Team Vulcan · Tracks 3 and 2 · synthetic data, reviewed labels replayed, no HTTP auth yet",
+      "script_time": "2:52-3:00",
+      "fade_out": 0.5
+    }
+  ]
+}
