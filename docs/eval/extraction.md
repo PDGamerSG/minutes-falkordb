@@ -110,3 +110,56 @@ Facts with the same `subject|predicate` used to supersede each other for every p
 - **Resolved by Oct 9 audit:** `51_open_commitments` now returns both the resolved `owner` and original `speaker`. Earlier finding: the query returned `owner` but no speaker. The ingest side already passes `speaker_id` for every fact, commitments included. In the seeded DB each commitment has both `STATED_BY` and `OWNED_BY` edges (checked: `upi flow|due` gives spk_priya / spk_priya). The query needs to project the `STATED_BY` person if the UI wants it.
 - **Resolved:** API imports use `make_extractor(llm)`; the Oct 9 audit also switched FactAgent to that current-version factory. Extraction scores above were not remeasured.
 - `offline mode | uses_pattern`: "SQLite cache with sync queue" to "last-write-wins per field" is recorded as a supersession by the heuristic judge in gold replay. It is arguably a refinement (conflict handling added to the cache design). It is unchanged here because `uses_pattern` is single-valued by request.
+
+## v5 rescored with normalised matching (2026-10-12, offline, no model calls)
+
+The v5 items saved in `extraction_v5_full.json` were re-scored with the current matcher
+(`python -m ingest.eval --rescore docs/eval/extraction_v5_full.json`). Two things changed in the eval:
+the gold side now goes through the pipeline's own `canonicalize_object` (number words to digits,
+completion words, articles) before comparison, and a partial-credit view was added next to strict.
+
+**Strict** (kind, speaker, subject, predicate and canonicalised object all equal): TP 64, FP 88, FN 44,
+**P 0.42, R 0.59, F1 0.49**: unchanged. Every near-miss that the object normalisation repairs ("three
+cards" against "3 cards") also disagrees on predicate or kind, so the strict count does not move.
+
+**Partial credit** (same episode, same canonical subject, predicate within `{decided, status}` or
+`{requires, uses_pattern, scope_includes}`, object token-F1 >= 0.5; dates must be equal; kind and
+speaker free): TP 75, FP 77, FN 33, **P 0.49, R 0.69, F1 0.58**.
+
+| File | Strict P / R | Partial P / R |
+|---|---|---|
+| nimbus_001 | 0.50 / 0.62 | 0.60 / 0.75 |
+| nimbus_002 | 0.36 / 0.80 | 0.36 / 0.80 |
+| nimbus_thread_001 | 1.00 / 1.00 | 1.00 / 1.00 |
+| orbit_002 | 0.50 / 0.60 | 0.58 / 0.70 |
+| orbit_003 | 0.24 / 0.67 | 0.35 / 1.00 |
+| orbit_004 | 0.23 / 0.38 | 0.23 / 0.38 |
+| orbit_005 | 0.42 / 0.53 | 0.42 / 0.53 |
+| orbit_006 | 0.62 / 0.71 | 0.69 / 0.79 |
+| orbit_thread_001 | 0.33 / 0.25 | 0.67 / 0.50 |
+| orbit_thread_002 | 0.25 / 0.25 | 0.25 / 0.25 |
+| orbit_thread_003 | 0.33 / 0.40 | 0.67 / 0.80 |
+| orbit_thread_004 | 0.50 / 0.71 | 0.60 / 0.86 |
+| orbit_thread_005 | 0.75 / 0.75 | 0.75 / 0.75 |
+| quill_001 | 0.45 / 0.71 | 0.45 / 0.71 |
+| quill_002 | 0.30 / 0.50 | 0.50 / 0.83 |
+| quill_thread_001 | 0.50 / 0.67 | 0.50 / 0.67 |
+| **Total** | **0.42 / 0.59** | **0.49 / 0.69** |
+
+Slot-wise agreement (an extracted item's field value occurs in a gold item of the same episode; P over
+152 extracted, R over 108 gold):
+
+| Slot | Hits | P | R |
+|---|---|---|---|
+| kind | 86 | 0.57 | 0.80 |
+| speaker_id | 95 | 0.62 | 0.88 |
+| subject | 80 | 0.53 | 0.74 |
+| predicate | 80 | 0.53 | 0.74 |
+| object | 70 | 0.46 | 0.65 |
+
+Reading: 11 of the 44 strict misses are the same statement with a different predicate label or a
+paraphrased object in the right episode; 33 are real misses. Kind is the weakest agreed slot after
+object (members' restatements labelled as decisions, completions labelled as facts), which is the
+rule-by-rule part of the gold. The pipeline changes made alongside (dialogue-window extraction,
+per-item read-back filter, "decisions since" no longer a skip cue, qualifier-only subject snapping)
+were not re-measured against the model; the fake-backend replay stays 129/129 strict and partial.

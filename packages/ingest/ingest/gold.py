@@ -87,6 +87,34 @@ def find_gold(gold_dir: str | Path, *, container_id: str | None = None, slug: st
     return None
 
 
+def _norm_key(subject: str, predicate: str) -> str:
+    return fact_key(subject, predicate)
+
+
+def supersedes_hint_for(gold: GoldFile, item: GoldItem) -> str | None:
+    """The live-extraction hint ``"replaces: <subject> <predicate> <old object>"`` for a gold item.
+
+    The old object is the most recent earlier gold item of the same file with the hinted key and a
+    different object. When the replaced statement lives in another file (the UPI date moved from the
+    kickoff to the standup), the hint names only the key and the pipeline falls back to the latest
+    active fact for it, exactly as it does for a model hint without a recognisable old object.
+    """
+    if not item.supersedes:
+        return None
+    subject = str(item.supersedes.get("subject") or item.subject)
+    predicate = str(item.supersedes.get("predicate") or item.predicate)
+    key = _norm_key(subject, predicate)
+    old_object = item.supersedes.get("object")
+    if not old_object:
+        position = gold.items.index(item) if item in gold.items else len(gold.items)
+        for earlier in reversed(gold.items[:position]):
+            if _norm_key(earlier.subject, earlier.predicate) == key and earlier.object.strip().lower() != item.object.strip().lower():
+                old_object = earlier.object
+                break
+    hint = f"replaces: {subject} {predicate.replace('_', ' ')}"
+    return f"{hint} {old_object}" if old_object else hint
+
+
 def gold_items_for_episode(gold: GoldFile, episode: Episode) -> list[ExtractedFact]:
     """Gold items whose segment (or message) falls inside ``episode``, as validated facts."""
     is_email = episode.source_kind == "email"
@@ -107,7 +135,7 @@ def gold_items_for_episode(gold: GoldFile, episode: Episode) -> list[ExtractedFa
                 speaker=item.speaker_id,
                 confidence=0.95,
                 episode_id=episode.id,
-                supersedes_hint=json.dumps(item.supersedes) if item.supersedes else None,
+                supersedes_hint=supersedes_hint_for(gold, item),
                 precedent_key=(
                     fact_key(str(precedent.get("subject", "")), str(precedent.get("predicate", "")))
                     if precedent.get("subject") and precedent.get("predicate")

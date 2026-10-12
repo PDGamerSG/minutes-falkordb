@@ -184,16 +184,22 @@ def _singular(norm: str) -> str:
 
 _PAREN = re.compile(r"\s*\([^)]*\)\s*$")
 
+#: Extra words that never make a new subject: "the UPI flow work" is still the UPI flow.
+QUALIFIER_WORDS = frozenset({"the", "new", "updated", "work", "item", "project", "plan", "task"})
+
 
 def canonicalize_subject(subject: str, tenant: str, extra: list[str] | None = None, *, fuzzy: bool = False) -> str:
     """Snap ``subject`` onto a known entity when it differs only by case, articles, punctuation or plural.
 
     ``fuzzy`` (v3+) also strips a trailing parenthetical (a gloss copied from the prompt) and snaps a
-    subject that is a known name plus ONE extra word ("PayU sandbox integration" -> "PayU integration"),
-    preferring the longest known name; ties are left alone.
+    subject that is a known name plus ONE extra word, but only when that word is a qualifier
+    (:data:`QUALIFIER_WORDS`: "the UPI flow work" -> "UPI flow") or the known name has at least two
+    words ("PayU sandbox integration" -> "PayU integration"). A one-word known name plus a content
+    word stays distinct: "Orbit launch", "Orbit retro" and "Orbit roadmap" are not "Orbit", so their
+    ``due``/``owner``/``status`` facts never supersede the product's. Ties are left alone.
     """
     names = list(CANONICAL_SUBJECTS.get(tenant, {})) + list(extra or [])
-    cleaned = _PAREN.sub("", subject).strip() if fuzzy else subject.strip()
+    cleaned = _LEADING.sub("", _PAREN.sub("", subject).strip()).strip() if fuzzy else subject.strip()
     if not names:
         return cleaned
     target = _norm(cleaned)
@@ -210,7 +216,9 @@ def canonicalize_subject(subject: str, tenant: str, extra: list[str] | None = No
         for name in names:
             known = set(_singular(_norm(name)).split())
             if known and known < words and len(words - known) == 1:
-                candidates.append((len(known), name))
+                extra_word = next(iter(words - known))
+                if len(known) >= 2 or extra_word in QUALIFIER_WORDS:
+                    candidates.append((len(known), name))
         if candidates:
             candidates.sort(reverse=True)
             if len(candidates) == 1 or candidates[0][0] > candidates[1][0]:
@@ -251,6 +259,21 @@ def canonicalize_object(predicate: str, obj: str, *, numbers: bool = False) -> s
     if numbers and predicate != "due":
         value = _NUMBER_RE.sub(lambda m: _NUMBER_WORDS[m.group(1).lower()], value)
     return value
+
+
+def known_spelling(name: str, tenant: str, extra: list[str] | None = None) -> str | None:
+    """The vocabulary (or graph) spelling of ``name`` when it is a known entity, else None.
+
+    Display names keep the spelling the prompt showed the model ("payments service", not
+    "Payments Service"); only unknown names are title-cased by the caller.
+    """
+    target = _norm(name)
+    if not target:
+        return None
+    for known in [*CANONICAL_SUBJECTS.get(tenant, {}), *(extra or [])]:
+        if _norm(known) == target:
+            return known
+    return None
 
 
 def render_predicates() -> str:

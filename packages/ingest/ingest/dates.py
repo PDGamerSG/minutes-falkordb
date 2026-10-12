@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from dateutil import parser as _dateparser
 
@@ -54,11 +54,38 @@ def looks_like_date(text: str | None) -> bool:
     return bool(_ISO_DATE.match(s) or _ISO_DATETIME.match(s) or _DATE_LIKE.search(s))
 
 
-def normalize_date(text: str | None, reference: date | datetime | None = None) -> str | None:
+#: Default calendar convention for numeric dates: the demo tenants are Indian teams, so
+#: ``12/09/2026`` is 12 September (``dayfirst=True``). Pipelines pass their tenant's policy.
+DEFAULT_DAYFIRST = True
+
+#: Default tenant timezone offset for calendar dates (IST). Pipelines pass their tenant's zone.
+DEFAULT_TZ = "+05:30"
+
+_OFFSET = re.compile(r"^([+-])(\d{2}):?(\d{2})$")
+
+
+def tz_from_offset(offset: str | None) -> timezone:
+    """``"+05:30"`` -> a fixed-offset timezone; ``None``, ``""`` or ``"UTC"`` -> UTC."""
+    if not offset or offset.strip().upper() in {"UTC", "Z"}:
+        return UTC
+    match = _OFFSET.match(offset.strip())
+    if not match:
+        raise ValueError(f"timezone offset must look like +05:30, got {offset!r}")
+    sign = 1 if match.group(1) == "+" else -1
+    return timezone(sign * timedelta(hours=int(match.group(2)), minutes=int(match.group(3))))
+
+
+def normalize_date(
+    text: str | None,
+    reference: date | datetime | None = None,
+    *,
+    dayfirst: bool = DEFAULT_DAYFIRST,
+) -> str | None:
     """Return an ISO date (YYYY-MM-DD) for a date-like string, or None when it is not one.
 
     Only strings that look like dates are parsed, which avoids dateutil's eagerness with
     words such as "May" or bare numbers. Missing years resolve against ``reference``.
+    ``dayfirst`` decides ambiguous numeric dates (``12/09/2026``): the tenant's convention.
     """
     if not looks_like_date(text):
         return None
@@ -70,24 +97,29 @@ def normalize_date(text: str | None, reference: date | datetime | None = None) -
         ref = reference if isinstance(reference, datetime) else datetime(reference.year, reference.month, reference.day)
         default = ref.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     try:
-        parsed = _dateparser.parse(s, default=default, dayfirst=False)
+        parsed = _dateparser.parse(s, default=default, dayfirst=dayfirst)
     except (ValueError, OverflowError):
         return None
     return parsed.date().isoformat()
 
 
-def date_to_ms(iso: str | None) -> int | None:
-    """Epoch milliseconds (UTC midnight) for an ISO date, or the instant for an ISO datetime."""
+def date_to_ms(iso: str | None, tz: str | timezone | None = None) -> int | None:
+    """Epoch milliseconds for an ISO date (local midnight in ``tz``, UTC by default) or ISO datetime.
+
+    Ingestion passes the tenant timezone (``"+05:30"``) so a due date of 2026-09-24 means midnight
+    in Mumbai, not 05:30 IST; API callers that pass nothing keep the UTC-midnight behaviour.
+    """
     if not iso:
         return None
+    zone = tz if isinstance(tz, timezone) else tz_from_offset(tz)
     s = iso.strip()
     try:
         if _ISO_DATE.match(s):
-            dt = datetime.fromisoformat(s).replace(tzinfo=UTC)
+            dt = datetime.fromisoformat(s).replace(tzinfo=zone)
         else:
             dt = datetime.fromisoformat(s)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
+                dt = dt.replace(tzinfo=zone)
     except ValueError:
         return None
     return int(dt.timestamp() * 1000)

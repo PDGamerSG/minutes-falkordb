@@ -9,8 +9,10 @@ demo database are deterministic. ``--extract real`` runs Gemma 4 extraction (pro
 ``ingest.extract.CURRENT_VERSION``, see docs/eval/extraction.md) and the model supersession judge;
 it needs a real LLM backend.
 
-Idempotent: tenants are MERGEd, episodes and facts carry deterministic ids, restated facts are
-confirmations rather than duplicates. Works without any model when LLM_BACKEND=fake (gold labels
+Idempotent: tenants are MERGEd, episodes carry positional ids and facts content-derived ids
+(``fact_<episode>_<sha1(key|object)[:8]>``), episodes that already have facts are not re-extracted on a
+re-run, and a changed source file is refused (``source_changed``) rather than rewritten in place: give a
+changed recording or mailbox a new container id. Works without any model when LLM_BACKEND=fake (gold labels
 are replayed) and without the ONNX model when EMBED_BACKEND=fake.
 Files are dispatched on their top-level key (``meeting`` vs ``thread``); rosters are loaded first
 and are never imported; ``data/generator/`` is ignored.
@@ -23,6 +25,7 @@ import json
 import logging
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +49,7 @@ def discover(meetings_dir: Path, tenant: str) -> list[tuple[str, Path]]:
     Chronological import keeps supersession chains honest: a restatement is a confirmation only
     when the statement it confirms is already in the graph. Rosters and unknown files are skipped.
     """
-    found: list[tuple[str, str, Path]] = []
+    found: list[tuple[datetime, str, Path]] = []
     for path in sorted(meetings_dir.glob(f"{tenant}_*.json")):
         if path.stem.endswith("_roster"):
             continue
@@ -59,10 +62,19 @@ def discover(meetings_dir: Path, tenant: str) -> list[tuple[str, Path]]:
         if kind is None:
             log.info("skipping %s (no meeting/thread key)", path.name)
             continue
-        started = str((data.get("meeting") or data.get("thread") or {}).get("started_at") or "")
+        started = _started_at((data.get("meeting") or data.get("thread") or {}).get("started_at"))
         found.append((started, kind, path))
     found.sort(key=lambda row: (row[0], row[2].name))
     return [(kind, path) for _, kind, path in found]
+
+
+def _started_at(value: object) -> datetime:
+    """``started_at`` as an aware datetime (mixed offsets sort wrong as strings); unparseable last."""
+    try:
+        parsed = datetime.fromisoformat(str(value or ""))
+    except ValueError:
+        return datetime.max.replace(tzinfo=UTC)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 _EXTRACTION_LLM: dict[str, object] = {}
@@ -205,6 +217,10 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001 - recall falls back to loading the UDF lazily
         log.warning("load_udfs failed: %s", exc)
 
+    known_slugs = {path.stem for tenant in tenants for _, path in discover(meetings_dir, tenant)}
+    for slug in sorted(skip - known_slugs):
+        log.warning("--skip %s names no file under %s for tenants %s", slug, meetings_dir, ",".join(tenants))
+
     rows: list[dict] = []
     for tenant in tenants:
         rows.extend(seed_tenant(ctx, tenant, meetings_dir, reset=args.reset, skip=skip, extract=args.extract))
@@ -213,11 +229,17 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print_table(rows)
     failures = [r for r in rows if r["status"].startswith("failed")]
+    for r in failures:
+        print(f"ERROR: {r['file']}: {r['status']}", file=sys.stderr)
     failed_episodes = [(r["file"], ep) for r in rows for ep in r.get("failed_episodes") or []]
     for file, ep in failed_episodes:
         print(f"WARNING: extraction failed for episode {ep} ({file}); its facts are missing", file=sys.stderr)
     if failed_episodes:
-        print(f"WARNING: {len(failed_episodes)} episode(s) lost to extraction failures; re-run the seed", file=sys.stderr)
+        print(
+            f"WARNING: {len(failed_episodes)} episode(s) lost to extraction failures; re-run the seed without --reset "
+            "(episodes that already have facts are skipped, only the failed ones are re-extracted)",
+            file=sys.stderr,
+        )
     close = getattr(ctx.hive, "close", None)
     if callable(close):
         close()

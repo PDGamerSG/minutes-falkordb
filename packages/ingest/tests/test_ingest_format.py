@@ -41,8 +41,18 @@ def test_overlapping_segments_rejected(sample_meeting):
         parse_export(sample_meeting)
 
 
-def test_segment_end_before_start_rejected(sample_meeting):
+def test_blank_and_zero_length_segments_are_dropped_with_a_warning(sample_meeting, caplog):
     sample_meeting["segments"][0]["end_ms"] = 0
+    sample_meeting["segments"].insert(2, {"start_ms": 15200, "end_ms": 15200, "speaker_id": "spk_priya", "text": "   "})
+    sample_meeting["segments"].insert(2, {"start_ms": 15200, "end_ms": 15300, "speaker_id": "spk_priya", "text": ""})
+    with caplog.at_level("WARNING"):
+        export = parse_export(sample_meeting)
+    assert len(export.segments) == 3 and [s.start_ms for s in export.segments] == [6400, 15200, 20000]
+    assert "dropped 3 blank or zero-length segment(s)" in caplog.text and "[0, 2, 3]" in caplog.text
+
+
+def test_only_empty_segments_is_still_an_error(sample_meeting):
+    sample_meeting["segments"] = [{"start_ms": 0, "end_ms": 0, "speaker_id": "spk_aditya", "text": "x"}]
     with pytest.raises(RecorderFormatError):
         parse_export(sample_meeting)
 

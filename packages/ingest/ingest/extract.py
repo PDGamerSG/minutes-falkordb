@@ -1,7 +1,10 @@
-"""Gemma 4 extraction of facts, decisions and commitments from one episode.
+"""Gemma 4 extraction of facts, decisions and commitments from one episode or a short dialogue window.
 
-``LLMExtractor`` is the production path (``complete_json`` with one retry inside the client).
-``GoldExtractor`` replays gold labels for model-free demos and plumbing tests.
+``LLMExtractor`` is the production path (``complete_json`` with one retry inside the client). It
+extracts one episode at a time (:meth:`LLMExtractor.extract`) or, by default, a window of up to
+``window_episodes`` consecutive short episodes in one call (:meth:`LLMExtractor.extract_window`), so a
+question and its answer, or a member's proposal and the lead's ratification, land in the same prompt.
+``GoldExtractor`` replays gold labels for model-free demos and plumbing tests (one episode per call).
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 
 from .chunker import Episode
-from .dates import calendar_table, looks_like_date, normalize_date, resolve_day_of_month
+from .dates import DEFAULT_DAYFIRST, calendar_table, looks_like_date, normalize_date, resolve_day_of_month
 from .gold import GoldFile, gold_items_for_episode
 from .llm_protocol import LLMFormatError, LLMProtocol
 from .models import (
@@ -72,12 +75,52 @@ class EpisodeContext:
     container_items: list[dict[str, Any]] = field(default_factory=list)
     #: extra known entity names (e.g. from the tenant graph) on top of the vocabulary list
     known_entities: list[str] = field(default_factory=list)
+    #: the tenant's convention for ambiguous numeric dates ("12/09/2026")
+    dayfirst: bool = DEFAULT_DAYFIRST
 
 
 class Extractor(Protocol):
     """Strategy interface used by the pipeline."""
 
     def extract(self, ctx: EpisodeContext) -> EpisodeExtraction: ...
+
+
+#: Window extraction limits: at most this many consecutive episodes, together shorter than this.
+WINDOW_EPISODES = 3
+WINDOW_MAX_MS = 60_000
+
+
+def plan_windows(episodes: list[Episode], window_episodes: int = WINDOW_EPISODES, max_ms: int = WINDOW_MAX_MS) -> list[list[Episode]]:
+    """Group consecutive short utterance episodes of one container into extraction windows.
+
+    A window holds up to ``window_episodes`` consecutive SHORT episodes (each under ``max_ms / 2``,
+    i.e. below the chunker's 30 s target) whose combined span (``last.t_end - first.t_start``) stays
+    under ``max_ms``; a long episode, an email message, or a container change gets a window of its own.
+    ``window_episodes <= 1`` returns one episode per window (gold replay keeps this).
+    """
+    if window_episodes <= 1:
+        return [[e] for e in episodes]
+    windows: list[list[Episode]] = []
+    current: list[Episode] = []
+    for episode in episodes:
+        if current:
+            first = current[0]
+            same = first.container_id == episode.container_id and first.source_kind == episode.source_kind
+            short = current[-1].duration_ms < max_ms // 2 and 0 < episode.duration_ms < max_ms // 2
+            span_ok = (
+                episode.source_kind != "email"
+                and first.t_start is not None
+                and episode.t_end is not None
+                and episode.t_end - first.t_start < max_ms
+            )
+            if same and short and span_ok and len(current) < window_episodes:
+                current.append(episode)
+                continue
+            windows.append(current)
+        current = [episode]
+    if current:
+        windows.append(current)
+    return windows
 
 
 def _speaker_name(ctx: EpisodeContext) -> str:
@@ -177,6 +220,33 @@ def build_user_prompt_v2(ctx: EpisodeContext, *, context_episodes: int = 3, cont
     return "\n".join(lines)
 
 
+def build_window_prompt(ctxs: list[EpisodeContext], *, context_episodes: int = 3, context_chars: int = 400) -> str:
+    """User turn for a dialogue window: the v2 header, then every episode tagged ``[n]`` with its speaker.
+
+    Items must name ``speaker_id`` (the id in parentheses) and ``episode`` (the number in brackets) so
+    provenance stays per episode; the first context is the window's shared header.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for ctx in ctxs:
+        for fact in ctx.prior_facts:
+            merged.setdefault(str(fact.get("id") or id(fact)), fact)
+    first = EpisodeContext(**{**{f: getattr(ctxs[0], f) for f in ctxs[0].__dataclass_fields__}, "prior_facts": list(merged.values())})
+    header = build_user_prompt_v2(first, context_episodes=context_episodes, context_chars=context_chars)
+    cut = header.index("\n## Episode to extract from") if "\n## Episode to extract from" in header else header.index("\n## Message to extract from")
+    lines = [header[:cut].rstrip(), "", "## Episodes to extract from (a short stretch of dialogue; extract from EVERY line)"]
+    for n, ctx in enumerate(ctxs, start=1):
+        ep = ctx.episode
+        role = next((s.get("role") for s in ctx.speakers if s.get("id") == ep.speaker_id), None)
+        lines.append(f"[{n}] {_speaker_name(ctx)} ({ep.speaker_id}{', ' + role if role else ''}): {ep.text}")
+    lines += [
+        "",
+        "Every item MUST carry \"speaker_id\" (the id in parentheses of the line where it is stated) and "
+        "\"episode\" (the line number in brackets). Attribute each item to the speaker who states it, not to "
+        "whoever is answered. Return the JSON object now.",
+    ]
+    return "\n".join(lines)
+
+
 def _mark_norm(value: Any) -> str:
     return " ".join(_MARK_NON_WORD.sub(" ", str(value or "").lower()).split())
 
@@ -191,14 +261,16 @@ _WEEKDAY_RE = re.compile(r"(?<![a-z])(monday|tuesday|wednesday|thursday|friday|s
 _ORDINAL_RE = re.compile(r"(?<![0-9])[0-9]{1,2}(st|nd|rd|th)?(?![0-9])")
 
 
-def correct_weekday(iso: str, ctx: EpisodeContext) -> str:
-    """Fix a model-computed date when the episode names exactly one weekday and no day number.
+def correct_weekday(iso: str, ctx: EpisodeContext, text: str | None = None) -> str:
+    """Fix a model-computed date when the item's own text names exactly one weekday and no day number.
 
     "for Wednesday's design review" said on Monday 2026-09-14 must be 2026-09-16 whatever the model
     computed; the date becomes the next such weekday on or after the episode's own date (or the one
     in the week after when the text says "next"). Dates with a spoken day number are left alone.
+    ``text`` is the item's text (the sentence the model wrote for this item); without it the whole
+    episode text is used, which would rewrite every ``due`` item of an episode that names one weekday.
     """
-    text = ctx.episode.text
+    text = ctx.episode.text if text is None else text
     days = {m.group(1).lower() for m in _WEEKDAY_RE.finditer(text)}
     if len(days) != 1 or _ORDINAL_RE.search(text):
         return iso
@@ -233,12 +305,14 @@ def postprocess_v2(extraction: EpisodeExtraction, ctx: EpisodeContext, version: 
     v4 = version >= "v4"
     stats = extraction.stats
     asked_why = any("why" in _mark_norm(prev.get("text")).split() for prev in ctx.context_before[-3:])
+    readback = version >= "v5" and is_readback(ctx)
 
     def marker_of(kind: Any, subject: Any, predicate: Any, obj: Any) -> tuple[str, ...]:
         base = _item_marker(subject, predicate, obj)
         return (str(kind), *base) if v3 else base
 
     seen_before = {marker_of(i.get("kind"), i.get("subject"), i.get("predicate"), i.get("object")) for i in ctx.container_items}
+    keys_before = {(_mark_norm(i.get("subject")), _mark_norm(i.get("predicate"))) for i in ctx.container_items}
     kept: list[ExtractedFact] = []
     keys: list[tuple[str, ...]] = []
     for item in extraction.items:
@@ -250,12 +324,12 @@ def postprocess_v2(extraction: EpisodeExtraction, ctx: EpisodeContext, version: 
         subject = canonicalize_subject(item.subject, ctx.tenant, ctx.known_entities, fuzzy=v3)
         obj = canonicalize_object(predicate, item.object, numbers=v4)
         if predicate == "due":
-            iso = normalize_date(obj, ctx.container_date) or resolve_day_of_month(obj, ctx.container_date)
+            iso = normalize_date(obj, ctx.container_date, dayfirst=ctx.dayfirst) or resolve_day_of_month(obj, ctx.container_date)
             if iso is None:
                 stats.dropped += 1
                 stats.errors.append(f"due without a date: {obj!r}")
                 continue
-            obj = correct_weekday(iso, ctx) if v4 else iso
+            obj = correct_weekday(iso, ctx, item.text) if v4 else iso
         if v4 and predicate == "decided" and _mark_norm(obj).startswith("because") and not asked_why:
             stats.dropped += 1
             stats.errors.append("rationale without a why-question")
@@ -290,6 +364,13 @@ def postprocess_v2(extraction: EpisodeExtraction, ctx: EpisodeContext, version: 
             stats.dropped += 1
             stats.errors.append(f"restatement of {subject}|{predicate}|{obj} from earlier in the meeting")
             continue
+        if readback and (_mark_norm(subject), _mark_norm(predicate)) in keys_before:
+            # Inside a read-back ("let me recap: scope payments, UPI the 25th ...") every item whose key
+            # was already stated in this meeting is a restatement in compressed phrasing; only a key
+            # that is new to the meeting (a commitment first made in the recap) is kept.
+            stats.dropped += 1
+            stats.errors.append(f"read-back of {subject}|{predicate} already recorded in this meeting")
+            continue
         if marker in keys:
             stats.dropped += 1
             continue
@@ -316,7 +397,7 @@ def coerce_extraction(raw: RawExtraction, ctx: EpisodeContext) -> EpisodeExtract
         data["episode_id"] = ctx.episode.id
         data["speaker"] = ctx.episode.speaker_id
         try:
-            item = ExtractedFact.model_validate(data)
+            item = ExtractedFact.model_validate(data, context={"dayfirst": ctx.dayfirst})
         except ValidationError as exc:
             stats.dropped += 1
             stats.errors.append(str(exc).splitlines()[0][:160])
@@ -368,15 +449,17 @@ def is_trivial_utterance(ctx: EpisodeContext, min_words: int = 6) -> bool:
     return not (_SIGNAL_WORDS & set(words))
 
 
-_READBACK_CUES = ("read it back", "read that back", "let me recap", "to recap", "decisions since", "to summarise", "to summarize")
+_READBACK_CUES = ("read it back", "read that back", "let me recap", "to recap", "to summarise", "to summarize")
 
 
 def is_readback(ctx: EpisodeContext) -> bool:
-    """An end-of-meeting read-back or recap ("Let me read it back. Scope: ..."); v5 skips the model call.
+    """An end-of-meeting read-back or recap ("Let me read it back. Scope: ...").
 
-    The owners' own statements earlier in the meeting carry the facts; a read-back only restates them,
-    and its compressed phrasing ("Vendor: PayU replaces Razorpay. New customer: Kestrel") produced most
-    of the spurious items in the v4 dev run. Emails are never skipped.
+    The owners' own statements earlier in the meeting carry the facts; a read-back mostly restates
+    them in compressed phrasing ("Vendor: PayU replaces Razorpay. New customer: Kestrel"). The model is
+    still called (new information can follow "to recap"); :func:`postprocess_v2` drops, per item, the
+    keys already recorded earlier in the meeting. "Decisions since" is not a cue: the standup routine
+    opens with it and carries new facts. Emails are never read-backs.
     """
     if ctx.source_kind == "email":
         return False
@@ -399,18 +482,19 @@ class LLMExtractor:
         email_prompt_name: str | None = None,
         temperature: float = 0.1,
         version: str = "v1",
+        window_episodes: int = WINDOW_EPISODES,
     ) -> None:
         self.llm = llm
         self.version = version
         self.prompt_name = prompt_name or f"extract_{version}"
         self.email_prompt_name = email_prompt_name or f"extract_email_{version}"
         self.temperature = temperature
+        #: dialogue-window size the pipeline uses with this extractor (1 = one call per episode)
+        self.window_episodes = window_episodes if version != "v1" else 1
 
     def extract(self, ctx: EpisodeContext) -> EpisodeExtraction:
         if self.version != "v1" and is_trivial_utterance(ctx):
             return EpisodeExtraction()
-        if self.version >= "v5" and is_readback(ctx):
-            return EpisodeExtraction(stats=ExtractionStats(errors=[f"{ctx.episode.id}: read-back skipped"]))
         system = load_prompt(self.email_prompt_name if ctx.source_kind == "email" else self.prompt_name)
         user = build_user_prompt(ctx) if self.version == "v1" else build_user_prompt_v2(ctx)
         try:
@@ -423,6 +507,64 @@ class LLMExtractor:
             result = postprocess_v2(result, ctx, self.version)
         return result
 
+    def extract_window(self, ctxs: list[EpisodeContext]) -> list[EpisodeExtraction]:
+        """One model call for consecutive short episodes; one :class:`EpisodeExtraction` per episode, in order.
+
+        Items are routed to their episode by the ``episode`` number the model returns, else by
+        ``speaker_id`` (the episode of that speaker whose text shares most words with the item), so
+        each stored fact keeps the episode and speaker it was actually stated in. Trivial episodes
+        stay in the window as dialogue context; a window of only trivial episodes makes no call.
+        """
+        if len(ctxs) == 1:
+            return [self.extract(ctxs[0])]
+        if all(is_trivial_utterance(c) for c in ctxs):
+            return [EpisodeExtraction() for _ in ctxs]
+        system = load_prompt(self.prompt_name)
+        user = build_window_prompt(ctxs)
+        try:
+            raw = self.llm.complete_json(system, user, RawExtraction, temperature=self.temperature)
+        except RuntimeError as exc:
+            ids = ", ".join(c.episode.id for c in ctxs)
+            log.error("extraction failed for window %s: %s", ids, exc)
+            return [EpisodeExtraction(stats=ExtractionStats(errors=[f"{c.episode.id}: {exc}"], failed=True)) for c in ctxs]
+        per_episode: list[list[dict[str, Any]]] = [[] for _ in ctxs]
+        for raw_item in raw.items:
+            if not isinstance(raw_item, dict):
+                per_episode[-1].append(raw_item)
+                continue
+            per_episode[_route_item(raw_item, ctxs)].append(raw_item)
+        results: list[EpisodeExtraction] = []
+        extra_items: list[dict[str, Any]] = []
+        for ctx, items in zip(ctxs, per_episode):
+            ctx_items = RawExtraction(entities=raw.entities if ctx is ctxs[0] else [], items=items)
+            local = EpisodeContext(**{**{f: getattr(ctx, f) for f in ctx.__dataclass_fields__}, "container_items": [*ctx.container_items, *extra_items]})
+            result = coerce_extraction(ctx_items, local)
+            if self.version != "v1":
+                result = postprocess_v2(result, local, self.version)
+            extra_items.extend(
+                {"subject": i.subject, "predicate": i.predicate, "object": i.object, "kind": i.kind, "speaker_id": ctx.episode.speaker_id}
+                for i in result.items
+            )
+            results.append(result)
+        return results
+
+
+def _route_item(raw_item: dict[str, Any], ctxs: list[EpisodeContext]) -> int:
+    """Index of the window episode a raw item belongs to (``episode`` number, else speaker + word overlap)."""
+    number = raw_item.pop("episode", None)
+    speaker = str(raw_item.pop("speaker_id", "") or "").strip()
+    try:
+        index = int(str(number).strip().strip("[]")) - 1
+    except (TypeError, ValueError):
+        index = -1
+    if 0 <= index < len(ctxs) and (not speaker or ctxs[index].episode.speaker_id == speaker):
+        return index
+    candidates = [i for i, c in enumerate(ctxs) if c.episode.speaker_id == speaker] if speaker else []
+    if not candidates:
+        candidates = [index] if 0 <= index < len(ctxs) else list(range(len(ctxs)))
+    words = _tokens(" ".join(str(raw_item.get(k) or "") for k in ("text", "subject", "object")))
+    return max(candidates, key=lambda i: (len(words & _tokens(ctxs[i].episode.text)), i))
+
 
 #: The prompt version the seed (``--extract real``) and the eval use by default.
 CURRENT_VERSION = "v5"
@@ -434,7 +576,9 @@ def make_extractor(llm: LLMProtocol, version: str | None = None) -> LLMExtractor
 
 
 class GoldExtractor:
-    """Model-free extractor that replays gold labels for the episode's segments/messages."""
+    """Model-free extractor that replays gold labels for the episode's segments/messages (no windows)."""
+
+    window_episodes = 1
 
     def __init__(self, gold: GoldFile) -> None:
         self.gold = gold

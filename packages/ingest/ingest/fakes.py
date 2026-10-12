@@ -3,10 +3,18 @@
 Method names and argument orders mirror ``docs/contracts/hiveboard-api.md`` minus the ``db``
 argument (``remember_fact(tenant, fact)`` instead of ``remember_fact(db, tenant, fact)``).
 ``apps/api/hive_adapter.py`` extends this class with the board, skills and analytics subset.
+
+Event parity: like the substrate, ``MemoryHive`` publishes the memory events itself
+(``publishes_memory_events = True``): ``episode.ingested`` once per stored batch, ``fact.created``
+/ ``commitment.created`` from :meth:`remember_fact`, ``fact.superseded`` / ``commitment.updated``
+from :meth:`supersede_fact`, with the payload shapes built by :func:`fact_created_payload` and
+:func:`fact_superseded_payload`. A subclass that sets the flag to ``False`` gets the same payloads
+published by the pipeline instead, so there is exactly one publisher either way.
 """
 
 from __future__ import annotations
 
+import hashlib
 import math
 import threading
 import time
@@ -16,9 +24,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from .models import entity_id_for, fact_key
+from .models import entity_id_for, fact_key, normalize_object
 
 EventListener = Callable[[dict[str, Any]], None]
+
+
+class Conflict(RuntimeError):
+    """Mirror of ``hiveboard.errors.Conflict``: the write is not allowed in the node's current state
+    (a no-op, backdated or cross-key supersession)."""
 
 
 def now_ms() -> int:
@@ -63,11 +76,69 @@ class TenantStore:
     entities: dict[str, dict[str, Any]] = field(default_factory=dict)
     mentions: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     facts: dict[str, dict[str, Any]] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
+
+
+#: Keys of the ``fact.superseded`` payload (``docs/contracts/hiveboard-api.md``); the substrate and
+#: the pipeline publish exactly this shape.
+FACT_SUPERSEDED_KEYS = frozenset(
+    {
+        "new_fact_id", "new_id", "old_fact_id", "old_fact_ids", "old_ids", "key", "subject", "predicate", "kind",
+        "old_object", "new_object", "object", "valid_from", "due_at", "episode_id", "speaker_id", "head_changed", "tenant",
+    }
+)
+
+
+def fact_created_payload(tenant: str, rec: dict[str, Any]) -> dict[str, Any]:
+    """``fact.created`` / ``commitment.created`` payload for a stored fact record."""
+    return {
+        "id": rec["id"],
+        "fact_id": rec["id"],
+        "kind": rec.get("kind"),
+        "key": rec.get("key"),
+        "subject": rec.get("subject"),
+        "predicate": rec.get("predicate"),
+        "object": rec.get("object"),
+        "text": rec.get("text"),
+        "speaker_id": rec.get("speaker_id"),
+        "episode_id": rec.get("episode_id"),
+        "due_at": rec.get("due_at"),
+        "valid_from": rec.get("valid_from"),
+        "precedent_ids": list(rec.get("precedent_ids") or []),
+        "tenant": tenant,
+    }
+
+
+def fact_superseded_payload(tenant: str, new: dict[str, Any], old: dict[str, Any], *, head_changed: bool = True) -> dict[str, Any]:
+    """``fact.superseded`` payload: the full contract shape (:data:`FACT_SUPERSEDED_KEYS`)."""
+    return {
+        "new_fact_id": new["id"],
+        "new_id": new["id"],
+        "old_fact_id": old["id"],
+        "old_fact_ids": [old["id"]],
+        "old_ids": [old["id"]],
+        "key": new.get("key"),
+        "subject": new.get("subject"),
+        "predicate": new.get("predicate"),
+        "kind": new.get("kind"),
+        "old_object": old.get("object"),
+        "new_object": new.get("object"),
+        "object": new.get("object"),
+        "valid_from": new.get("valid_from"),
+        "due_at": new.get("due_at"),
+        "episode_id": new.get("episode_id"),
+        "speaker_id": new.get("speaker_id"),
+        "head_changed": head_changed,
+        "tenant": tenant,
+    }
 
 
 class MemoryHive:
     """In-memory episodic + semantic memory with Redis-like pub/sub."""
+
+    #: The hive publishes memory events itself (parity with the substrate); the pipeline stays quiet.
+    publishes_memory_events = True
 
     def __init__(self) -> None:
         self._stores: dict[str, TenantStore] = {}
@@ -75,6 +146,10 @@ class MemoryHive:
         self._listeners: dict[str, list[EventListener]] = defaultdict(list)
         self._lock = threading.RLock()
         self.max_events = 500
+
+    def _emit(self, tenant: str, event: str, payload: dict[str, Any]) -> None:
+        if self.publishes_memory_events:
+            self.publish(tenant, event, payload)
 
     # ----------------------------------------------------------------- tenants
     def store(self, tenant: str) -> TenantStore:
@@ -94,6 +169,18 @@ class MemoryHive:
 
     def tenants(self) -> list[str]:
         return sorted(self._stores)
+
+    def set_tenant_meta(self, tenant: str, meta: dict[str, Any]) -> dict[str, Any]:
+        """Merge ``meta`` (e.g. ``embedding_model``) into the tenant row; returns the stored meta."""
+        with self._lock:
+            store = self.store(tenant)
+            store.meta.update({k: v for k, v in meta.items() if v is not None})
+            return dict(store.meta)
+
+    def get_tenant_meta(self, tenant: str) -> dict[str, Any]:
+        """The tenant row's metadata (``{}`` when nothing was recorded)."""
+        with self._lock:
+            return dict(self.store(tenant).meta)
 
     # ----------------------------------------------------------------- memory
     def remember_person(self, tenant: str, person: dict[str, Any]) -> str:
@@ -133,19 +220,54 @@ class MemoryHive:
             rec.setdefault("speaker_id", episode.get("sender_id"))
         store.episodes[eid] = rec
 
-    def remember_episodes(self, tenant: str, meeting_id: str, episodes: list[dict[str, Any]]) -> int:
+    def _remember_episode_batch(self, tenant: str, container_id: str, container_kind: str, episodes: list[dict[str, Any]]) -> int:
         with self._lock:
             store = self.store(tenant)
             for episode in episodes:
-                self._store_episode(store, meeting_id, "meeting", episode)
-            return len(episodes)
+                self._store_episode(store, container_id, container_kind, episode)
+        if episodes:
+            source_kind = episodes[0].get("source_kind") or ("email" if container_kind == "thread" else "utterance")
+            self._emit(tenant, "episode.ingested", {"container_id": container_id, "count": len(episodes), "source_kind": source_kind, "tenant": tenant})
+        return len(episodes)
+
+    def remember_episodes(self, tenant: str, meeting_id: str, episodes: list[dict[str, Any]]) -> int:
+        return self._remember_episode_batch(tenant, meeting_id, "meeting", episodes)
 
     def remember_email_episodes(self, tenant: str, thread_id: str, episodes: list[dict[str, Any]]) -> int:
+        return self._remember_episode_batch(tenant, thread_id, "thread", episodes)
+
+    def container_episodes(self, tenant: str, container_id: str) -> list[dict[str, Any]]:
+        """Stored episodes of one meeting or thread, by ``seq``, with the number of facts derived from each.
+
+        Shape per row: the contract's ``{id, seq, t_start, t_end, speaker_id, text_hash}`` plus ``text``,
+        ``t_occurred``, ``source_kind`` and ``fact_count`` (no embedding); ``text_hash`` is
+        ``sha256(text)[:16]`` like the API's rows. The pipeline compares this with an incoming import to detect a changed source
+        and to skip already-extracted episodes on a retry.
+        """
         with self._lock:
             store = self.store(tenant)
-            for episode in episodes:
-                self._store_episode(store, thread_id, "thread", episode)
-            return len(episodes)
+            counts: dict[str, int] = defaultdict(int)
+            for fact in store.facts.values():
+                if fact.get("status") != "retracted" and fact.get("episode_id"):
+                    counts[str(fact["episode_id"])] += 1
+            rows = [
+                {
+                    "id": e["id"],
+                    "seq": int(e.get("seq") or 0),
+                    "t_start": e.get("t_start"),
+                    "t_end": e.get("t_end"),
+                    "speaker_id": e.get("speaker_id") or e.get("sender_id"),
+                    "text": e.get("text") or "",
+                    "text_hash": hashlib.sha256(str(e.get("text") or "").encode("utf-8")).hexdigest()[:16],
+                    "t_occurred": e.get("t_occurred"),
+                    "source_kind": e.get("source_kind"),
+                    "fact_count": counts.get(e["id"], 0),
+                }
+                for e in store.episodes.values()
+                if e.get("container_id") == container_id
+            ]
+        rows.sort(key=lambda r: r["seq"])
+        return rows
 
     def upsert_entities(self, tenant: str, entities: list[dict[str, Any]]) -> dict[str, str]:
         """MERGE on name (case-insensitive); returns ``{name: effective_id}`` like hiveboard."""
@@ -217,33 +339,64 @@ class MemoryHive:
         old["expired_at"] = now
         old["status"] = status
 
+    def _publish_created(self, tenant: str, rec: dict[str, Any]) -> None:
+        payload = fact_created_payload(tenant, rec)
+        self._emit(tenant, "fact.created", payload)
+        if rec.get("kind") == "commitment":
+            self._emit(tenant, "commitment.created", {**payload, "commitment_id": rec["id"]})
+
+    def _publish_superseded(self, tenant: str, rec: dict[str, Any], old: dict[str, Any]) -> None:
+        payload = fact_superseded_payload(tenant, rec, old, head_changed=True)
+        self._emit(tenant, "fact.superseded", payload)
+        if rec.get("kind") == "commitment":
+            self._emit(tenant, "commitment.updated", {**payload, "commitment_id": rec["id"]})
+
     def remember_fact(self, tenant: str, fact: dict[str, Any], supersede: bool = False) -> dict[str, Any]:
+        """Store a fact atomically (one lock section); a fact id that already exists is returned as-is."""
         with self._lock:
             store = self.store(tenant)
             now = now_ms()
+            fid = fact.get("id")
+            if fid and fid in store.facts:
+                return {"id": fid, "superseded": [], "conflicts": [], "fact": store.facts[fid], "existing": True}
             rec = self._new_fact(store, fact, now)
-            superseded: list[str] = []
+            superseded: list[dict[str, Any]] = []
             if supersede:
                 for old in list(store.facts.values()):
-                    if old["status"] == "active" and old["key"] == rec["key"] and old["object"] != rec["object"]:
+                    if old["status"] == "active" and old["key"] == rec["key"] and normalize_object(old["object"]) != normalize_object(rec["object"]):
                         self._expire(old, rec["valid_from"], now)
-                        superseded.append(old["id"])
-            rec["supersedes"] = superseded
+                        superseded.append(old)
+            rec["supersedes"] = [o["id"] for o in superseded]
             store.facts[rec["id"]] = rec
-            return {"id": rec["id"], "superseded": superseded, "fact": rec}
+        self._publish_created(tenant, rec)
+        for old in superseded:
+            self._publish_superseded(tenant, rec, old)
+        return {"id": rec["id"], "superseded": [o["id"] for o in superseded], "conflicts": [], "fact": rec, "existing": False}
 
     def supersede_fact(self, tenant: str, old_id: str, new_fact: dict[str, Any]) -> dict[str, Any]:
+        """Expire ``old_id`` and link the new fact over it. Raises :class:`Conflict` for a no-op
+        (same object), a backdated statement (``valid_from`` before the old one) or a cross-key supersession."""
         with self._lock:
             store = self.store(tenant)
             old = store.facts.get(old_id)
             if old is None:
                 raise KeyError(f"fact {old_id} not found")
+            if old.get("status") != "active":
+                raise Conflict(f"fact {old_id!r} is {old.get('status')!r}; only active facts can be superseded")
             now = now_ms()
             rec = self._new_fact(store, new_fact, now)
+            if rec["key"] != old["key"]:
+                raise Conflict(f"cross-key supersession: {rec['key']!r} cannot supersede {old['key']!r}")
+            if normalize_object(rec["object"]) == normalize_object(old["object"]):
+                raise Conflict(f"no-op supersession: {old_id!r} already states {old['object']!r} (confirm it instead)")
+            if rec["valid_from"] < int(old.get("valid_from") or 0):
+                raise Conflict(f"backdated supersession: new valid_from {rec['valid_from']} is before {old_id!r} ({old.get('valid_from')})")
             self._expire(old, rec["valid_from"], now)
             rec["supersedes"] = [old_id]
             store.facts[rec["id"]] = rec
-            return {"id": rec["id"], "superseded": [old_id], "fact": rec}
+        self._publish_created(tenant, rec)
+        self._publish_superseded(tenant, rec, old)
+        return {"id": rec["id"], "superseded": [old_id], "fact": rec}
 
     def facts_by_key(self, tenant: str, key: str) -> list[dict[str, Any]]:
         """Every fact (any status) sharing the supersession key, oldest valid_from first."""
@@ -257,9 +410,17 @@ class MemoryHive:
         tenant: str,
         fact: dict[str, Any],
         before_id: str,
-        after_id: str | None,
+        after_id: str | None = None,
     ) -> dict[str, Any]:
-        """Slot a late-imported fact between ``after`` (older) and ``before`` (newer) by valid_from."""
+        """Atomic mid-chain insertion of a late-imported earlier statement, below ``before_id``.
+
+        The new fact is born superseded (``valid_to = before.valid_from``) and takes over the chain
+        member that ``before`` superseded (the belief at the new fact's ``valid_from``), if any.
+        Refuses to self-supersede: when the statement restates ``before`` (same key and object) or the
+        member it would slot over, that fact is confirmed instead. Returns
+        ``{"id", "inserted", "confirmed", "before_id"}`` like ``hiveboard.memory.insert_fact_in_chain``.
+        ``after_id`` is accepted for compatibility and ignored: the predecessor is derived from the chain.
+        """
         with self._lock:
             store = self.store(tenant)
             before = store.facts.get(before_id)
@@ -267,20 +428,32 @@ class MemoryHive:
                 raise KeyError(f"fact {before_id} not found")
             now = now_ms()
             rec = self._new_fact(store, fact, now)
+            if rec["key"] != before["key"]:
+                raise Conflict(f"cross-key insertion: {rec['key']!r} under {before['key']!r}")
+            new_obj = normalize_object(rec["object"])
+            if rec["id"] == before_id or new_obj == normalize_object(before["object"]):
+                self.confirm_fact(tenant, before_id, str(rec.get("episode_id") or ""))
+                return {"id": before_id, "inserted": False, "confirmed": True, "before_id": before_id}
+            predecessor = None
+            for pid in before.get("supersedes", []):
+                cand = store.facts.get(pid)
+                if cand is not None and int(cand.get("valid_from") or 0) <= rec["valid_from"]:
+                    predecessor = cand
+            if predecessor is not None and new_obj == normalize_object(predecessor["object"]):
+                self.confirm_fact(tenant, predecessor["id"], str(rec.get("episode_id") or ""))
+                return {"id": predecessor["id"], "inserted": False, "confirmed": True, "before_id": before_id}
+            if rec["id"] in store.facts:
+                return {"id": rec["id"], "inserted": False, "confirmed": False, "before_id": before_id}
             rec["valid_to"] = before["valid_from"]
             rec["expired_at"] = now
             rec["status"] = "superseded"
-            if after_id is not None:
-                after = store.facts.get(after_id)
-                if after is None:
-                    raise KeyError(f"fact {after_id} not found")
-                if after_id in before["supersedes"]:
-                    before["supersedes"].remove(after_id)
-                after["valid_to"] = rec["valid_from"]
-                rec["supersedes"] = [after_id]
+            if predecessor is not None:
+                before["supersedes"].remove(predecessor["id"])
+                predecessor["valid_to"] = rec["valid_from"]
+                rec["supersedes"] = [predecessor["id"]]
             before["supersedes"].append(rec["id"])
             store.facts[rec["id"]] = rec
-            return {"id": rec["id"], "superseded": [after_id] if after_id else [], "superseded_by": before_id, "fact": rec}
+            return {"id": rec["id"], "inserted": True, "confirmed": False, "before_id": before_id}
 
     def confirm_fact(self, tenant: str, fact_id: str, episode_id: str) -> None:
         """Record that an episode restated an existing fact (extra DERIVED_FROM, no SUPERSEDES)."""
@@ -289,7 +462,7 @@ class MemoryHive:
             if fact is None:
                 raise KeyError(f"fact {fact_id} not found")
             confirmed = fact.setdefault("confirmed_by", [])
-            if episode_id not in confirmed:
+            if episode_id and episode_id not in confirmed:
                 confirmed.append(episode_id)
 
     def retract_fact(self, tenant: str, fact_id: str, reason: str) -> None:

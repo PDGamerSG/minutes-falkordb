@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
-from .dates import looks_like_date, normalize_date
+from .dates import DEFAULT_DAYFIRST, looks_like_date, normalize_date
 
 Kind = Literal["fact", "decision", "commitment"]
 
@@ -34,6 +35,7 @@ _KIND_SYNONYMS = {
 
 _NON_WORD = re.compile(r"[^a-z0-9]+")
 _SPACES = re.compile(r"\s+")
+_PUNCT = re.compile(r"[^a-z0-9 ]+")
 
 
 def normalize_predicate(value: str) -> str:
@@ -62,6 +64,22 @@ def entity_id_for(name: str) -> str:
 def fact_key(subject: str, predicate: str) -> str:
     """The supersession key: ``subject|predicate`` lowercased."""
     return f"{_SPACES.sub(' ', subject.strip()).lower()}|{normalize_predicate(predicate)}"
+
+
+def normalize_object(value: Any) -> str:
+    """Loose equality for fact objects: lowercase, punctuation and double spaces removed."""
+    text = _PUNCT.sub(" ", str(value or "").lower())
+    return _SPACES.sub(" ", text).strip()
+
+
+def fact_id_for(episode_id: str, key: str, obj: Any) -> str:
+    """Content-derived fact id: ``fact_<episode_id>_<sha1(key|normalized object)[:8]>``.
+
+    A re-import of identical content produces the same id (idempotent MERGE); a different triple
+    from the same episode gets a different id and can never overwrite an existing node in place.
+    """
+    digest = hashlib.sha1(f"{key.lower()}|{normalize_object(obj)}".encode("utf-8")).hexdigest()[:8]
+    return f"fact_{episode_id}_{digest}"
 
 
 class ExtractedEntity(BaseModel):
@@ -145,13 +163,16 @@ class ExtractedFact(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _dates(self) -> ExtractedFact:
+    def _dates(self, info: ValidationInfo) -> ExtractedFact:
+        # the tenant's numeric-date convention arrives as validation context: model_validate(data, context={"dayfirst": ...})
+        context = info.context if isinstance(info.context, dict) else {}
+        dayfirst = bool(context.get("dayfirst", DEFAULT_DAYFIRST))
         if self.due_at is not None:
-            self.due_at = normalize_date(self.due_at) or (self.due_at if looks_like_date(self.due_at) else None)
+            self.due_at = normalize_date(self.due_at, dayfirst=dayfirst) or (self.due_at if looks_like_date(self.due_at) else None)
         if self.kind == "commitment" and self.due_at is None and looks_like_date(self.object):
-            self.due_at = normalize_date(self.object)
+            self.due_at = normalize_date(self.object, dayfirst=dayfirst)
         if looks_like_date(self.object):
-            normalized = normalize_date(self.object)
+            normalized = normalize_date(self.object, dayfirst=dayfirst)
             if normalized:
                 self.object = normalized
         return self

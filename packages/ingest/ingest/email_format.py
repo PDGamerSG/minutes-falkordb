@@ -1,7 +1,11 @@
 """Email thread format (docs/contracts/email-format.md).
 
 Pydantic model of the thread JSON, a parser from ``.eml`` / ``.mbox`` (stdlib ``email``) into
-the same model, quoted-reply stripping, and the mapping of messages to Episodes.
+the same model, HTML-to-text, quoted-reply stripping, and the mapping of messages to Episodes.
+
+An mbox file may hold several conversations: :func:`thread_from_mbox` groups its messages by
+``References`` / ``In-Reply-To`` and then by normalised subject and returns one
+:class:`EmailThread` per group.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from datetime import UTC, datetime
 from email import policy
 from email.message import EmailMessage
 from email.utils import getaddresses, parsedate_to_datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Literal
 
@@ -24,14 +29,25 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from .chunker import Episode, episode_id
 from .recorder_format import to_ms
 
-_QUOTE_INTRO = re.compile(r"^\s*On\s.+?(wrote|a écrit|schrieb)\s*:\s*$", re.IGNORECASE)
-_QUOTE_INTRO_START = re.compile(r"^\s*On\s.+", re.IGNORECASE)
+_MONTHS = (
+    "jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|"
+    "august|september|october|november|december"
+)
+#: A header such as "On Tue, Sep 16, 2026 at 2:02 PM Priya <p@x> wrote:" must carry a date token;
+#: "On balance I agree with what Rahul wrote:" does not, and is body text.
+_DATE_TOKEN = re.compile(
+    rf"(?<![a-z])({_MONTHS})(?![a-z])|\b\d{{1,2}}[./-]\d{{1,2}}[./-]\d{{2,4}}\b|\b\d{{4}}-\d{{2}}-\d{{2}}\b",
+    re.IGNORECASE,
+)
+_QUOTE_INTRO = re.compile(r"^\s*(On|Le|Am)\s.+?(wrote|a écrit|schrieb)\s*:\s*$", re.IGNORECASE | re.DOTALL)
+_QUOTE_INTRO_START = re.compile(r"^\s*(On|Le|Am)\s", re.IGNORECASE)
 _ORIGINAL_MESSAGE = re.compile(r"^\s*-{2,}\s*(Original Message|Forwarded message)\s*-{2,}\s*$", re.IGNORECASE)
 _HEADER_BLOCK = re.compile(r"^(From|Sent|To|Subject)\s*:\s", re.IGNORECASE)
-_SIGNATURE = re.compile(r"^--\s*$")
+#: Only the RFC 3676 signature separator (dash dash space); a bare "--" is a dash in prose.
+_SIGNATURE = re.compile(r"^-- $")
 _RE_PREFIX = re.compile(r"^\s*((re|fwd?|aw|wg)\s*:\s*)+", re.IGNORECASE)
-_TAG = re.compile(r"<[^>]+>")
 _NON_WORD = re.compile(r"[^a-z0-9]+")
+_MSGID = re.compile(r"<([^<>\s]+)>")
 
 
 class EmailFormatError(ValueError):
@@ -133,7 +149,11 @@ class EmailThread(_Strict):
         return to_ms(self.thread.started_at)
 
     def resolve_people(self, roster: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
-        """People keyed by id: roster entries win, then ``people``, then synthesized from addresses."""
+        """People keyed by id: roster entries win, then ``people``, then synthesized from addresses.
+
+        The roster join is on the exact (lower-cased) address only; ``priya@gmail.com`` never
+        resolves to the roster's ``spk_priya`` for ``priya@orbit.example``.
+        """
         by_email: dict[str, dict[str, Any]] = {}
         for entry in roster or []:
             mail = str(entry.get("email") or "").lower()
@@ -151,23 +171,39 @@ class EmailThread(_Strict):
 
 
 def synthesize_person(address: str) -> dict[str, Any]:
-    """Fallback identity for an address that is in no roster: ``spk_<local-part>``."""
-    local = address.split("@", 1)[0].lower()
-    slug = _NON_WORD.sub("_", local).strip("_") or "unknown"
-    name = " ".join(part.capitalize() for part in re.split(r"[._-]+", local) if part) or address
-    return {"id": f"spk_{slug}", "name": name, "email": address.lower(), "role": None}
+    """Fallback identity for an address that is in no roster: ``ext_<sha1(address)[:10]>``.
+
+    The id is derived from the full address so an outside ``priya@gmail.com`` can never collide
+    with the roster's ``spk_priya``; the address is kept so the person can be joined later.
+    """
+    mail = address.strip().lower()
+    local = mail.split("@", 1)[0]
+    digest = hashlib.sha1(mail.encode("utf-8")).hexdigest()[:10]
+    name = " ".join(part.capitalize() for part in re.split(r"[._-]+", local) if part) or mail
+    return {"id": f"ext_{digest}", "name": name, "email": mail, "role": None}
+
+
+def _is_quote_intro(lines: list[str], i: int, lookahead: int = 3) -> bool:
+    """``lines[i]`` starts an "On <date> ... wrote:" header, possibly wrapped over up to 3 lines."""
+    if not _QUOTE_INTRO_START.match(lines[i]):
+        return False
+    for span in range(1, lookahead + 1):
+        joined = " ".join(part.strip() for part in lines[i : i + span])
+        if _QUOTE_INTRO.match(joined):
+            return bool(_DATE_TOKEN.search(joined))
+    return False
 
 
 def strip_quoted(body: str) -> str:
-    """Drop quoted replies: lines starting with ``>`` and everything after an ``On ... wrote:`` line."""
+    """Drop quoted replies: ``>`` lines, everything after an ``On <date> ... wrote:`` header
+    (a date token is required; the header may wrap over three lines), an Outlook header block,
+    or the ``-- `` signature separator."""
     kept: list[str] = []
     lines = body.replace("\r\n", "\n").split("\n")
     i = 0
     while i < len(lines):
         line = lines[i]
-        if _QUOTE_INTRO.match(line) or _ORIGINAL_MESSAGE.match(line):
-            break
-        if _QUOTE_INTRO_START.match(line) and i + 1 < len(lines) and lines[i + 1].strip().lower().startswith("wrote:"):
+        if _ORIGINAL_MESSAGE.match(line) or _is_quote_intro(lines, i):
             break
         if _HEADER_BLOCK.match(line) and i + 1 < len(lines) and _HEADER_BLOCK.match(lines[i + 1]):
             break
@@ -181,6 +217,76 @@ def strip_quoted(body: str) -> str:
     text = "\n".join(kept)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+class _HTMLToText(HTMLParser):
+    """HTML body -> plain text: style/script dropped, block tags become newlines, blockquote lines
+    are prefixed with ``> `` so :func:`strip_quoted` can see the quoted reply, entities decoded."""
+
+    _BLOCK = frozenset(
+        {"p", "div", "br", "li", "ul", "ol", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "hr",
+         "section", "article", "header", "footer", "title", "dd", "dt", "address"}
+    )
+    _SKIP = frozenset({"style", "script", "head", "noscript", "template"})
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)  # html.unescape applied to every data run
+        self._tokens: list[tuple[int, str] | None] = []
+        self._depth = 0
+        self._skip = 0
+
+    def handle_starttag(self, tag: str, attrs: Any) -> None:
+        if tag in self._SKIP:
+            self._skip += 1
+            return
+        if tag == "blockquote":
+            self._tokens.append(None)
+            self._depth += 1
+        if tag in self._BLOCK:
+            self._tokens.append(None)
+
+    def handle_startendtag(self, tag: str, attrs: Any) -> None:
+        if tag in self._BLOCK:
+            self._tokens.append(None)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP:
+            self._skip = max(0, self._skip - 1)
+            return
+        if tag in self._BLOCK:
+            self._tokens.append(None)
+        if tag == "blockquote":
+            self._depth = max(0, self._depth - 1)
+
+    def handle_data(self, data: str) -> None:
+        if self._skip or not data:
+            return
+        self._tokens.append((self._depth, data))
+
+    def text(self) -> str:
+        lines: list[str] = []
+        current: list[str] = []
+        depth = 0
+        for token in self._tokens:
+            if token is None:
+                lines.append(("> " * depth + " ".join("".join(current).split())).rstrip())
+                current, depth = [], 0
+            else:
+                depth = max(depth, token[0])
+                current.append(token[1])
+        if current:
+            lines.append(("> " * depth + " ".join("".join(current).split())).rstrip())
+        text = "\n".join(lines)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        return text.strip()
+
+
+def html_to_text(markup: str) -> str:
+    """Plain text for an HTML email body (see :class:`_HTMLToText`)."""
+    parser = _HTMLToText()
+    parser.feed(markup)
+    parser.close()
+    return parser.text()
 
 
 def parse_thread(data: dict[str, Any] | str | bytes | EmailThread) -> EmailThread:
@@ -204,6 +310,10 @@ def _clean_subject(subject: str | None) -> str:
     return _RE_PREFIX.sub("", subject or "").strip() or "(no subject)"
 
 
+def _subject_key(subject: str | None) -> str:
+    return _NON_WORD.sub(" ", _clean_subject(subject).lower()).strip()
+
+
 def _message_body(msg: EmailMessage) -> str:
     body = msg.get_body(preferencelist=("plain", "html"))
     if body is None:
@@ -214,8 +324,7 @@ def _message_body(msg: EmailMessage) -> str:
         payload = body.get_payload(decode=True) or b""
         content = payload.decode("utf-8", errors="replace")
     if body.get_content_type() == "text/html":
-        content = _TAG.sub(" ", content)
-        content = re.sub(r"[ \t]+", " ", content)
+        content = html_to_text(content)
     return content.strip()
 
 
@@ -230,12 +339,20 @@ def _strip_angle(value: str | None) -> str | None:
     return value.strip().strip("<>").strip() or None
 
 
-def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None = None) -> EmailThread:
-    """Build an :class:`EmailThread` from parsed stdlib messages (one ``.eml`` or a whole ``.mbox``)."""
-    if not messages:
-        raise EmailFormatError("no messages found")
+def _references(msg: EmailMessage) -> list[str]:
+    ids: list[str] = []
+    for header in ("References", "In-Reply-To"):
+        for value in msg.get_all(header, []):
+            found = _MSGID.findall(str(value))
+            ids.extend(found or ([_strip_angle(str(value))] if _strip_angle(str(value)) else []))
+    return list(dict.fromkeys(i for i in ids if i))
+
+
+def _rows_from_messages(messages: list[EmailMessage]) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Parsed message rows (sorted by date, duplicate Message-IDs dropped) and the people seen."""
     rows: list[dict[str, Any]] = []
     people: dict[str, dict[str, Any]] = {}
+    seen_ids: set[str] = set()
     for index, msg in enumerate(messages):
         try:
             sent_at = parsedate_to_datetime(msg.get("Date", ""))
@@ -246,7 +363,11 @@ def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None 
         senders = getaddresses(msg.get_all("From", []))
         if not senders or not senders[0][1]:
             raise EmailFormatError(f"message {index} has no From address")
-        sender_name, sender = senders[0][0], senders[0][1].lower()
+        sender = senders[0][1].lower()
+        message_id = _strip_angle(msg.get("Message-ID")) or f"msg_{index + 1}"
+        if message_id in seen_ids:
+            continue  # the sent copy and the received copy of one message: keep the first
+        seen_ids.add(message_id)
         for name, addr in getaddresses(msg.get_all("From", []) + msg.get_all("To", []) + msg.get_all("Cc", [])):
             if addr:
                 person = synthesize_person(addr)
@@ -255,7 +376,7 @@ def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None 
                 people.setdefault(addr.lower(), person)
         rows.append(
             {
-                "id": _strip_angle(msg.get("Message-ID")) or f"msg_{index + 1}",
+                "id": message_id,
                 "sent_at": sent_at,
                 "from": sender,
                 "to": _addresses(msg, "To"),
@@ -263,16 +384,63 @@ def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None 
                 "in_reply_to": _strip_angle(msg.get("In-Reply-To")),
                 "subject": msg.get("Subject"),
                 "body_text": _message_body(msg),
-                "_sender_name": sender_name,
+                "_refs": _references(msg),
             }
         )
     rows.sort(key=lambda r: r["sent_at"])
+    return rows, people
+
+
+def _group_rows(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Conversations: union by References/In-Reply-To, then unlinked messages by normalised subject."""
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
     known = {r["id"] for r in rows}
     for row in rows:
-        row.pop("_sender_name", None)
+        find(row["id"])
+        for ref in row["_refs"]:
+            union(row["id"], ref)
+    first_by_subject: dict[str, str] = {}
+    for row in rows:
+        linked = any(ref in known for ref in row["_refs"]) or any(row["id"] in other["_refs"] for other in rows if other is not row)
+        key = _subject_key(row["subject"])
+        if not linked:
+            if key in first_by_subject:
+                union(first_by_subject[key], row["id"])
+            else:
+                first_by_subject[key] = row["id"]
+        else:
+            first_by_subject.setdefault(key, row["id"])
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        groups.setdefault(find(row["id"]), []).append(row)
+    return sorted(groups.values(), key=lambda g: g[0]["sent_at"])
+
+
+def _thread_from_rows(rows: list[dict[str, Any]], people: dict[str, dict[str, Any]], thread_id: str | None) -> EmailThread:
+    known: set[str] = set()
+    cleaned: list[dict[str, Any]] = []
+    addresses: set[str] = set()
+    for row in rows:
+        row = {k: v for k, v in row.items() if k != "_refs"}
         if row["in_reply_to"] not in known:
-            row["in_reply_to"] = None
-    first = rows[0]
+            row["in_reply_to"] = None  # unknown parent, or a parent whose Date sorts later (clock skew)
+        known.add(row["id"])
+        addresses.update([row["from"], *row["to"], *row["cc"]])
+        cleaned.append(row)
+    first = cleaned[0]
     digest = hashlib.sha1(first["id"].encode("utf-8")).hexdigest()[:10]
     data = {
         "version": 1,
@@ -281,13 +449,36 @@ def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None 
             "subject": _clean_subject(first["subject"]),
             "started_at": first["sent_at"],
         },
-        "people": list(people.values()),
-        "messages": rows,
+        "people": [p for mail, p in people.items() if mail in addresses],
+        "messages": cleaned,
     }
     try:
         return EmailThread.model_validate(data)
     except ValidationError as exc:
         raise EmailFormatError(str(exc)) from exc
+
+
+def thread_from_messages(messages: list[EmailMessage], *, thread_id: str | None = None) -> EmailThread:
+    """Build ONE :class:`EmailThread` from parsed stdlib messages (one ``.eml``, or a conversation)."""
+    if not messages:
+        raise EmailFormatError("no messages found")
+    rows, people = _rows_from_messages(messages)
+    return _thread_from_rows(rows, people, thread_id)
+
+
+def threads_from_messages(messages: list[EmailMessage], *, thread_id: str | None = None) -> list[EmailThread]:
+    """Group parsed messages into conversations; one :class:`EmailThread` per group, oldest first.
+
+    ``thread_id`` names the first group; further groups get ``<thread_id>_2``, ``<thread_id>_3`` ...
+    """
+    if not messages:
+        raise EmailFormatError("no messages found")
+    rows, people = _rows_from_messages(messages)
+    threads: list[EmailThread] = []
+    for index, group in enumerate(_group_rows(rows)):
+        tid = thread_id if index == 0 else (f"{thread_id}_{index + 1}" if thread_id else None)
+        threads.append(_thread_from_rows(group, people, tid))
+    return threads
 
 
 def thread_from_eml(raw: bytes | str, *, thread_id: str | None = None) -> EmailThread:
@@ -298,8 +489,12 @@ def thread_from_eml(raw: bytes | str, *, thread_id: str | None = None) -> EmailT
     return thread_from_messages([msg], thread_id=thread_id)
 
 
-def thread_from_mbox(raw: bytes | str, *, thread_id: str | None = None) -> EmailThread:
-    """Parse an mbox file (bytes) into one thread ordered by Date."""
+def thread_from_mbox(raw: bytes | str, *, thread_id: str | None = None) -> list[EmailThread]:
+    """Parse an mbox file (bytes) into its conversations, each ordered by Date.
+
+    Duplicate Message-IDs keep the first copy; a reply whose parent sorts later loses its
+    ``in_reply_to``; messages are grouped by References/In-Reply-To, then by normalised subject.
+    """
     if isinstance(raw, str):
         raw = raw.encode("utf-8")
     with tempfile.NamedTemporaryFile(suffix=".mbox", delete=False) as handle:
@@ -311,7 +506,7 @@ def thread_from_mbox(raw: bytes | str, *, thread_id: str | None = None) -> Email
         box.close()
     finally:
         Path(path).unlink(missing_ok=True)
-    return thread_from_messages(messages, thread_id=thread_id)
+    return threads_from_messages(messages, thread_id=thread_id)
 
 
 def thread_episodes(thread: EmailThread, people: dict[str, dict[str, Any]]) -> list[Episode]:

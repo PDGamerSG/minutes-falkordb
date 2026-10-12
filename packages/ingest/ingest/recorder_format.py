@@ -7,11 +7,14 @@ segments must be in time order, non-overlapping and reference declared speakers.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+
+log = logging.getLogger(__name__)
 
 
 class RecorderFormatError(ValueError):
@@ -79,6 +82,39 @@ class RecorderExport(_Strict):
     meeting: MeetingMeta
     speakers: list[Speaker] = Field(min_length=1)
     segments: list[Segment] = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_empty_segments(cls, data: Any) -> Any:
+        """Blank or zero-length STT segments are dropped with a warning instead of rejecting the file.
+
+        Recorders emit them for silence or a misfired VAD. Dropping shifts later segment indices;
+        gold labels assume the exported file is already clean.
+        """
+        if not isinstance(data, dict) or not isinstance(data.get("segments"), list):
+            return data
+        kept: list[Any] = []
+        dropped: list[int] = []
+        for index, seg in enumerate(data["segments"]):
+            if isinstance(seg, dict):
+                text = seg.get("text")
+                start, end = seg.get("start_ms"), seg.get("end_ms")
+                blank = text is None or (isinstance(text, str) and not text.strip())
+                zero = isinstance(start, int) and isinstance(end, int) and end <= start
+                if blank or zero:
+                    dropped.append(index)
+                    continue
+            kept.append(seg)
+        if dropped:
+            meeting = data.get("meeting") if isinstance(data.get("meeting"), dict) else {}
+            log.warning(
+                "recorder export %s: dropped %d blank or zero-length segment(s) at index %s",
+                (meeting or {}).get("id", "?"),
+                len(dropped),
+                dropped[:10],
+            )
+            return {**data, "segments": kept}
+        return data
 
     @model_validator(mode="after")
     def _consistent(self) -> RecorderExport:
