@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -31,10 +33,91 @@ T = TypeVar("T", bound=BaseModel)
 ExecuteFn = Callable[[str, dict[str, Any]], dict[str, Any]]
 
 NATIVE_TOOL_BACKENDS = frozenset({"ollama", "openrouter"})
+DEFAULT_TPM_BUDGET = 14_000  # input tokens per minute (chars / 4) shared by every Gemini call in this process
+TOKEN_BUCKET_MAX_WAIT_S = 20.0
 
 
 class LLMError(RuntimeError):
     """Transport or backend failure (the model never answered)."""
+
+
+class LLMRateLimited(LLMError):
+    """The shared per-minute budget (or the provider's quota) is exhausted; ``retry_after`` is in seconds."""
+
+    def __init__(self, message: str, retry_after: float) -> None:
+        super().__init__(message)
+        self.retry_after = max(0.0, float(retry_after))
+
+
+def estimate_tokens(*texts: str) -> int:
+    """Input-token estimate: characters / 4 (the free tier counts input tokens per minute)."""
+    return max(1, sum(len(t or "") for t in texts) // 4)
+
+
+class TokenBucket:
+    """Process-wide budget of input tokens per minute (finding 4.1).
+
+    ``acquire(n)`` blocks until ``n`` tokens are available, at most ``max_wait`` seconds, then raises
+    :class:`LLMRateLimited` with the time until enough tokens have refilled. Requests therefore queue
+    instead of burning the provider's retry budget. The clock is injectable for tests.
+    """
+
+    def __init__(self, tokens_per_minute: int, *, clock: Callable[[], float] | None = None, sleep: Callable[[float], None] | None = None) -> None:
+        self.capacity = max(1.0, float(tokens_per_minute))
+        self.rate = self.capacity / 60.0  # tokens per second
+        self._tokens = self.capacity
+        self._clock = clock or time.monotonic
+        self._sleep = sleep or time.sleep
+        self._updated = self._clock()
+        self._lock = threading.Lock()
+
+    def _refill_locked(self) -> None:
+        now = self._clock()
+        self._tokens = min(self.capacity, self._tokens + (now - self._updated) * self.rate)
+        self._updated = now
+
+    @property
+    def available(self) -> float:
+        with self._lock:
+            self._refill_locked()
+            return self._tokens
+
+    def wait_for(self, tokens: int) -> float:
+        """Seconds until ``tokens`` are available (0 when they already are)."""
+        with self._lock:
+            self._refill_locked()
+            need = min(float(tokens), self.capacity) - self._tokens
+            return 0.0 if need <= 0 else need / self.rate
+
+    def acquire(self, tokens: int, max_wait: float = TOKEN_BUCKET_MAX_WAIT_S) -> float:
+        """Take ``tokens`` (capped at the capacity); returns the seconds waited."""
+        wanted = min(float(tokens), self.capacity)
+        waited = 0.0
+        while True:
+            with self._lock:
+                self._refill_locked()
+                if self._tokens >= wanted:
+                    self._tokens -= wanted
+                    return waited
+                delay = (wanted - self._tokens) / self.rate
+            if waited + delay > max_wait:
+                raise LLMRateLimited(f"token budget exhausted: {int(wanted)} tokens needed, {delay:.1f}s until available", retry_after=delay)
+            step = min(delay, 0.5)
+            self._sleep(step)
+            waited += step
+
+
+_BUCKETS: dict[int, TokenBucket] = {}
+_BUCKETS_LOCK = threading.Lock()
+
+
+def shared_token_bucket(tokens_per_minute: int) -> TokenBucket:
+    """One bucket per budget size for the whole process (every GeminiBackend shares it)."""
+    with _BUCKETS_LOCK:
+        bucket = _BUCKETS.get(int(tokens_per_minute))
+        if bucket is None:
+            bucket = _BUCKETS[int(tokens_per_minute)] = TokenBucket(tokens_per_minute)
+        return bucket
 
 
 class ToolSpec(BaseModel):
@@ -129,6 +212,12 @@ class OllamaBackend:
         self.think = think
         self._client = httpx.Client(timeout=httpx.Timeout(timeout_s, connect=10.0))
 
+    def probe(self) -> bool:
+        """Cheap liveness check (no generation): ``GET /api/tags``."""
+        response = self._client.get(f"{self.root}/api/tags", timeout=5.0)
+        response.raise_for_status()
+        return True
+
     def chat(
         self,
         system: str,
@@ -199,6 +288,11 @@ class OpenAICompatBackend:
         self.model = model
         self.think = think
         self._client = OpenAI(api_key=api_key or "none", base_url=base_url, timeout=timeout_s, max_retries=1)
+
+    def probe(self) -> bool:
+        """Cheap liveness check (no generation): list models."""
+        self._client.with_options(timeout=5.0).models.list()
+        return True
 
     def chat(
         self,
@@ -286,7 +380,7 @@ class GeminiBackend:
     MAX_TRANSIENT_RETRIES = 4
     MAX_RETRY_WAIT_S = 25.0
 
-    def __init__(self, model: str, api_key: str | None, *, timeout_s: float, think: bool) -> None:
+    def __init__(self, model: str, api_key: str | None, *, timeout_s: float, think: bool, tpm_budget: int | None = None) -> None:
         from google import genai
 
         keys = [k.strip() for k in (api_key or "").split(",") if k.strip()]
@@ -299,6 +393,13 @@ class GeminiBackend:
         self._system_ok: bool | None = None
         self._json_ok: bool | None = None
         self._minimal_ok: bool | None = None
+        budget = tpm_budget if tpm_budget is not None else int(os.environ.get("GEMINI_TPM_BUDGET", DEFAULT_TPM_BUDGET) or DEFAULT_TPM_BUDGET)
+        self.bucket = shared_token_bucket(budget)
+
+    def probe(self) -> bool:
+        """Cheap liveness check (no generation): fetch the model's metadata."""
+        self._clients[self._active].models.get(model=self.model)
+        return True
 
     def chat(
         self,
@@ -315,6 +416,9 @@ class GeminiBackend:
         from google.genai import errors, types
 
         transcript = _flatten_transcript(messages)
+        waited = self.bucket.acquire(estimate_tokens(system, transcript))
+        if waited:
+            log.info("gemini call queued %.1fs on the shared token budget", waited)
         feature_attempts = 0
         transient_attempts = 0
         while True:
@@ -356,6 +460,9 @@ class GeminiBackend:
                             delay = max(delay, min(float(hint.group(1)) + 0.5, self.MAX_RETRY_WAIT_S))
                     time.sleep(delay)
                     continue
+                if code == 429:
+                    hint = _RETRY_HINT.search(str(exc))
+                    raise LLMRateLimited(f"gemini rate limited after {transient_attempts} retries: {exc}", retry_after=float(hint.group(1)) if hint else 30.0) from exc
                 feature_attempts += 1
                 if use_minimal and "thinking" in message:
                     self._minimal_ok = False
@@ -406,6 +513,7 @@ class LLM:
         timeout_s: float = 180.0,
         think: bool = False,
         native_tools: bool | None = None,
+        tpm_budget: int | None = None,
     ) -> None:
         backend = backend.lower()
         self.backend = backend
@@ -418,10 +526,17 @@ class LLM:
                 model, api_key, base_url or "https://openrouter.ai/api/v1", timeout_s=timeout_s, think=think
             )
         elif backend == "gemini":
-            self._backend = GeminiBackend(model, api_key, timeout_s=timeout_s, think=think)
+            self._backend = GeminiBackend(model, api_key, timeout_s=timeout_s, think=think, tpm_budget=tpm_budget)
         else:
             raise ValueError(f"unknown LLM_BACKEND {backend!r} (expected gemini | openrouter | ollama | fake)")
         self.native_tools = self._backend.supports_native_tools if native_tools is None else native_tools
+
+    def probe(self) -> bool:
+        """Liveness without a generation (used by ``/health``); raises on failure."""
+        probe = getattr(self._backend, "probe", None)
+        if probe is None:
+            raise LLMError(f"backend {self.backend} has no probe")
+        return bool(probe())
 
     # -- text ---------------------------------------------------------------------------------
     def complete(self, system: str, user: str, temperature: float = 0.1, max_tokens: int = 2048) -> str:

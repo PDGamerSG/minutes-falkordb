@@ -12,7 +12,7 @@ class FollowUpAgent(BaseAgent):
     agent_id = "followup_agent"
     name = "FollowUpAgent"
     capabilities = ["followup"]
-    handles = ("followup", "nudge", "reschedule", "demo")
+    handles = ("followup", "nudge", "demo")  # reschedule reaches it only by hand-off from the Scheduler
     tool_names = ["recall", "why", "open_commitments", "active_facts", "create_issue", "finish"]
     prompt_name = "followup"
 
@@ -39,6 +39,8 @@ class FollowUpAgent(BaseAgent):
         handoff = payload.get("handoff_summary") or payload.get("summary")
         if handoff:
             lines.append(f"Hand-off summary: {handoff}")
+        if payload.get("old_object") and payload.get("new_object"):
+            lines.append(f"Date change: {payload.get('subject')} moved from {payload['old_object']} to {payload['new_object']}.")
         return ("Context from the memory graph:\n" + "\n".join(lines)) if lines else ""
 
     def task_instructions(self, task: dict[str, Any]) -> str:

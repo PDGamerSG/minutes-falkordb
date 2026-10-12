@@ -8,9 +8,9 @@ from ingest.llm_protocol import LLMFormatError
 
 from ..config import Settings, get_settings
 from .fake import FakeLLM
-from .gemma import LLM, LLMError, ToolLoopResult, ToolSpec
+from .gemma import LLM, LLMError, LLMRateLimited, ToolLoopResult, ToolSpec
 
-__all__ = ["LLM", "FakeLLM", "LLMError", "LLMFormatError", "ToolLoopResult", "ToolSpec", "llm_from_env", "make_llm"]
+__all__ = ["LLM", "FakeLLM", "LLMError", "LLMFormatError", "LLMRateLimited", "ToolLoopResult", "ToolSpec", "llm_from_env", "make_llm"]
 
 
 def make_llm(settings: Settings | None = None) -> Any:
@@ -29,6 +29,7 @@ def make_llm(settings: Settings | None = None) -> Any:
         max_tokens=settings.llm_max_tokens,
         timeout_s=settings.llm_timeout_s,
         think=False,
+        tpm_budget=getattr(settings, "gemini_tpm_budget", None),
     )
 
 

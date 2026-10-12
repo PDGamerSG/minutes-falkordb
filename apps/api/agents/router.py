@@ -15,8 +15,50 @@ from typing import Any
 from ingest.dates import normalize_date
 
 _WRITE_KEYWORDS = re.compile(r"\b(CREATE|MERGE|SET|DELETE|REMOVE|DROP|DETACH|CALL\s+db\.idx\.(create|drop)|LOAD\s+CSV|FOREACH)\b", re.IGNORECASE)
-_CYPHER_HINT = re.compile(r"^\s*(cypher\s*:|MATCH\b|OPTIONAL\s+MATCH\b|CALL\b|RETURN\b|WITH\b|UNWIND\b)", re.IGNORECASE)
+_CYPHER_HINT = re.compile(r"^\s*(cypher\s*:|MATCH\b|OPTIONAL\s+MATCH\b|CALL\b|RETURN\b|WITH\b|UNWIND\b|LOAD\s+CSV\b|CREATE\b|MERGE\b)", re.IGNORECASE)
 _WORD = re.compile(r"[a-z0-9]+")
+# Conversation history is private to the caller (finding 2.4): free-form Cypher may not name these labels.
+PRIVATE_LABELS = ("Turn", "ChatSession")
+_PRIVATE_LABEL = re.compile(r"(?::\s*`?(" + "|".join(PRIVATE_LABELS) + r")`?\b)|(\b(" + "|".join(PRIVATE_LABELS) + r")\b)")
+FREEFORM_LIMIT = 200
+_TOP_LIMIT = re.compile(r"\bLIMIT\s+\d+\s*$", re.IGNORECASE)
+
+
+def strip_literals(query: str) -> str:
+    """The query with string literals, backtick names and ``//`` comments blanked (keeps offsets' order, not length)."""
+    out: list[str] = []
+    i, n = 0, len(query)
+    while i < n:
+        ch = query[i]
+        if ch in "'\"`":
+            j = i + 1
+            while j < n and query[j] != ch:
+                j += 2 if query[j] == "\\" else 1
+            out.append(ch + ch)
+            i = j + 1
+            continue
+        if query.startswith("//", i):
+            j = query.find("\n", i)
+            i = n if j < 0 else j + 1
+            if not out or not out[-1].isspace():
+                out.append(" ")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def names_private_label(query: str) -> bool:
+    """True when the (literal-stripped) query mentions a label that holds chat history."""
+    return bool(_PRIVATE_LABEL.search(strip_literals(query)))
+
+
+def with_limit(query: str, limit: int = FREEFORM_LIMIT) -> str:
+    """Append ``LIMIT <n>`` when the query has no top-level LIMIT (the ro user still enforces read-only)."""
+    clauses = [kw for _, kw in _top_level_clauses(query)]
+    if "LIMIT" in clauses:
+        return query
+    return query.rstrip().rstrip(";") + f" LIMIT {int(limit)}"
 
 TEMPLATES = {
     "why": "32_why_path",
@@ -65,8 +107,9 @@ class RouterDecision:
 
 
 def is_read_only_cypher(query: str) -> bool:
-    """True when the statement contains no write clauses (defence in depth; the ro user is the real guard)."""
-    return not _WRITE_KEYWORDS.search(query)
+    """True when the statement contains no write clauses outside strings and comments (defence in depth;
+    the ro user is the real guard). ``CONTAINS 'create'`` is a string, not a write."""
+    return not _WRITE_KEYWORDS.search(strip_literals(query))
 
 
 _CLAUSE = re.compile(r"\b(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|UNWIND|CALL|RETURN|UNION|ORDER\s+BY|SKIP|LIMIT)\b", re.IGNORECASE)
@@ -159,10 +202,16 @@ def route(message: str, entities: list[dict[str, Any]], persons: list[dict[str, 
         query = re.sub(r"^\s*cypher\s*:\s*", "", text, flags=re.IGNORECASE)
         if not is_read_only_cypher(query):
             return RouterDecision("freeform", [], "freeform_ro", cypher=query, notes="rejected: write clause in free-form Cypher")
+        if names_private_label(query):
+            return RouterDecision("freeform", [], "freeform_ro", cypher=query, notes="rejected: chat history (Turn, ChatSession) is not queryable")
         guarded, rewritten = guard_match_where_match(query)
+        limited = with_limit(guarded)
+        notes = []
         if rewritten:
-            return RouterDecision("freeform", [], "freeform_ro", cypher=guarded, notes="rewritten: WITH * inserted before a MATCH that follows MATCH ... WHERE (FalkorDB 6.0.1 drops that WHERE)")
-        return RouterDecision("freeform", [], "freeform_ro", cypher=query)
+            notes.append("rewritten: WITH * inserted before a MATCH that follows MATCH ... WHERE (FalkorDB 6.0.1 drops that WHERE)")
+        if limited != guarded:
+            notes.append(f"LIMIT {FREEFORM_LIMIT} added")
+        return RouterDecision("freeform", [], "freeform_ro", cypher=limited, notes="; ".join(notes))
 
     found, people = find_entities(text, entities, persons)
     names = [str(e["name"]) for e in found]

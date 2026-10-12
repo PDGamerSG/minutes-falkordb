@@ -67,13 +67,17 @@ def fake_tool_policy(system: str, history: list[dict[str, Any]], tools: list[Too
             return {"tool": "update_commitment", "args": {"fact_id": new_fact, "due_at": due}}
         if "hand_off" in names and not any("hand_off" in str(m.get("content", "")) for m in history if m.get("role") == "assistant"):
             ids = [i for i in (new_fact, old_fact, header.get("EPISODE_ID", "")) if i and i.lower() != "none"]
-            summary = f"{subject} moved from {header.get('OLD_OBJECT', '?')} to {header.get('NEW_OBJECT', due or '?')}; nudge the owner and track it."
+            old_object = header.get("OLD_OBJECT", "")
+            new_object = header.get("NEW_OBJECT", due or "?")
+            summary = (f"{subject} moved from {old_object} to {new_object}" if old_object and old_object.lower() != "none" else f"{subject} moved to {new_object}") + "; nudge the owner and track it."
             return {"tool": "hand_off", "args": {"to_agent": "followup_agent", "summary": summary, "subgraph_ids": ids}}
         return {"final": "rescheduled"}
 
     if role == "followup" or kind in ("followup", "nudge", "demo"):
         subject = header.get("SUBJECT", "a commitment")
         new_object = header.get("NEW_OBJECT", header.get("DUE_AT", "a new date"))
+        old_object = header.get("OLD_OBJECT", "")
+        moved = f"moved from {old_object} to {new_object}" if old_object and old_object.lower() != "none" else f"moved to {new_object}"
         if done == 0 and "open_commitments" in names:
             return {"tool": "open_commitments", "args": {}}
         if done == 1 and "create_issue" in names:
@@ -81,7 +85,7 @@ def fake_tool_policy(system: str, history: list[dict[str, Any]], tools: list[Too
                 "tool": "create_issue",
                 "args": {
                     "title": f"Follow up: {subject} now due {new_object}",
-                    "body": f"The commitment '{subject}' moved to {new_object}. Confirm the new date with the owner and update dependent work.",
+                    "body": f"The commitment '{subject}' {moved}. Confirm the new date with the owner and update dependent work.",
                     "labels": ["minutes", "follow-up"],
                 },
             }

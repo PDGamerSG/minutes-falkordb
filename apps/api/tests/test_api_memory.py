@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from apps.api.tests.conftest import cf, cfs
+
 SEP_14 = 1788755400000 + 7 * 86_400_000  # 2026-09-14 10:00 +05:30
 SEP_16 = SEP_14 + 2 * 86_400_000
 SEP_20 = SEP_14 + 6 * 86_400_000
@@ -15,16 +17,17 @@ def _upi_chain(client, status="all"):
 def test_active_facts_shape_and_filters(client):
     facts = client.get("/tenants/orbit/facts").json()
     assert all(f["status"] == "active" for f in facts)
-    commitment = next(f for f in facts if f["subject"] == "PayU Integration")
+    commitment = next(f for f in facts if cf(f["subject"]) == "payu integration")
     assert commitment["kind"] == "commitment" and commitment["object"] == "2026-10-01"
     assert commitment["speaker"] == {"id": "spk_priya", "name": "Priya"}
     assert commitment["meeting"] == {"id": "mtg_orbit_001", "title": "Orbit kickoff"}
-    assert commitment["episode_id"] == "ep_mtg_orbit_001_001" and commitment["due_at"] == 1790812800000
+    assert commitment["episode_id"] == "ep_mtg_orbit_001_001"
+    assert abs(commitment["due_at"] - 1790812800000) <= 14 * 3600 * 1000  # 2026-10-01 at midnight, UTC or the source timezone
     assert commitment["source"]["kind"] == "utterance" and commitment["source"]["t_start"] == 8000
     assert set(commitment) >= {"id", "kind", "subject", "predicate", "object", "text", "confidence", "valid_from", "valid_to", "status", "speaker", "meeting", "episode_id"}
 
     decisions = client.get("/tenants/orbit/facts", params={"kind": "decision"}).json()
-    assert {d["subject"] for d in decisions} == {"October Release", "Payment Gateway", "Code Freeze"}
+    assert cfs(d["subject"] for d in decisions) == {"october release", "payment gateway", "code freeze"}
     assert client.get("/tenants/orbit/facts", params={"kind": "rumour"}).status_code == 400
     assert client.get("/tenants/orbit/facts", params={"status": "weird"}).status_code == 400
 
@@ -67,7 +70,7 @@ def test_belief_at_time_travel(client):
     later = client.get("/tenants/orbit/belief", params={"t": SEP_20, "entity": "ent_upi_flow"}).json()
     assert before["t"] == SEP_14 - 1 and before["cypher"] is not None
     assert {f["object"] for f in before["facts"] if f["predicate"] == "due"} == {"2026-09-24"}
-    assert {f["object"] for f in after["facts"] if f["subject"] == "UPI Flow" and f["predicate"] == "due"} == {"2026-09-25"}
+    assert {f["object"] for f in after["facts"] if cf(f["subject"]) == "upi flow" and f["predicate"] == "due"} == {"2026-09-25"}
     assert {f["object"] for f in later["facts"] if f["predicate"] == "due"} == {"2026-09-28"}
 
 
@@ -92,7 +95,7 @@ def test_analytics_routes(client):
     assert {"Priya", "Aditya", "Rahul"} <= names  # Rahul was cc on the email (SENT_TO)
 
     open_all = client.get("/tenants/orbit/analytics/open-commitments").json()
-    assert {c["subject"] for c in open_all} >= {"UPI Flow", "PayU Integration"}
+    assert cfs(c["subject"] for c in open_all) >= {"upi flow", "payu integration"}
     priya = client.get("/tenants/orbit/analytics/open-commitments", params={"person": "spk_priya"}).json()
     assert all(c["owner"]["id"] == "spk_priya" for c in priya)
 
@@ -100,9 +103,9 @@ def test_analytics_routes(client):
     clusters = client.get("/tenants/orbit/analytics/clusters").json()
     assert clusters and all({"component", "entities"} <= set(c) for c in clusters)
     stale = client.get("/tenants/orbit/analytics/stale-decisions", params={"older_than_days": 1}).json()
-    assert any(d["subject"] == "Payment Gateway" for d in stale)
+    assert any(cf(d["subject"]) == "payment gateway" for d in stale)
     entities = client.get("/tenants/orbit/entities").json()
-    assert any(e["name"] == "UPI Flow" for e in entities)
+    assert any(cf(e["name"]) == "upi flow" for e in entities)
 
 
 def test_get_single_fact(client):

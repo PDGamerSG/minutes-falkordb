@@ -35,14 +35,66 @@ import type {
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
 
+// ---------- credentials ----------
+// Per-tenant API key (X-API-Key) and admin token (Authorization: Bearer). The API only enforces them when
+// TENANT_KEYS_REQUIRED / ADMIN_TOKEN are set; local development sends nothing. Anything in NEXT_PUBLIC_* is
+// readable by every visitor, so NEXT_PUBLIC_API_KEY is for single-tenant public demos with synthetic data only.
+// The admin token is never read from the build environment: an operator stores it in this browser.
+const KEY_STORE = "minutes.apiKey";
+const ADMIN_STORE = "minutes.adminToken";
+
+function stored(name: string): string | undefined {
+  try {
+    return (typeof window !== "undefined" && window.localStorage.getItem(name)) || undefined;
+  } catch {
+    return undefined; // private mode / blocked storage
+  }
+}
+
+function store(name: string, value: string | null) {
+  try {
+    if (typeof window === "undefined") return;
+    if (value) window.localStorage.setItem(name, value);
+    else window.localStorage.removeItem(name);
+  } catch {
+    // storage unavailable: the env value (if any) still applies
+  }
+}
+
+export const getApiKey = (): string | undefined => stored(KEY_STORE) ?? (process.env.NEXT_PUBLIC_API_KEY || undefined);
+export const setApiKey = (key: string | null) => store(KEY_STORE, key);
+export const getAdminToken = (): string | undefined => stored(ADMIN_STORE);
+export const setAdminToken = (token: string | null) => store(ADMIN_STORE, token);
+
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const key = getApiKey();
+  const admin = getAdminToken();
+  if (key) headers["X-API-Key"] = key;
+  if (admin) headers["Authorization"] = `Bearer ${admin}`;
+  return headers;
+}
+
+/** Append ?api_key= for browser-native consumers that cannot set headers (EventSource, <audio>). */
+function withKey(url: string): string {
+  const key = getApiKey();
+  return key ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(key)}` : url;
+}
+
 export class ApiError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string, message: string) {
+  /** Server log correlation id (X-Request-ID); present on 500s. */
+  requestId?: string;
+  /** Seconds to wait before retrying (503 llm_rate_limited). */
+  retryAfter?: number;
+  constructor(status: number, code: string, message: string, extra: { requestId?: string; retryAfter?: number } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.requestId = extra.requestId;
+    this.retryAfter = extra.retryAfter;
   }
 }
 
@@ -54,11 +106,18 @@ type ReqOpts = {
   headers?: Record<string, string>;
 };
 
+/** A page of a paged route: the body array plus the X-Next-Cursor / X-Truncated response headers. */
+type Paged<T> = { rows: T[]; nextCursor: string | null; truncated: boolean };
+
 async function request<T>(path: string, opts: ReqOpts = {}): Promise<T> {
+  return (await requestFull<T>(path, opts)).data;
+}
+
+async function requestFull<T>(path: string, opts: ReqOpts = {}): Promise<{ data: T; headers: Headers }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 6000);
   try {
-    const headers: Record<string, string> = { Accept: "application/json", ...(opts.headers ?? {}) };
+    const headers: Record<string, string> = { Accept: "application/json", ...authHeaders(), ...(opts.headers ?? {}) };
     let body: BodyInit | undefined = opts.raw;
     if (opts.body !== undefined) {
       headers["Content-Type"] = "application/json";
@@ -74,21 +133,28 @@ async function request<T>(path: string, opts: ReqOpts = {}): Promise<T> {
     if (!res.ok) {
       let code = `http_${res.status}`;
       let message = res.statusText || `HTTP ${res.status}`;
+      let requestId: string | undefined;
+      let retryAfter: number | undefined;
       try {
-        const j = (await res.json()) as { error?: { code?: string; message?: string }; detail?: unknown };
+        const j = (await res.json()) as {
+          error?: { code?: string; message?: string; request_id?: string; retry_after?: number };
+          detail?: unknown;
+        };
         if (j?.error) {
           code = j.error.code ?? code;
           message = j.error.message ?? message;
+          requestId = j.error.request_id;
+          retryAfter = j.error.retry_after;
         } else if (j?.detail) {
           message = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
         }
       } catch {
         // non-JSON error body
       }
-      throw new ApiError(res.status, code, message);
+      throw new ApiError(res.status, code, message, { requestId: requestId ?? res.headers.get("X-Request-ID") ?? undefined, retryAfter });
     }
-    if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+    if (res.status === 204) return { data: undefined as T, headers: res.headers };
+    return { data: (await res.json()) as T, headers: res.headers };
   } finally {
     clearTimeout(timer);
   }
@@ -139,8 +205,9 @@ export const api = {
   // ---------- tenants ----------
   tenants: {
     list: () => withMock("GET /tenants", () => request<Tenant[]>("/tenants"), mock.mockTenants),
+    /** Admin only when ADMIN_TOKEN is set. The response carries `api_key` exactly once; store it. */
     create: (body: { slug: string; display_name: string }) =>
-      withMock("POST /tenants", () => request<Tenant>("/tenants", { body }), () => ({
+      withMock("POST /tenants", () => request<Tenant & { api_key?: string }>("/tenants", { body }), () => ({
         slug: body.slug,
         display_name: body.display_name,
         graph: `team_${body.slug}`,
@@ -179,7 +246,7 @@ export const api = {
         () => request<Episode[]>(`/tenants/${enc(tenant)}/meetings/${enc(meetingId)}/episodes`),
         () => mock.mockEpisodes(meetingId),
       ),
-    audioUrl: (tenant: string, meetingId: string) => `${API_BASE}/tenants/${enc(tenant)}/meetings/${enc(meetingId)}/audio`,
+    audioUrl: (tenant: string, meetingId: string) => withKey(`${API_BASE}/tenants/${enc(tenant)}/meetings/${enc(meetingId)}/audio`),
     /** HEAD-ish probe: true only when the API serves audio for this meeting. */
     async hasAudio(tenant: string, meetingId: string): Promise<boolean> {
       if (isForcedMock()) return false;
@@ -240,12 +307,38 @@ export const api = {
 
   // ---------- memory ----------
   facts: {
-    list: (tenant: string, params: { status?: string; entity?: string; kind?: string } = {}) =>
+    /** First page (API default 200, up to 1000 via `limit`). Use `page` / `all` when completeness matters. */
+    list: (tenant: string, params: { status?: string; entity?: string; kind?: string; limit?: number; cursor?: string } = {}) =>
       withMock(
         "GET /tenants/{t}/facts",
         () => request<Fact[]>(`/tenants/${enc(tenant)}/facts${q(params)}`),
         () => mock.mockFacts(params),
       ),
+    /** One page plus the X-Next-Cursor / X-Truncated headers. */
+    async page(
+      tenant: string,
+      params: { status?: string; entity?: string; kind?: string; limit?: number; cursor?: string } = {},
+    ): Promise<Paged<Fact>> {
+      if (isForcedMock()) {
+        markMock("GET /tenants/{t}/facts", "NEXT_PUBLIC_MOCK=1");
+        return { rows: resolveMock("GET /tenants/{t}/facts", () => mock.mockFacts(params)), nextCursor: null, truncated: false };
+      }
+      const { data, headers } = await requestFull<Fact[]>(`/tenants/${enc(tenant)}/facts${q(params)}`);
+      markLive("GET /tenants/{t}/facts");
+      return { rows: data, nextCursor: headers.get("X-Next-Cursor"), truncated: headers.get("X-Truncated") === "true" };
+    },
+    /** Every matching fact, following cursors (bounded by `maxPages` pages of 1000). */
+    async all(tenant: string, params: { status?: string; entity?: string; kind?: string } = {}, maxPages = 50): Promise<Fact[]> {
+      const out: Fact[] = [];
+      let cursor: string | undefined;
+      for (let i = 0; i < maxPages; i++) {
+        const page = await api.facts.page(tenant, { ...params, limit: 1000, cursor });
+        out.push(...page.rows);
+        if (!page.nextCursor) break;
+        cursor = page.nextCursor;
+      }
+      return out;
+    },
   },
   why: (tenant: string, nodeId: string) =>
     withMock("GET /tenants/{t}/why/{id}", () => request<WhyResponse>(`/tenants/${enc(tenant)}/why/${enc(nodeId)}`), () => mock.mockWhy(nodeId)),
@@ -322,8 +415,13 @@ export const api = {
   // ---------- board ----------
   board: {
     agents: (tenant: string) => withMock("GET /tenants/{t}/agents", () => request<Agent[]>(`/tenants/${enc(tenant)}/agents`), mock.mockAgents),
-    tasks: (tenant: string, status?: string) =>
-      withMock("GET /tenants/{t}/tasks", () => request<Task[]>(`/tenants/${enc(tenant)}/tasks${q({ status })}`), () => mock.mockTasks(status)),
+    /** status: submitted | working | input_required | completed | failed | all. Bench tasks (kind bench*) are hidden unless includeBench. */
+    tasks: (tenant: string, status?: string, includeBench = false) =>
+      withMock(
+        "GET /tenants/{t}/tasks",
+        () => request<Task[]>(`/tenants/${enc(tenant)}/tasks${q({ status, include_bench: includeBench ? "true" : undefined })}`),
+        () => mock.mockTasks(status),
+      ),
     trace: (tenant: string, taskId: string) =>
       withMock(
         "GET /tenants/{t}/tasks/{id}/trace",
@@ -347,7 +445,7 @@ export const api = {
         () => mock.mockDoubleClaim(body),
       ),
   },
-  eventsUrl: (tenant: string) => `${API_BASE}/tenants/${enc(tenant)}/events`,
+  eventsUrl: (tenant: string) => withKey(`${API_BASE}/tenants/${enc(tenant)}/events`),
 
   // ---------- skills ----------
   skills: {

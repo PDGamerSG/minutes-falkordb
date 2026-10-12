@@ -20,10 +20,70 @@ from ingest.gold import find_gold
 from ingest.recorder_format import RecorderExport, parse_export
 
 from .agents.standup_agent import StandupAgent, meetings_by_prefix, title_prefix
+from .errors import ApiError
 
 log = logging.getLogger(__name__)
 
 ProgressFn = Callable[[str, float], None]
+
+# Tenant meta keys shared with the ingest pipeline (which records the same two on first ingest).
+EMBEDDING_MODEL_KEY = "embedding_model"
+EMBEDDING_DIM_KEY = "embedding_dim"
+
+
+class EmbeddingMismatch(ApiError):
+    """The tenant's vectors were produced by a different embedding model than the API runs (409)."""
+
+    def __init__(self, tenant: str, expected: str, actual: str) -> None:
+        super().__init__(
+            409,
+            "embedding_model_mismatch",
+            f"tenant {tenant!r} was embedded with {expected!r} but this API runs {actual!r}; "
+            "set EMBED_BACKEND/EMBED_MODEL to match or re-seed the tenant",
+            expected=expected,
+            actual=actual,
+        )
+
+
+def embedding_identity(embedder: Any) -> str:
+    """``Embedder.identity`` when the ingest package provides it, else ``<backend>:<model>``."""
+    identity = getattr(embedder, "identity", None)
+    if identity:
+        return str(identity)
+    return f"{getattr(embedder, 'name', 'unknown')}:{getattr(embedder, 'model', 'unknown')}"
+
+
+def check_embedding_space(ctx: Any, tenant: str) -> dict[str, Any] | None:
+    """Compare the API's embedder with the tenant meta; returns the mismatch (and records it on ``ctx``) or None."""
+    try:
+        meta = ctx.hive.get_tenant_meta(tenant) or {}
+    except Exception as exc:  # noqa: BLE001 - a missing meta surface must not block startup
+        log.debug("get_tenant_meta(%s) failed: %s", tenant, exc)
+        return None
+    expected = meta.get(EMBEDDING_MODEL_KEY)
+    actual = embedding_identity(ctx.embedder)
+    if expected and str(expected) != actual:
+        mismatch = {"expected": str(expected), "actual": actual, "expected_dim": meta.get(EMBEDDING_DIM_KEY), "actual_dim": getattr(ctx.embedder, "dim", None)}
+        ctx.embedding_mismatch[tenant] = mismatch
+        log.error("embedding model mismatch for %s: graph %s, API %s", tenant, expected, actual)
+        return mismatch
+    ctx.embedding_mismatch.pop(tenant, None)
+    return None
+
+
+def ensure_embedding_space(ctx: Any, tenant: str) -> None:
+    """Before an import: refuse (409) on a mismatch, record the embedding space on the first ingest."""
+    mismatch = check_embedding_space(ctx, tenant)
+    if mismatch:
+        raise EmbeddingMismatch(tenant, mismatch["expected"], mismatch["actual"])
+    try:
+        meta = ctx.hive.get_tenant_meta(tenant) or {}
+        if not meta.get(EMBEDDING_MODEL_KEY):
+            ctx.hive.set_tenant_meta(tenant, {EMBEDDING_MODEL_KEY: embedding_identity(ctx.embedder), EMBEDDING_DIM_KEY: int(getattr(ctx.embedder, "dim", 768))})
+    except ApiError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.debug("could not record the embedding space for %s: %s", tenant, exc)
 
 
 def source_kind_of(data: dict[str, Any]) -> str | None:
@@ -80,6 +140,7 @@ def import_meeting(
 ) -> dict[str, Any]:
     """Run the meeting pipeline, then schedule skill learning for repeated meeting titles."""
     parsed = parse_export(export)
+    ensure_embedding_space(ctx, tenant)
     extractor, judge = _fake_strategy(ctx.llm, ctx.settings.data_path, parsed.meeting.id, slug)
     stats = pipeline.run(parsed, tenant, ctx.hive, ctx.llm, ctx.embedder, extractor=extractor, judge=judge, progress=progress)
     stats["skill_learned"] = maybe_learn_standup(tenant, ctx, parsed.meeting.title)
@@ -97,6 +158,7 @@ def import_thread(
 ) -> dict[str, Any]:
     """Run the email-thread pipeline with the tenant roster as the identity join."""
     parsed = parse_thread(thread)
+    ensure_embedding_space(ctx, tenant)
     roster = roster if roster is not None else load_roster(ctx.settings.data_path, tenant)
     extractor, judge = _fake_strategy(ctx.llm, ctx.settings.data_path, parsed.thread.id, slug)
     return pipeline.run_thread(parsed, tenant, ctx.hive, ctx.llm, ctx.embedder, roster=roster, extractor=extractor, judge=judge, progress=progress)

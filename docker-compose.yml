@@ -2,6 +2,7 @@ services:
   falkordb:
     image: falkordb/falkordb:6.0.1   # 6.x image tags have no v prefix
     container_name: minutes-falkordb
+    # Local development only. In a deployment keep the database on a private network: no published ports.
     ports:
       - "6379:6379"   # database
       - "3000:3000"   # FalkorDB Browser
@@ -27,10 +28,15 @@ services:
     environment:
       - FALKORDB_URL=falkor://falkordb:6379
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+      # The embedding model is baked into the image; these override empty values from .env.
+      - HF_HOME=/app/hf-cache
+      - HF_HUB_OFFLINE=1
+      - EMBED_MODEL=onnx-community/embeddinggemma-300m-ONNX
     ports:
       - "8080:8000"
     volumes:
       - ./data:/app/data:ro
+    restart: unless-stopped
 
   web:
     build:

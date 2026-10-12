@@ -1,4 +1,4 @@
-"""Board: agents, tasks, traces, demo buttons and the SSE event stream."""
+"""Board: agents, tasks, traces, demo buttons (admin) and the SSE event stream."""
 
 from __future__ import annotations
 
@@ -14,15 +14,19 @@ from ingest.models import fact_key
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from ..auth import require_admin, require_tenant_key
 from ..errors import ApiError
+from ..hive_adapter import TASK_STATES
 from ..state import AppContext, get_ctx
 
 log = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/tenants/{tenant}", tags=["board"])
+router = APIRouter(prefix="/tenants/{tenant}", tags=["board"], dependencies=[Depends(require_tenant_key)])
 
 DEMO_SUPERSEDE_KEY = fact_key("PayU integration", "due")
 DEMO_CLAIMERS = 25
+BENCH_KIND_PREFIX = "bench"
+TRACE_EVENT_TYPES = ("submitted", "claimed", "handed_off", "lease_expired", "artifact", "skill_used", "completed", "failed", "input_required")
 
 
 class TaskCreate(BaseModel):
@@ -53,6 +57,7 @@ def task_view(task: dict[str, Any]) -> dict[str, Any]:
         "priority": task.get("priority", 5),
         "created_at": task.get("created_at"),
         "updated_at": task.get("updated_at"),
+        "lease_until": task.get("lease_until"),
         "payload": task.get("payload") or {},
         "about": task.get("about") or [],
         "requires": task.get("requires") or [],
@@ -97,6 +102,10 @@ def _artifact_view(artifact: dict[str, Any] | None) -> dict[str, Any] | None:
     return out
 
 
+def is_bench_task(task: dict[str, Any]) -> bool:
+    return str(task.get("kind") or "").startswith(BENCH_KIND_PREFIX)
+
+
 @router.get("/agents")
 def list_agents(tenant: str, ctx: AppContext = Depends(get_ctx)) -> list[dict[str, Any]]:
     ctx.ensure_tenant(tenant)
@@ -104,9 +113,22 @@ def list_agents(tenant: str, ctx: AppContext = Depends(get_ctx)) -> list[dict[st
 
 
 @router.get("/tasks")
-def list_tasks(tenant: str, status: str | None = Query(None), limit: int = Query(50, ge=1, le=500), ctx: AppContext = Depends(get_ctx)) -> list[dict[str, Any]]:
+def list_tasks(
+    tenant: str,
+    status: str | None = Query(None, description="one of " + ", ".join(TASK_STATES) + " (or all)"),
+    limit: int = Query(50, ge=1, le=500),
+    include_bench: bool = Query(False, description="include tasks created by POST /bench/run (kind bench*)"),
+    ctx: AppContext = Depends(get_ctx),
+) -> list[dict[str, Any]]:
     ctx.ensure_tenant(tenant)
-    return [task_view(t) for t in ctx.hive.list_tasks(tenant, status=status or None, limit=limit)]
+    if status in ("", "all"):
+        status = None
+    if status is not None and status not in TASK_STATES:
+        raise ApiError(400, "bad_status", f"status must be one of {list(TASK_STATES)} or all")
+    rows = ctx.hive.list_tasks(tenant, status=status, limit=limit)
+    if not include_bench:
+        rows = [t for t in rows if not is_bench_task(t)]
+    return [task_view(t) for t in rows]
 
 
 @router.post("/tasks", status_code=201)
@@ -141,7 +163,7 @@ def task_trace(tenant: str, task_id: str, ctx: AppContext = Depends(get_ctx)) ->
     return {"task": task_view(task), "events": events, "about": trace.get("about") or task.get("about") or [], "cypher": trace.get("cypher")}
 
 
-# --------------------------------------------------------------------------- demo buttons
+# --------------------------------------------------------------------------- demo buttons (admin)
 def _pick_demo_commitment(ctx: AppContext, tenant: str) -> dict[str, Any]:
     active = ctx.hive.active_facts(tenant, key=DEMO_SUPERSEDE_KEY)
     if not active:
@@ -152,7 +174,7 @@ def _pick_demo_commitment(ctx: AppContext, tenant: str) -> dict[str, Any]:
     return max(active, key=lambda f: (f.get("valid_from") or 0, f.get("created_at") or 0))
 
 
-@router.post("/demo/supersede")
+@router.post("/demo/supersede", dependencies=[Depends(require_admin)])
 def demo_supersede(tenant: str, body: SupersedeBody, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
     """The "move it to Friday" path: supersede a dated commitment and let the Scheduler wake up."""
     ctx.ensure_tenant(tenant)
@@ -184,50 +206,44 @@ def demo_supersede(tenant: str, body: SupersedeBody, ctx: AppContext = Depends(g
     }
     if due_ms is not None:
         new_fact["due_at"] = due_ms
+    # The substrate (and the in-memory hive) publish fact.superseded / commitment.updated themselves. valid_from is
+    # "now", so the Scheduler's historical-event filter treats the event as live.
     result = ctx.hive.supersede_fact(tenant, old["id"], new_fact)
-    if not getattr(ctx.hive, "publishes_memory_events", False):
-        payload = {
-            "old_fact_id": old["id"],
-            "new_fact_id": result["id"],
-            "key": new_fact["key"],
-            "kind": new_fact["kind"],
-            "subject": new_fact["subject"],
-            "predicate": new_fact["predicate"],
-            "old_object": old.get("object"),
-            "new_object": new_object,
-            "object": new_object,
-            "due_at": due_ms,
-            "speaker_id": speaker_id,
-            "episode_id": old.get("episode_id"),
-            "head_changed": True,
-            "demo": True,
-        }
-        ctx.hive.publish(tenant, "fact.superseded", payload)
-        if new_fact["kind"] == "commitment":
-            ctx.hive.publish(tenant, "commitment.updated", {**payload, "commitment_id": result["id"]})
     return {"old_fact_id": old["id"], "new_fact_id": result["id"], "subject": old.get("subject"), "old_object": old.get("object"), "new_object": new_object, "due_at": due_ms}
 
 
-@router.post("/demo/double-claim")
-async def demo_double_claim(tenant: str, body: DoubleClaimBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
-    """25 concurrent compare-and-set claims on one task: exactly one wins."""
-    ctx.ensure_tenant(tenant)
-    body = body or DoubleClaimBody()
-    hive = ctx.hive
+def _demo_claimers(hive: Any, tenant: str) -> list[str]:
+    """One fixed set of 25 demo agents per tenant; registration is idempotent and only runs for missing ones."""
     agent_ids = [f"demo_claimer_{i:02d}" for i in range(DEMO_CLAIMERS)]
+    existing = {a.get("id") for a in hive.list_agents(tenant)}
     for agent_id in agent_ids:
-        hive.register_agent(tenant, agent_id, f"Demo claimer {agent_id[-2:]}", ["demo"], "none")
-    task = hive.get_task(tenant, body.task_id) if body.task_id else None
-    if body.task_id and task is None:
-        raise ApiError(404, "task_not_found", f"task {body.task_id!r} not found")
+        if agent_id not in existing:
+            hive.register_agent(tenant, agent_id, f"Demo claimer {agent_id[-2:]}", ["demo"], "none")
+    return agent_ids
+
+
+def _demo_claim_target(hive: Any, tenant: str, task_id: str | None) -> dict[str, Any]:
+    task = hive.get_task(tenant, task_id) if task_id else None
+    if task_id and task is None:
+        raise ApiError(404, "task_not_found", f"task {task_id!r} not found")
     if task is None:
         submitted = [t for t in hive.list_tasks(tenant, status="submitted", limit=50) if t.get("kind") == "demo_double_claim" and not t.get("owner_agent")]
         task = submitted[0] if submitted else None
     if task is None:
-        task_id = hive.submit_task(tenant, "demo_double_claim", {"demo": "double-claim", "note": "25 agents race for this task"}, ["demo"], [], 5)
-        task = hive.get_task(tenant, task_id) or {"id": task_id, "version": 0, "status": "submitted"}
+        new_id = hive.submit_task(tenant, "demo_double_claim", {"demo": "double-claim", "note": "25 agents race for this task"}, ["demo"], [], 5)
+        task = hive.get_task(tenant, new_id) or {"id": new_id, "version": 0, "status": "submitted"}
     if task.get("status") != "submitted":
         raise ApiError(409, "not_claimable", f"task {task['id']} is {task.get('status')!r}")
+    return task
+
+
+@router.post("/demo/double-claim", dependencies=[Depends(require_admin)])
+async def demo_double_claim(tenant: str, body: DoubleClaimBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
+    """25 concurrent compare-and-set claims on one task: exactly one wins."""
+    body = body or DoubleClaimBody()
+    hive = ctx.hive
+    agent_ids = await asyncio.to_thread(_demo_claimers, hive, tenant)
+    task = await asyncio.to_thread(_demo_claim_target, hive, tenant, body.task_id)
     version = int(task.get("version", 0))
     results = await asyncio.gather(*(asyncio.to_thread(hive.claim, tenant, task["id"], agent_id, version) for agent_id in agent_ids), return_exceptions=True)
     winners = [a for a, r in zip(agent_ids, results) if isinstance(r, int)]
@@ -235,7 +251,7 @@ async def demo_double_claim(tenant: str, body: DoubleClaimBody | None = None, ct
     winner = winners[0] if winners else None
     if winner:
         try:
-            hive.complete(tenant, task["id"], winner, {"kind": "demo", "text": json.dumps({"winners": len(winners), "losers": len(agent_ids) - len(winners)})})
+            await asyncio.to_thread(hive.complete, tenant, task["id"], winner, {"kind": "demo", "text": json.dumps({"winners": len(winners), "losers": len(agent_ids) - len(winners)})})
         except Exception as exc:  # noqa: BLE001
             log.warning("could not complete demo task: %s", exc)
     return {"winners": len(winners), "losers": len(agent_ids) - len(winners), "task_id": task["id"], "winner_agent": winner, "attempts": len(agent_ids), "errors": errors[:3]}
@@ -247,17 +263,18 @@ async def events(
     tenant: str,
     request: Request,
     replay: int = Query(0, ge=0, le=200, description="re-send the last N events seen by this process"),
-    limit: int | None = Query(None, ge=1, description="close after N events (tests/debugging)"),
+    limit: int | None = Query(None, ge=0, description="close after N events; 0 closes right after the connected frame (tests/debugging)"),
     ctx: AppContext = Depends(get_ctx),
 ) -> EventSourceResponse:
-    ctx.ensure_tenant(tenant)
+    """SSE stream of ``{event, payload, ts}``. ``EventSource`` cannot set headers: when tenant keys are
+    required this route also accepts ``?api_key=``."""
     queue = ctx.bus.attach(tenant, replay=replay)
 
     async def stream():
         sent = 0
         try:
             yield {"event": "connected", "data": json.dumps({"event": "connected", "payload": {"tenant": tenant}, "ts": now_ms()})}
-            while True:
+            while limit != 0:
                 if await request.is_disconnected():
                     break
                 try:

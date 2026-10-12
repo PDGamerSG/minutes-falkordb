@@ -7,9 +7,10 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from ..auth import require_tenant_key
 from ..state import AppContext, get_ctx
 
-router = APIRouter(prefix="/tenants/{tenant}", tags=["skills"])
+router = APIRouter(prefix="/tenants/{tenant}", tags=["skills"], dependencies=[Depends(require_tenant_key)])
 
 
 class OutcomeBody(BaseModel):

@@ -7,7 +7,11 @@ def test_health(client):
     body = client.get("/health").json()
     assert body["ok"] is True
     assert "team_orbit" in body["falkordb"]["graphs"]
-    assert body["llm"] == {"backend": "fake", "model": "fake", "native_tools": False}
+    assert {k: body["llm"][k] for k in ("backend", "model", "native_tools")} == {"backend": "fake", "model": "fake", "native_tools": False}
+    assert body["llm"]["reachable"] is True
+    assert body["workers"]["enabled"] is False and body["workers"]["alive"] == 0
+    assert "source" not in body["embeddings"]  # no local file paths in a public health body
+    assert body["auth"] == {"admin_token": False, "tenant_keys_required": False}
     assert body["embeddings"]["dim"] == 768 and body["embeddings"]["backend"] == "fake"
 
 

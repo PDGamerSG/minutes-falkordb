@@ -54,7 +54,7 @@ def test_run_skill_submits_task_and_agent_executes_it(client, seeded):
     task["version"] = 1
     result = agent.run(task)
     assert not result.failed and result.artifact["kind"] == "standup_summary"
-    assert "Open commitments" in result.final and "PayU Integration" in result.final
+    assert "Open commitments" in result.final and "payu integration" in result.final.casefold()
     assert result.used_skill_id == client.get("/tenants/orbit/skills").json()[0]["id"]
     assert [s["tool"] for s in result.steps][:2] == ["retrieve_skill", "open_commitments"]
     assert any(e["event"] == "skill.ran" for e in seeded.hive.events["orbit"])

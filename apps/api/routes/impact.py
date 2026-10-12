@@ -9,11 +9,12 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..auth import require_admin, require_tenant_key
 from ..errors import ApiError
 from ..impact_service import impact_report, prepare_draft
 from ..state import AppContext, get_ctx
 
-router = APIRouter(prefix="/tenants/{tenant}", tags=["decision impact"])
+router = APIRouter(prefix="/tenants/{tenant}", tags=["decision impact"], dependencies=[Depends(require_tenant_key)])
 Context = Annotated[AppContext, Depends(get_ctx)]
 
 
@@ -57,7 +58,7 @@ class DraftBody(BaseModel):
     current_fact_id: str = Field(min_length=1, max_length=150)
 
 
-@router.post("/work-items/import")
+@router.post("/work-items/import", dependencies=[Depends(require_admin)])
 def import_work_items(tenant: str, body: WorkManifest, ctx: Context) -> dict[str, Any]:
     ctx.ensure_tenant(tenant)
     payload = body.graph_payload()

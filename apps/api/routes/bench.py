@@ -1,4 +1,6 @@
-"""Bench: results from ``docs/bench/*.json`` (Stream A's harness) plus a small in-process run (dev only)."""
+"""Bench: results from ``docs/bench/*.json`` (Stream A's harness) plus a small in-process run (admin only).
+
+In-process results are kept in a bounded deque (last 100 runs)."""
 
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ from fastapi import APIRouter, Depends
 from ingest.fakes import new_id, now_ms
 from pydantic import BaseModel, Field
 
+from ..auth import require_admin
 from ..state import AppContext, get_ctx
 
 log = logging.getLogger(__name__)
@@ -85,11 +88,12 @@ def bench_results(ctx: AppContext = Depends(get_ctx)) -> list[dict[str, Any]]:
     return rows
 
 
-@router.post("/bench/run", status_code=202)
+@router.post("/bench/run", status_code=202, dependencies=[Depends(require_admin)])
 async def bench_run(body: BenchRunBody, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
-    """Small in-process harness: N agent coroutines over M tenants, 80/20 read/write, plus a CAS race."""
+    """Admin: small in-process harness, N agent coroutines over M tenants, 80/20 read/write, plus a CAS race.
+    Its tasks are tagged ``kind: bench*`` so ``GET /tasks`` hides them unless ``include_bench=true``."""
     run_id = new_id("bench")
-    asyncio.create_task(_run_bench(run_id, body, ctx))
+    ctx.spawn(_run_bench(run_id, body, ctx))
     return {"run_id": run_id}
 
 

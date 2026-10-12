@@ -16,7 +16,7 @@ from apps.api.workers import WorkerPool
 def test_superseded_event_normalisation():
     pipeline_shape = {"old_fact_id": "f1", "new_fact_id": "f2", "key": "upi flow|due", "subject": "UPI Flow", "predicate": "due", "new_object": "2026-09-28", "old_object": "2026-09-25", "episode_id": "ep1"}
     spec = superseded_event_to_task(pipeline_shape)
-    assert spec["kind"] == "reschedule" and spec["requires"] == [] and spec["about_ids"] == ["f2", "f1"]
+    assert spec["kind"] == "reschedule" and spec["requires"] == ["schedule"] and spec["about_ids"] == ["f2", "f1"]
     assert spec["payload"]["due_at"] == "2026-09-28" and spec["payload"]["old_fact_id"] == "f1"
     hiveboard_shape = {"new_id": "f9", "old_ids": ["f8"], "key": "payu integration|due", "kind": "commitment", "object": "2026-10-02"}
     spec = superseded_event_to_task(hiveboard_shape)
@@ -61,8 +61,10 @@ async def test_supersede_wakes_scheduler_and_followup_creates_issue(data_dir):
         artifacts = [e["artifact"] for e in trace["events"] if e["type"] == "artifact"]
         issue = next(a for a in artifacts if a["kind"] == "github_issue")
         payload = json.loads(issue["text"])
-        assert payload["simulated"] is True and "PayU Integration" in payload["title"]
-        assert issue["uri"].startswith("https://github.com/")
+        assert payload["simulated"] is True and "payu integration" in payload["title"].casefold()
+        assert issue["uri"].startswith("minutes://simulated/issue/")  # never a real GitHub namespace
+        assert "moved from 2026-10-01 to 2026-10-02" in payload["body"]
+        assert "moved from 2026-10-01 to 2026-10-02" in handoff["summary"]
         events = [e["event"] for e in ctx.hive.events["orbit"]]
         assert events.index("fact.superseded") < events.index("task.handed_off") < events.index("task.completed")
         agents = {a["id"]: a for a in ctx.hive.list_agents("orbit")}

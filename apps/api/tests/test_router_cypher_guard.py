@@ -36,5 +36,5 @@ def test_router_applies_the_guard_to_free_form_cypher():
     decision = route("cypher: MATCH (f:Fact) WHERE f.status = 'active' MATCH (f)-[:STATED_BY]->(p) RETURN p.name", [], [])
     assert decision.route == "freeform_ro"
     assert "WITH * MATCH (f)-[:STATED_BY]" in decision.cypher and decision.notes.startswith("rewritten")
-    plain = route("cypher: MATCH (n) RETURN count(n)", [], [])
-    assert plain.cypher == "MATCH (n) RETURN count(n)" and not plain.notes
+    plain = route("cypher: MATCH (n) RETURN count(n) LIMIT 1", [], [])
+    assert plain.cypher == "MATCH (n) RETURN count(n) LIMIT 1" and not plain.notes

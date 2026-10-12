@@ -17,8 +17,7 @@ uv run --package minutes-api python data/seed_work.py --tenants orbit
 uv run --package minutes-api uvicorn apps.api.main:app --port 8080 --reload
 ```
 
-The documented local API listens on 8080
-(`API_PORT=8080`; `docker compose` maps `8080:8000`; the web app points at 8080).
+The documented local API listens on 8080 (the `--port 8080` above; `docker compose` maps `8080:8000`; the web app points at 8080).
 
 Tests (no FalkorDB, no models: `FakeHive`, `FakeLLM`, `FakeEmbedder`):
 
@@ -34,7 +33,7 @@ uv run --package minutes-api python -m ingest.eval --backend fake            # p
 uv run --package minutes-api python -m ingest.eval --backend ollama --model gemma4:e4b --show-misses
 ```
 
-Container: `docker build -f apps/api/Dockerfile -t minutes-api .` (python:3.12-slim + uv, uvicorn on 8000).
+Container: `docker build -f apps/api/Dockerfile -t minutes-api .` (multi-stage python:3.12-slim, `uv sync --frozen`, embedding model baked in and `HF_HUB_OFFLINE=1`, runs as a non-root user, uvicorn on `$PORT` or 8000). See `infra/README.md`.
 
 ## Environment
 
@@ -51,10 +50,18 @@ Container: `docker build -f apps/api/Dockerfile -t minutes-api .` (python:3.12-s
 | `EMBED_MODEL` | `onnx-community/embeddinggemma-300m-ONNX` | HF repo for the ONNX backend |
 | `HF_HOME` | | optional model cache directory (platform default if unset) |
 | `HIVE_BACKEND` | | set to `fake` to run the API entirely in memory (no FalkorDB) |
-| `API_PORT`, `CORS_ORIGINS` | `8000`, `http://localhost:3001` | CORS also covers any localhost origin |
+| `ENV` | `development` | `production`: CORS trusts `CORS_ORIGINS` only, `AUTO_CREATE_TENANTS` defaults off, warnings for missing secrets |
+| `ADMIN_TOKEN` | | when set, admin routes need `Authorization: Bearer` / `X-Admin-Token` (tenant create/delete/rotate, snapshots, work-item import, `/demo/*`, `/bench/run`) |
+| `TENANT_KEYS_REQUIRED` | `false` | every `/tenants/{t}/...` route needs the tenant's `X-API-Key` (`?api_key=` for `/events` and `/audio` only) |
+| `CORS_ORIGINS` | `http://localhost:3001` | in development any localhost origin is also allowed |
+| `MAX_IMPORT_BYTES` / `MAX_SNAPSHOTS_PER_TENANT` | 10 MB / 10 | 413 / 409 beyond |
+| `GEMINI_TPM_BUDGET` / `AGENT_TASK_DEADLINE_S` | `14000` / `300` | shared input-token budget per minute (requests queue up to 20 s, then 503 `llm_rate_limited`); wall clock per agent task |
+| `STRICT_HEALTH` / `STARTUP_RETRY_S` | `false` / `15` | fold llm and worker liveness into `/health` ok; DB reconnect interval when FalkorDB is down at boot |
+| `LIVE_EVENT_MAX_AGE_DAYS` | `14` | older `fact.superseded` events are historical imports and do not wake the Scheduler |
 | `DATA_DIR` | `data` | `meetings/`, `gold/`, rosters; audio under `data/meetings` |
 | `SEED_TENANTS` | `orbit,nimbus,quill` | tenants whose schema is ensured on startup (`AUTO_CREATE_TENANTS=true` creates missing ones) |
-| `WORKERS_ENABLED` / `WORKER_POLL_S` | `true` / `2.0` | agent workers in the API process |
+| `WORKERS_ENABLED` / `WORKER_POLL_S` | `true` / `15` | agent workers in the API process; they wake on task events, the poll is a fallback |
+| `TASK_LEASE_MS` / `WORKER_HEARTBEAT_S` / `REAPER_INTERVAL_S` / `WORKER_TOUCH_S` | `120000` / `30` / `30` / `30` | task lease, heartbeat, reaper cadence and the `Agent.last_seen` write throttle |
 | `STANDUP_MIN_MEETINGS` | `2` | meetings with the same title prefix before a Skill is learned |
 | `GITHUB_TOKEN` / `GITHUB_DEMO_REPO` | | when both set, `create_issue` opens a real issue; otherwise `simulated: true` |
 | `BENCH_RESULTS_DIR` | `docs/bench` | JSON results shown by `GET /bench/results` |
@@ -70,11 +77,11 @@ chronological order (`started_at`) so restatements become confirmations rather t
 earlier slots into its supersession chain by `valid_from` without changing the current belief (and
 without waking the Scheduler).
 
-The HTTP API has no user authentication or tenant membership authorization. Database ACL probes are not an HTTP security boundary. Use synthetic data and local access until this is implemented.
+Authentication is opt-in: an admin token for shared and demo routes and a per-tenant key for tenant routes (see the table). There is no per-person identity inside a tenant. Per-tenant database ACL passwords are derived from `TENANT_RW_PASSWORD` / `TENANT_RO_PASSWORD` (HMAC of the slug), so set those to random values in a deployment. Database ACL probes demonstrate isolation; the HTTP boundary is the key. Use synthetic data.
 
 ## Routes
 
-Errors are `{"error": {"code", "message"}}`. Timestamps are epoch milliseconds.
+The full route list, error codes, headers and auth rules are in `docs/contracts/http-api.md`. Errors are `{"error": {"code", "message"}}` (500s add `request_id`, rate limits add `retry_after`). Timestamps are epoch milliseconds.
 
 Tenants
 - `GET /tenants` - `[{slug, display_name, graph, usage_mb, counts, acl: {rw_user, ro_user, rules}}]`

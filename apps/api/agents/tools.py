@@ -259,8 +259,8 @@ def build_tools(agent: Any, task: dict[str, Any], names: list[str]) -> ToolSet:
                 log.warning("GitHub issue creation failed: %s", exc)
                 artifact["github_error"] = str(exc)[:300]
         if artifact.get("uri") is None:
-            repo = settings.github_demo_repo or "minutes-demo/board"
-            artifact["uri"] = f"https://github.com/{repo}/issues/{new_id('sim')[-6:]}"
+            # Simulated tickets never point at a real GitHub namespace (finding 2.9).
+            artifact["uri"] = f"minutes://simulated/issue/{new_id('sim')[-8:]}"
         artifact["text"] = json.dumps({"title": args.title, "body": args.body, "labels": args.labels, "simulated": artifact["simulated"]})
         return {"artifact": artifact, "issue_url": artifact["uri"], "simulated": artifact["simulated"]}
 

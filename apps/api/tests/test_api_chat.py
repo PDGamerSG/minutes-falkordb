@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from apps.api.tests.conftest import cf, cfs
+
 
 def _ask(client, message, session_id=None):
     body = {"message": message}
@@ -16,7 +18,7 @@ def test_chat_response_shape_and_why_route(client):
     body = _ask(client, "Why is the UPI flow due on the 28th?")
     assert set(body) >= {"answer", "session_id", "router", "cypher", "subgraph", "sources", "model", "latency_ms"}
     assert body["router"]["route"] == "template" and body["router"]["template"] == "32_why_path"
-    assert body["router"]["intent"] == "why" and "UPI Flow" in body["router"]["entities"]
+    assert body["router"]["intent"] == "why" and "upi flow" in cfs(body["router"]["entities"])
     assert body["cypher"] and body["subgraph"]["nodes"]
     source = next(s for s in body["sources"] if s["kind"] == "email")
     assert source["speaker"] == "Priya" and source["thread"] == "UPI flow timeline" and source["container_id"] == "thr_orbit_001"
@@ -27,7 +29,7 @@ def test_chat_response_shape_and_why_route(client):
 
 def test_chat_graph_route_for_entity_question(client):
     body = _ask(client, "What do we know about the PayU integration?")
-    assert body["router"]["route"] == "graph" and body["router"]["entities"] == ["PayU Integration"]
+    assert body["router"]["route"] == "graph" and [cf(e) for e in body["router"]["entities"]] == ["payu integration"]
     assert any(s["fact_id"].startswith("fact_") for s in body["sources"])
     source = body["sources"][0]
     assert source["kind"] == "utterance" and source["meeting"] == "Orbit kickoff" and source["t_start"] == 8000
@@ -104,7 +106,7 @@ def test_entity_filter_does_not_fall_back_to_other_projects(client):
 def test_followup_uses_persisted_session_topic(client):
     first = _ask(client, "When is the UPI flow due?")
     followup = _ask(client, "Who owns it?", first["session_id"])
-    assert followup["router"]["entities"] == ["UPI Flow"]
+    assert [cf(e) for e in followup["router"]["entities"]] == ["upi flow"]
     assert "Priya" in followup["answer"]
     fresh = _ask(client, "Who owns it?")
     assert fresh["router"]["entities"] == []
@@ -116,7 +118,7 @@ def test_followup_uses_persisted_session_topic(client):
 def test_explicit_followup_topic_overrides_previous_topic(client):
     first = _ask(client, "When is the UPI flow due?")
     body = _ask(client, "Who owns the PayU integration?", first["session_id"])
-    assert body["router"]["entities"] == ["PayU Integration"]
+    assert [cf(e) for e in body["router"]["entities"]] == ["payu integration"]
 
 
 def test_empty_chat_is_rejected_before_creating_history(client):
@@ -125,9 +127,9 @@ def test_empty_chat_is_rejected_before_creating_history(client):
 
 
 def test_explicit_assignment_overrides_the_person_announcing_deadline(client, seeded):
-    entity = next(e for e in seeded.hive.list_entities("orbit") if e["name"] == "UPI Flow")
+    entity = next(e for e in seeded.hive.list_entities("orbit") if cf(e["name"]) == "upi flow")
     seeded.hive.remember_fact("orbit", {
-        "id": "fact_owner_assignment", "kind": "decision", "subject": "UPI Flow",
+        "id": "fact_owner_assignment", "kind": "decision", "subject": entity["name"],
         "predicate": "owner", "object": "Rahul", "speaker_id": "spk_aditya",
         "entity_ids": [entity["id"]], "episode_id": "ep_mtg_orbit_001_000",
     })
@@ -135,4 +137,4 @@ def test_explicit_assignment_overrides_the_person_announcing_deadline(client, se
     assert "Rahul" in response["answer"] and "Priya" not in response["answer"]
     assert "[fact_owner_assignment]" in response["answer"]
     rows = client.get("/tenants/orbit/analytics/open-commitments", params={"person": "spk_rahul"}).json()
-    assert any(r["subject"] == "UPI Flow" and r["owner"]["name"] == "Rahul" for r in rows)
+    assert any(cf(r["subject"]) == "upi flow" and r["owner"]["name"] == "Rahul" for r in rows)

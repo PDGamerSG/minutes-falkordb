@@ -11,6 +11,10 @@ Event conventions: the hive layer publishes ``task.*``, ``skill.*`` and (RealHiv
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import inspect
+import itertools
 import logging
 import threading
 import time
@@ -19,6 +23,9 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from ingest.fakes import EventListener, MemoryHive, cosine_distance, new_id, now_ms
+
+ANALYTICS_LIMIT = 5000  # hiveboard reads default to 500; belief, active facts and commitments must not be silently capped
+_TRACE_SEQ = itertools.count(1)  # orders trace events inside one millisecond
 
 log = logging.getLogger(__name__)
 
@@ -74,11 +81,43 @@ def _strip_embedding(d: dict[str, Any] | None) -> dict[str, Any] | None:
     return {k: v for k, v in d.items() if k != "embedding"}
 
 
+DEFAULT_LEASE_MS = 120_000
+FACT_PAGE = 500  # internal page size when a caller wants every fact
+
+
+def encode_cursor(valid_from: int | None, fact_id: str) -> str:
+    """Opaque cursor over the (valid_from, id) order of ``page_facts``."""
+    return base64.urlsafe_b64encode(f"{int(valid_from or 0)}|{fact_id}".encode()).decode().rstrip("=")
+
+
+def decode_cursor(cursor: str | None) -> tuple[int, str] | None:
+    if not cursor:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode()
+        vf, fid = raw.split("|", 1)
+        return int(vf), fid
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ValueError("invalid cursor") from exc
+
+
+def _text_hash(text: Any) -> str:
+    return hashlib.sha256(str(text or "").encode("utf-8")).hexdigest()[:16]
+
+
+def _accepts(fn: Any, name: str) -> bool:
+    """True when ``fn`` takes a parameter called ``name`` (contract functions land in parallel)."""
+    try:
+        return name in inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 # =============================================================================== FakeHive
 class FakeHive(MemoryHive):
     """In-memory Hive Board: memory (inherited) + tenancy, board, skills, analytics, chat turns."""
 
-    publishes_memory_events = False
+    publishes_memory_events = True  # parity with the substrate: the hive publishes fact.* / commitment.* / episode.ingested itself
     publishes_board_events = True
     kind = "fake"
 
@@ -92,6 +131,8 @@ class FakeHive(MemoryHive):
         self._turns: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         self._work_items: dict[str, dict[str, Any]] = defaultdict(dict)
         self._impact_drafts: dict[str, dict[str, Any]] = defaultdict(dict)
+        self._tenant_meta: dict[str, dict[str, Any]] = defaultdict(dict)
+        self._sessions: dict[str, dict[str, str | None]] = defaultdict(dict)
         self._ro_password = "fake-ro"
 
     def import_work_manifest(self, tenant: str, manifest: dict[str, Any]) -> int:
@@ -120,15 +161,39 @@ class FakeHive(MemoryHive):
     def list_tenants(self) -> list[str]:
         return sorted(set(self._tenants) | set(self.tenants()))
 
-    def create_tenant(self, slug: str, display_name: str) -> dict[str, Any]:
+    def create_tenant(self, slug: str, display_name: str, pw_rw: str | None = None, pw_ro: str | None = None, rotate: bool = False) -> dict[str, Any]:
+        """Idempotent; an existing tenant keeps its row (mirrors tenancy.create_tenant, which no longer resets passwords)."""
         self.store(slug)
-        self._tenants[slug] = {"slug": slug, "display_name": display_name, "created_at": now_ms()}
+        existing = self._tenants.get(slug)
+        if existing is None:
+            self._tenants[slug] = {"slug": slug, "display_name": display_name, "created_at": now_ms()}
+        elif rotate:
+            existing["display_name"] = display_name
         return self.tenant_info(slug)
 
     def delete_tenant(self, slug: str) -> None:
         self.drop_tenant(slug)
-        for bag in (self._tenants, self._snapshots, self._agents, self._tasks, self._skills, self._turns, self._work_items, self._impact_drafts):
+        for bag in (self._tenants, self._snapshots, self._agents, self._tasks, self._skills, self._turns, self._work_items, self._impact_drafts, self._tenant_meta, self._sessions):
             bag.pop(slug, None)
+
+    def set_tenant_meta(self, slug: str, meta: dict[str, Any]) -> dict[str, Any]:
+        """Merge ``meta`` into the tenant's registry row (api_key_hash, embedding_model, embedding_dim, ...)."""
+        with self._lock:
+            self._tenant_meta[slug].update(meta)
+            return dict(self._tenant_meta[slug])
+
+    def get_tenant_meta(self, slug: str) -> dict[str, Any]:
+        return dict(self._tenant_meta.get(slug, {}))
+
+    def container_episodes(self, tenant: str, container_id: str) -> list[dict[str, Any]]:
+        """``[{id, seq, t_start, t_end, speaker_id, text_hash}]`` of a meeting or thread, in order (ingest contract)."""
+        store = self.store(tenant)
+        rows = [ep for ep in store.episodes.values() if ep.get("container_id") == container_id]
+        rows.sort(key=lambda ep: (ep.get("seq") or 0, ep.get("t_start") or 0))
+        return [
+            {"id": ep["id"], "seq": ep.get("seq"), "t_start": ep.get("t_start"), "t_end": ep.get("t_end"), "speaker_id": ep.get("speaker_id"), "text_hash": ep.get("text_hash") or _text_hash(ep.get("text"))}
+            for ep in rows
+        ]
 
     def ensure_schema(self, tenant: str) -> dict[str, int]:
         self.store(tenant)
@@ -174,6 +239,7 @@ class FakeHive(MemoryHive):
             **self.graph_size(tenant),
             "counts": counts,
             "acl": self.acl_info(tenant),
+            "meta": {k: v for k, v in self._tenant_meta.get(tenant, {}).items() if k != "api_key_hash"},
         }
 
     def graph_size(self, tenant: str) -> dict[str, int]:
@@ -220,6 +286,14 @@ class FakeHive(MemoryHive):
             raise HiveNotFound(f"fact {old_id!r} not found")
         if old.get("status") != "active":
             raise HiveConflict(f"fact {old_id!r} is {old.get('status')!r}; only active facts can be superseded")
+        # Mirrors hiveboard.memory.supersede_fact (raises Conflict on no-op, backdated and cross-key supersession).
+        if new_fact.get("key") and old.get("key") and str(new_fact["key"]).lower() != str(old["key"]).lower():
+            raise HiveConflict(f"fact {old_id!r} has key {old['key']!r}; the new fact has {new_fact['key']!r}")
+        if str(new_fact.get("object") or "").strip().lower() == str(old.get("object") or "").strip().lower():
+            raise HiveConflict(f"fact {old_id!r} already states {old.get('object')!r}; a supersession must change the value")
+        new_from = new_fact.get("valid_from")
+        if new_from is not None and old.get("valid_from") is not None and int(new_from) < int(old["valid_from"]):
+            raise HiveConflict(f"fact {old_id!r} is newer than the proposed replacement; use insert_fact_in_chain for backdated statements")
         return super().supersede_fact(tenant, old_id, new_fact)
 
     def retract_fact(self, tenant: str, fact_id: str, reason: str) -> None:
@@ -228,9 +302,13 @@ class FakeHive(MemoryHive):
         except KeyError as exc:
             raise HiveNotFound(str(exc)) from exc
 
-    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None) -> dict[str, Any]:
+    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None = None) -> dict[str, Any]:
+        """Contract: ``insert_fact_in_chain(tenant, fact, before_id)``; ``after_id`` is accepted for the older pipeline."""
+        parent = super().insert_fact_in_chain
         try:
-            return super().insert_fact_in_chain(tenant, fact, before_id, after_id)
+            if _accepts(parent, "after_id"):
+                return parent(tenant, fact, before_id, after_id)
+            return parent(tenant, fact, before_id)
         except KeyError as exc:
             raise HiveNotFound(str(exc)) from exc
 
@@ -249,20 +327,39 @@ class FakeHive(MemoryHive):
             fact["due_at"] = due_at
             return self.enrich_fact(tenant, fact)
 
-    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None, key_hash: str | None = None) -> dict[str, Any]:
         turn = {"id": new_id("turn"), "session_id": session_id, "role": role, "text": text, "t": now_ms(), "meta": meta or {}}
-        self._turns[tenant][session_id].append(turn)
+        with self._lock:
+            self._sessions[tenant].setdefault(session_id, key_hash)
+            self._turns[tenant][session_id].append(turn)
         return turn
 
-    def get_turns(self, tenant: str, session_id: str) -> list[dict[str, Any]]:
+    def get_turns(self, tenant: str, session_id: str, key_hash: str | None = None) -> list[dict[str, Any]]:
+        """With ``key_hash`` only sessions created under that API key are visible (TENANT_KEYS_REQUIRED)."""
+        if key_hash is not None and self._sessions.get(tenant, {}).get(session_id, None) != key_hash:
+            return []
         return [dict(t) for t in self._turns.get(tenant, {}).get(session_id, [])]
+
+    def page_facts(self, tenant: str, status: str | None = "active", entity: str | None = None, kind: str | None = None, limit: int = 200, cursor: str | None = None) -> tuple[list[dict[str, Any]], str | None]:
+        """One page of facts ordered by (valid_from, id); returns ``(rows, next_cursor)``."""
+        rows = sorted(self.list_facts(tenant, status=status, entity=entity, kind=kind), key=lambda f: (int(f.get("valid_from") or 0), str(f.get("id"))))
+        after = decode_cursor(cursor)
+        if after is not None:
+            rows = [f for f in rows if (int(f.get("valid_from") or 0), str(f.get("id"))) > after]
+        page = rows[: max(1, int(limit))]
+        next_cursor = encode_cursor(page[-1].get("valid_from"), str(page[-1].get("id"))) if len(rows) > len(page) else None
+        return page, next_cursor
 
     def run_ro_cypher(self, tenant: str, query: str, params: dict[str, Any] | None = None, timeout_ms: int = 3000) -> dict[str, Any]:
         """The fake has no Cypher engine; free-form reads degrade to a full-text scan of the query words."""
-        words = [w for w in query.replace("'", " ").replace('"', " ").split() if w[0].isalpha() and len(w) > 3 and w.upper() != w]
-        hits = []
+        import re as _re
+
+        words = [w for w in _re.findall(r"[A-Za-z]{4,}", query) if w.upper() != w and w not in ("Fact", "status", "active")]
+        hits: list[dict[str, Any]] = []
         for word in words[:5]:
             hits.extend(_strip_embedding(h) for h in self.fulltext(tenant, word, "Fact", k=5))
+        if not hits:  # the fake cannot run Cypher: show the tenant's active facts so the rows path stays exercised
+            hits = [_strip_embedding(f) for f in self.list_facts(tenant, status="active")]
         return {"rows": hits[:10], "cypher": query, "note": "FakeHive: full-text approximation, no Cypher executed"}
 
     # -- board -------------------------------------------------------------------------------
@@ -286,7 +383,7 @@ class FakeHive(MemoryHive):
             agent["last_seen"] = now_ms()
 
     def _task_view(self, task: dict[str, Any]) -> dict[str, Any]:
-        return {k: v for k, v in task.items() if k not in {"claims", "handoffs", "artifacts", "used_skills"}}
+        return {k: v for k, v in task.items() if k not in {"claims", "handoffs", "artifacts", "used_skills", "leases"}}
 
     def submit_task(
         self,
@@ -296,6 +393,7 @@ class FakeHive(MemoryHive):
         requires: list[str],
         about_ids: Iterable[str] = (),
         priority: int = 5,
+        owner_agent: str | None = None,
     ) -> str:
         now = now_ms()
         task = {
@@ -303,7 +401,8 @@ class FakeHive(MemoryHive):
             "kind": kind,
             "status": "submitted",
             "version": 0,
-            "owner_agent": None,
+            "owner_agent": owner_agent,
+            "lease_until": None,
             "priority": int(priority),
             "payload": dict(payload or {}),
             "requires": list(requires),
@@ -316,27 +415,57 @@ class FakeHive(MemoryHive):
             "handoffs": [],
             "artifacts": [],
             "used_skills": [],
+            "leases": [],
         }
         with self._lock:
             self._tasks[tenant][task["id"]] = task
-        self.publish(tenant, "task.submitted", {"task_id": task["id"], "kind": kind, "requires": list(requires), "about": list(about_ids), "priority": priority})
+        self.publish(tenant, "task.submitted", {"task_id": task["id"], "kind": kind, "requires": list(requires), "about": list(about_ids), "priority": priority, "owner_agent": owner_agent})
         return task["id"]
 
-    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int) -> int | None:
+    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int, lease_ms: int = DEFAULT_LEASE_MS) -> int | None:
+        """Compare-and-set claim with a lease; a working task whose lease lapses is returned by ``reap_expired``."""
         with self._lock:
             task = self._tasks.get(tenant, {}).get(task_id)
             if task is None or agent_id not in self._agents.get(tenant, {}):
                 return None
             if task["status"] != "submitted" or task["version"] != expected_version:
                 return None
+            if task.get("owner_agent") not in (None, agent_id):
+                return None
             now = now_ms()
-            task.update({"status": "working", "version": expected_version + 1, "owner_agent": agent_id, "updated_at": now})
-            task["claims"].append({"t": now, "type": "claimed", "agent": agent_id})
+            task.update({"status": "working", "version": expected_version + 1, "owner_agent": agent_id, "updated_at": now, "lease_until": now + int(lease_ms)})
+            task["claims"].append({"t": now, "seq": next(_TRACE_SEQ), "type": "claimed", "agent": agent_id})
             version = task["version"]
-        self.publish(tenant, "task.claimed", {"task_id": task_id, "agent_id": agent_id, "version": version})
+        self.publish(tenant, "task.claimed", {"task_id": task_id, "agent_id": agent_id, "version": version, "lease_until": task["lease_until"]})
         return version
 
+    def heartbeat(self, tenant: str, task_id: str, agent_id: str, lease_ms: int = DEFAULT_LEASE_MS) -> bool:
+        """Extend the owner's lease on a working task; False when the task is no longer theirs."""
+        with self._lock:
+            task = self._tasks.get(tenant, {}).get(task_id)
+            if task is None or task["status"] != "working" or task["owner_agent"] != agent_id:
+                return False
+            task["lease_until"] = now_ms() + int(lease_ms)
+            return True
+
+    def reap_expired(self, tenant: str, now: int | None = None) -> list[str]:
+        """Working tasks whose lease lapsed go back to ``submitted`` (version bump, owner cleared, ``lease_expired`` in the trace)."""
+        now = now if now is not None else now_ms()
+        expired: list[tuple[str, str | None, int]] = []
+        with self._lock:
+            for task in self._tasks.get(tenant, {}).values():
+                if task["status"] == "working" and task.get("lease_until") is not None and task["lease_until"] < now:
+                    owner = task["owner_agent"]
+                    task.update({"status": "submitted", "version": task["version"] + 1, "owner_agent": None, "lease_until": None, "updated_at": now})
+                    task["leases"].append({"t": now_ms(), "seq": next(_TRACE_SEQ), "type": "lease_expired", "agent": owner})
+                    expired.append((task["id"], owner, task["version"]))
+        for task_id, owner, version in expired:
+            self.publish(tenant, "task.lease_expired", {"task_id": task_id, "agent_id": owner, "version": version})
+            self.publish(tenant, "task.submitted", {"task_id": task_id, "requeued": True, "version": version})
+        return [t for t, _, _ in expired]
+
     def next_open_task(self, tenant: str, agent_id: str) -> dict[str, Any] | None:
+        """Highest priority first, then oldest; unaddressed tasks need the capabilities, addressed ones only the address."""
         agent = self._agents.get(tenant, {}).get(agent_id)
         if agent is None:
             return None
@@ -346,12 +475,11 @@ class FakeHive(MemoryHive):
                 t
                 for t in self._tasks.get(tenant, {}).values()
                 if t["status"] == "submitted"
-                and (t["owner_agent"] is None or t["owner_agent"] == agent_id)
-                and set(t["requires"]) <= caps
+                and (t["owner_agent"] == agent_id or (t["owner_agent"] is None and set(t["requires"]) <= caps))
             ]
         if not candidates:
             return None
-        candidates.sort(key=lambda t: (t["created_at"], -t["priority"]))
+        candidates.sort(key=lambda t: (-t["priority"], t["created_at"]))
         return self._task_view(candidates[0])
 
     def handoff(
@@ -366,13 +494,13 @@ class FakeHive(MemoryHive):
     ) -> int | None:
         with self._lock:
             task = self._tasks.get(tenant, {}).get(task_id)
-            if task is None or task["owner_agent"] != from_agent or task["version"] != expected_version:
+            if task is None or task["status"] != "working" or task["owner_agent"] != from_agent or task["version"] != expected_version:
                 return None
             if to_agent not in self._agents.get(tenant, {}):
                 return None
             now = now_ms()
-            task.update({"owner_agent": to_agent, "status": "submitted", "version": expected_version + 1, "updated_at": now})
-            task["handoffs"].append({"t": now, "type": "handed_off", "agent": from_agent, "to_agent": to_agent, "summary": summary, "subgraph_ids": list(subgraph_ids)})
+            task.update({"owner_agent": to_agent, "status": "submitted", "version": expected_version + 1, "updated_at": now, "lease_until": None})
+            task["handoffs"].append({"t": now, "seq": next(_TRACE_SEQ), "type": "handed_off", "agent": from_agent, "to_agent": to_agent, "summary": summary, "subgraph_ids": list(subgraph_ids)})
             version = task["version"]
         self.publish(tenant, "task.handed_off", {"task_id": task_id, "from": from_agent, "to": to_agent, "version": version, "summary": summary, "subgraph_ids": list(subgraph_ids)})
         return version
@@ -386,17 +514,17 @@ class FakeHive(MemoryHive):
             art = None
             if artifact is not None:
                 art = {"id": artifact.get("id") or new_id("art"), "kind": artifact.get("kind"), "uri": artifact.get("uri"), "text": artifact.get("text"), "created_at": now}
-                task["artifacts"].append({"t": now, "type": "artifact", "artifact": art})
-            task.update({"status": "completed", "version": task["version"] + 1, "updated_at": now})
+                task["artifacts"].append({"t": now, "seq": next(_TRACE_SEQ), "type": "artifact", "artifact": art})
+            task.update({"status": "completed", "version": task["version"] + 1, "updated_at": now, "lease_until": None})
             version = task["version"]
         self.publish(tenant, "task.completed", {"task_id": task_id, "agent_id": agent_id, "artifact": art, "version": version})
 
     def _set_state(self, tenant: str, task_id: str, agent_id: str, status: str, note: str) -> int:
         with self._lock:
             task = self._tasks.get(tenant, {}).get(task_id)
-            if task is None or task["owner_agent"] != agent_id:
-                raise HiveNotFound(f"task {task_id!r} is not owned by {agent_id!r}")
-            task.update({"status": status, "version": task["version"] + 1, "updated_at": now_ms()})
+            if task is None or task["owner_agent"] != agent_id or task["status"] not in ("working", "input_required"):
+                raise HiveNotFound(f"task {task_id!r} is not a working task owned by {agent_id!r}")
+            task.update({"status": status, "version": task["version"] + 1, "updated_at": now_ms(), "lease_until": None})
             if status == "failed":
                 task["failure_reason"] = note
             else:
@@ -431,10 +559,10 @@ class FakeHive(MemoryHive):
         task = self._tasks.get(tenant, {}).get(task_id)
         if task is None:
             raise HiveNotFound(f"task {task_id!r} does not exist")
-        events = [*task["claims"], *task["handoffs"], *task["artifacts"], *task["used_skills"]]
+        events = [*task["claims"], *task["handoffs"], *task["artifacts"], *task["used_skills"], *task.get("leases", [])]
         if task["status"] in ("completed", "failed", "input_required"):
-            events.append({"t": task["updated_at"], "type": task["status"], "agent": task["owner_agent"], "reason": task.get("failure_reason"), "question": task.get("question")})
-        events.sort(key=lambda e: e.get("t") or 0)
+            events.append({"t": task["updated_at"], "seq": next(_TRACE_SEQ), "type": task["status"], "agent": task["owner_agent"], "reason": task.get("failure_reason"), "question": task.get("question")})
+        events.sort(key=lambda e: e["seq"])  # appended in order; the terminal state event is stamped last
         return {"task": self._task_view(task), "events": events, "about": task["about"], "cypher": "-- FakeHive (23_task_trace.cypher in production)"}
 
     # -- skills ------------------------------------------------------------------------------
@@ -479,14 +607,17 @@ class FakeHive(MemoryHive):
         return view
 
     def retrieve_skill(self, tenant: str, goal_embedding: list[float], k: int = 3) -> list[dict[str, Any]]:
+        """Rank by ``(1 - distance) * (0.5 + 0.5 * success_rate)``: similarity first, success as a tie-breaking boost
+        (mirrors 40_skill_retrieve.cypher; a new skill at 0.0 is not buried by an unrelated one with one success)."""
         scored = []
         for skill in self._skills.get(tenant, {}).values():
             if skill["status"] != "active":
                 continue
             distance = cosine_distance(goal_embedding, skill.get("embedding"))
-            scored.append((-(skill["success_rate"]), distance, skill))
-        scored.sort(key=lambda row: (row[0], row[1]))
-        return [self._skill_view(s, d) for _, d, s in scored[:k]]
+            score = (1.0 - distance) * (0.5 + 0.5 * float(skill.get("success_rate") or 0.0))
+            scored.append((-score, distance, skill))
+        scored.sort(key=lambda row: (row[0], row[1], row[2]["id"]))
+        return [{**self._skill_view(s, d), "score": round(-neg, 6)} for neg, d, s in scored[:k]]
 
     def record_outcome(self, tenant: str, skill_id: str, agent_id: str, ok: bool, task_id: str | None = None) -> dict[str, Any]:
         with self._lock:
@@ -501,7 +632,7 @@ class FakeHive(MemoryHive):
                 skill["used_by"].append(task_id)
                 task = self._tasks.get(tenant, {}).get(task_id)
                 if task is not None:
-                    task["used_skills"].append({"t": now_ms(), "type": "skill_used", "skill": {"id": skill_id, "goal": skill["goal"]}})
+                    task["used_skills"].append({"t": now_ms(), "seq": next(_TRACE_SEQ), "type": "skill_used", "skill": {"id": skill_id, "goal": skill["goal"]}})
             view = self._skill_view(skill)
         self.publish(tenant, "skill.ran", {"skill_id": skill_id, "agent_id": agent_id, "ok": ok, "task_id": task_id, "runs": view["runs"], "success_rate": view["success_rate"]})
         return view
@@ -671,8 +802,9 @@ class RealHive:
         self.db = db
         self._memory, self._board, self._skills = memory, board, skills
         self._events, self._analytics, self._tenancy, self._schema = events, analytics, tenancy, schema
-        self.rw_password = rw_password
+        self.rw_password = rw_password  # master secrets: per-tenant ACL passwords are derived from them (see _derive)
         self.ro_password = ro_password
+        self._creds: dict[str, tuple[str, str]] = {}
         self._listeners: dict[str, list[EventListener]] = defaultdict(list)
         self._subscriber_threads: dict[str, threading.Thread] = {}
         self._lock = threading.RLock()
@@ -685,8 +817,51 @@ class RealHive:
         db = HiveDB(url, admin_user=admin_user, admin_password=admin_password)
         hive = cls(db, rw_password=rw_password, ro_password=ro_password)
         for tenant in db.list_tenants():
-            db.configure_ro(tenant, ro_password)
+            try:
+                hive.credentials(tenant)  # also points db.ro(tenant) at the tenant's ro user
+            except Exception as exc:  # noqa: BLE001 - a broken tenant must not stop the others
+                log.warning("could not resolve ACL credentials for %s: %s", tenant, exc)
         return hive
+
+    # -- per-tenant ACL credentials ----------------------------------------------------------
+    # Tenant users get their own passwords. They are NOT stored: tenant ro/rw users can read the commons registry,
+    # so a password kept there would be readable by every other tenant. Instead each password is an HMAC of the tenant
+    # slug under the master secret (TENANT_RW_PASSWORD / TENANT_RO_PASSWORD), so a restart re-derives it. Tenants
+    # created before this keep their old shared password until rotated; the probe below finds whichever one works.
+    def _derive(self, tenant: str, role: str) -> str:
+        import hashlib
+        import hmac
+
+        master = self.rw_password if role == "rw" else self.ro_password
+        return hmac.new(master.encode("utf-8"), f"minutes:{tenant}:{role}".encode(), hashlib.sha256).hexdigest()
+
+    def _accepts(self, user: str, password: str) -> bool:
+        import redis
+
+        probe = redis.Redis(host=self.db.host, port=self.db.port, username=user, password=password, socket_connect_timeout=2, socket_timeout=5)
+        try:
+            return bool(probe.ping())
+        except redis.AuthenticationError:
+            return False
+        except redis.RedisError as exc:
+            log.debug("password probe for %s failed: %s", user, exc)
+            return False
+        finally:
+            probe.close()
+
+    def credentials(self, tenant: str, *, rotate: bool = False) -> tuple[str, str]:
+        """``(rw_password, ro_password)`` that work for the tenant's ACL users, and make ``db.ro(tenant)`` use the ro user."""
+        if not rotate and tenant in self._creds:
+            return self._creds[tenant]
+        resolved: list[str] = []
+        for role, user, legacy in (("rw", self.db.rw_user(tenant), self.rw_password), ("ro", self.db.ro_user(tenant), self.ro_password)):
+            derived = self._derive(tenant, role)
+            candidates = [derived] if rotate else [derived, legacy]
+            resolved.append(next((c for c in candidates if self._accepts(user, c)), derived))  # no working one: (re)create with the derived
+        creds = (resolved[0], resolved[1])
+        self._creds[tenant] = creds
+        self.db.configure_ro(tenant, creds[1])
+        return creds
 
     def import_work_manifest(self, tenant: str, manifest: dict[str, Any]) -> int:
         from hiveboard.impact import import_manifest
@@ -756,17 +931,45 @@ class RealHive:
     def list_tenants(self) -> list[str]:
         return list(self.db.list_tenants())
 
-    def create_tenant(self, slug: str, display_name: str) -> dict[str, Any]:
-        info = self._tenancy.create_tenant(self.db, slug, display_name, self.rw_password, self.ro_password)
-        self.db.configure_ro(slug, self.ro_password)
+    def create_tenant(self, slug: str, display_name: str, pw_rw: str | None = None, pw_ro: str | None = None, rotate: bool = False) -> dict[str, Any]:
+        """``tenancy.create_tenant(db, slug, name, pw_rw, pw_ro, rotate)``: idempotent, passwords untouched unless ``rotate``."""
+        rw, ro = self.credentials(slug, rotate=rotate)
+        rw, ro = pw_rw or rw, pw_ro or ro
+        info = self._tenancy.create_tenant(self.db, slug, display_name, rw, ro, rotate=rotate)
+        self._creds[slug] = (rw, ro)
+        self.db.configure_ro(slug, ro)
         return {**self.tenant_info(slug), "schema": info.get("schema")}
 
     def delete_tenant(self, slug: str) -> None:
         self._tenancy.delete_tenant(self.db, slug)
+        self._creds.pop(slug, None)
+
+    def set_tenant_meta(self, slug: str, meta: dict[str, Any]) -> dict[str, Any]:
+        """``tenancy.set_tenant_meta(db, slug, meta)``: merge keys into the commons registry row (None removes a key)."""
+        return dict(self._tenancy.set_tenant_meta(self.db, slug, meta) or {})
+
+    def get_tenant_meta(self, slug: str) -> dict[str, Any]:
+        """``tenancy.get_tenant_meta(db, slug)``: the registry row's metadata (api_key_hash, embedding_model, embedding_dim, ...)."""
+        return dict(self._tenancy.get_tenant_meta(self.db, slug) or {})
+
+    def container_episodes(self, tenant: str, container_id: str) -> list[dict[str, Any]]:
+        """``[{id, seq, t_start, t_end, speaker_id, text_hash}]`` for a Meeting or EmailThread (ingest contract), read-only."""
+        res = self._ro(
+            tenant,
+            "MATCH (c {id: $id})-[:HAS_EPISODE]->(ep:Episode) WHERE c:Meeting OR c:EmailThread "
+            "OPTIONAL MATCH (ep)-[:SPOKEN_BY|SENT_BY]->(p:Person) "
+            "RETURN ep.id, ep.seq, ep.t_start, ep.t_end, p.id, ep.text_hash, ep.text ORDER BY ep.seq, ep.t_start",
+            {"id": container_id},
+        )
+        return [
+            {"id": eid, "seq": seq, "t_start": t0, "t_end": t1, "speaker_id": pid, "text_hash": th or _text_hash(text)}
+            for eid, seq, t0, t1, pid, th, text in res.result_set
+        ]
 
     def ensure_schema(self, tenant: str) -> dict[str, int]:
         result = dict(self._schema.ensure_schema(self.db, tenant))
-        self._tenancy.ensure_tenant_access(self.db, tenant, self.rw_password, self.ro_password)
+        rw, ro = self.credentials(tenant)
+        self._tenancy.ensure_tenant_access(self.db, tenant, rw, ro)
         # Surface invalid or disabled configured credentials at startup, before workers run.
         self._ro(tenant, "RETURN 1")
         return result
@@ -817,6 +1020,7 @@ class RealHive:
             **self.graph_size(tenant),
             "counts": self.counts(tenant),
             "acl": {"rw_user": acl.get("rw_user"), "ro_user": acl.get("ro_user"), "rules": acl.get("rules", []), "isolation": acl.get("isolation")},
+            "meta": {k: v for k, v in self.get_tenant_meta(tenant).items() if k != "api_key_hash"},
         }
 
     def acl_probe(self, tenant: str, target: str) -> dict[str, Any]:
@@ -826,7 +1030,7 @@ class RealHive:
         target_graph = self.db.graph_name(target)
         command = f'GRAPH.RO_QUERY {target_graph} "MATCH (n) RETURN count(n)"'
         try:
-            client = FalkorDB(host=self.db.host, port=self.db.port, username=user, password=self.ro_password)
+            client = FalkorDB(host=self.db.host, port=self.db.port, username=user, password=self.credentials(tenant)[1])
             res = client.select_graph(target_graph).ro_query("MATCH (n) RETURN count(n)", timeout=2000)
             value = res.result_set[0][0] if res.result_set else None
             return {"allowed": True, "user": user, "target_graph": target_graph, "command": command, "result": value, "error": None}
@@ -867,7 +1071,12 @@ class RealHive:
         return self._memory.link_mentions(self.db, tenant, episode_id, entity_ids)
 
     def remember_fact(self, tenant: str, fact: dict[str, Any], supersede: bool = False) -> dict[str, Any]:
-        result = self._memory.remember_fact(self.db, tenant, fact, supersede=supersede)
+        from hiveboard.errors import Conflict
+
+        try:
+            result = self._memory.remember_fact(self.db, tenant, fact, supersede=supersede)
+        except Conflict as exc:  # supersede=True met a later-valid active fact: the caller must insert in the chain instead
+            raise HiveConflict(str(exc)) from exc
         precedents = fact.get("precedent_ids") or []
         if precedents and not result.get("existing"):
             self._rw(
@@ -879,7 +1088,14 @@ class RealHive:
         return result
 
     def supersede_fact(self, tenant: str, old_id: str, new_fact: dict[str, Any]) -> dict[str, Any]:
-        return self._memory.supersede_fact(self.db, tenant, old_id, new_fact)
+        from hiveboard.errors import Conflict, NotFound
+
+        try:
+            return self._memory.supersede_fact(self.db, tenant, old_id, new_fact)
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+        except Conflict as exc:
+            raise HiveConflict(str(exc)) from exc
 
     def retract_fact(self, tenant: str, fact_id: str, reason: str) -> None:
         self._memory.retract_fact(self.db, tenant, fact_id, reason)
@@ -898,28 +1114,17 @@ class RealHive:
             rows.append(rec)
         return rows
 
-    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None) -> dict[str, Any]:
-        """Late import of an earlier statement: ingest it as already-superseded between two chain members."""
-        result = self._memory.remember_fact(self.db, tenant, fact)
-        new_fact_id = result["id"]
-        now = now_ms()
-        self._rw(
-            tenant,
-            "MATCH (new:Fact {id: $new_id}), (before:Fact {id: $before_id}) "
-            "SET new.status = 'superseded', new.valid_to = before.valid_from, new.expired_at = $now "
-            "MERGE (before)-[s:SUPERSEDES]->(new) SET s.at = $now RETURN new.id",
-            {"new_id": new_fact_id, "before_id": before_id, "now": now},
-        )
-        if after_id:
-            self._rw(
-                tenant,
-                "MATCH (new:Fact {id: $new_id}), (after:Fact {id: $after_id}) "
-                "OPTIONAL MATCH (before:Fact {id: $before_id})-[old:SUPERSEDES]->(after) DELETE old "
-                "WITH new, after SET after.valid_to = new.valid_from "
-                "MERGE (new)-[s:SUPERSEDES]->(after) SET s.at = $now RETURN after.id",
-                {"new_id": new_fact_id, "after_id": after_id, "before_id": before_id, "now": now},
-            )
-        return {"id": new_fact_id, "superseded": [after_id] if after_id else [], "superseded_by": before_id}
+    def insert_fact_in_chain(self, tenant: str, fact: dict[str, Any], before_id: str, after_id: str | None = None) -> dict[str, Any]:
+        """Passthrough to ``hiveboard.memory.insert_fact_in_chain(db, tenant, fact, before_id)``
+        -> ``{"id", "inserted", "confirmed", "before_id"}``. The chain surgery lives in the substrate."""
+        from hiveboard.errors import Conflict, NotFound
+
+        try:
+            return dict(self._memory.insert_fact_in_chain(self.db, tenant, fact, before_id))
+        except NotFound as exc:
+            raise HiveNotFound(str(exc)) from exc
+        except Conflict as exc:
+            raise HiveConflict(str(exc)) from exc
 
     def confirm_fact(self, tenant: str, fact_id: str, episode_id: str) -> None:
         self._rw(
@@ -936,13 +1141,13 @@ class RealHive:
 
     # -- memory reads ------------------------------------------------------------------------
     def active_facts(self, tenant: str, entity_id: str | None = None, key: str | None = None) -> list[dict[str, Any]]:
-        return [self._norm_fact(r) for r in self._memory.active_facts(self.db, tenant, entity_id=entity_id, key=key)]
+        return [self._norm_fact(r) for r in self._memory.active_facts(self.db, tenant, entity_id=entity_id, key=key, limit=ANALYTICS_LIMIT)]
 
     def belief_at(self, tenant: str, t: int, entity_id: str | None = None) -> list[dict[str, Any]]:
         return self.belief_at_result(tenant, t, entity_id)["rows"]
 
     def belief_at_result(self, tenant: str, t: int, entity_id: str | None = None) -> dict[str, Any]:
-        rows = self._memory.belief_at(self.db, tenant, t, entity_id=entity_id)
+        rows = self._memory.belief_at(self.db, tenant, t, entity_id=entity_id, limit=ANALYTICS_LIMIT)
         return {"rows": [self._norm_fact(r) for r in rows], "cypher": getattr(rows, "cypher", "")}
 
     def why(self, tenant: str, node_id: str) -> dict[str, Any]:
@@ -1062,17 +1267,20 @@ class RealHive:
     _FACT_QUERY = (
         "MATCH (f:Fact) WHERE ($id IS NULL OR f.id = $id) AND ($status IS NULL OR f.status = $status) "
         "AND ($kind IS NULL OR f.kind = $kind) "
+        "AND ($cursor_vf IS NULL OR coalesce(f.valid_from, 0) > $cursor_vf OR (coalesce(f.valid_from, 0) = $cursor_vf AND f.id > $cursor_id)) "
         "OPTIONAL MATCH (f)-[:ABOUT]->(en:Entity) WITH f, collect(DISTINCT en) AS entities "
         "WHERE $entity IS NULL OR any(x IN entities WHERE x.id = $entity OR toLower(x.name) = toLower($entity)) "
-        "OPTIONAL MATCH (f)-[:STATED_BY]->(p:Person) OPTIONAL MATCH (f)-[:DERIVED_FROM]->(ep:Episode) "
+        "OPTIONAL MATCH (f)-[:STATED_BY]->(p:Person) OPTIONAL MATCH (f)-[:DERIVED_FROM]->(ep0:Episode) "
+        # a fact confirmed by later episodes has several DERIVED_FROM edges: keep the earliest, one row per fact
+        "WITH f, entities, p, ep0 ORDER BY ep0.t_start ASC WITH f, entities, p, head(collect(ep0)) AS ep "
         "OPTIONAL MATCH (c)-[:HAS_EPISODE]->(ep) OPTIONAL MATCH (f)-[:SUPERSEDES]->(o:Fact) "
-        "RETURN f, entities, p, ep, c, collect(DISTINCT o.id) ORDER BY f.valid_from ASC LIMIT $limit"
+        "RETURN f, entities, p, ep, c, collect(DISTINCT o.id) ORDER BY coalesce(f.valid_from, 0) ASC, f.id ASC LIMIT $limit"
     )
 
     def _fact_rows(self, tenant: str, **params: Any) -> list[dict[str, Any]]:
         from hiveboard.memory import _source
 
-        args = {"id": None, "status": "active", "kind": None, "entity": None, "limit": 500, **params}
+        args = {"id": None, "status": "active", "kind": None, "entity": None, "limit": FACT_PAGE, "cursor_vf": None, "cursor_id": None, **params}
         res = self._ro(tenant, self._FACT_QUERY, args)
         rows = []
         for f, entities, speaker, ep, container, supersedes in res.result_set:
@@ -1091,30 +1299,59 @@ class RealHive:
             rows.append(self._norm_fact(rec))
         return rows
 
+    def page_facts(self, tenant: str, status: str | None = "active", entity: str | None = None, kind: str | None = None, limit: int = 200, cursor: str | None = None) -> tuple[list[dict[str, Any]], str | None]:
+        """One page ordered by (valid_from, id) plus the cursor of the next page (None when exhausted)."""
+        after = decode_cursor(cursor)
+        limit = max(1, int(limit))
+        rows = self._fact_rows(
+            tenant,
+            status=None if status in (None, "all") else status,
+            entity=entity,
+            kind=kind,
+            limit=limit + 1,
+            cursor_vf=after[0] if after else None,
+            cursor_id=after[1] if after else None,
+        )
+        page = rows[:limit]
+        next_cursor = encode_cursor(page[-1].get("valid_from"), str(page[-1].get("id"))) if len(rows) > limit else None
+        return page, next_cursor
+
     def list_facts(self, tenant: str, status: str | None = "active", entity: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
-        return self._fact_rows(tenant, status=None if status in (None, "all") else status, entity=entity, kind=kind)
+        """Every matching fact: pages through ``page_facts`` so timeline, belief and impact never hit a silent cap."""
+        out: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            page, cursor = self.page_facts(tenant, status=status, entity=entity, kind=kind, limit=FACT_PAGE, cursor=cursor)
+            out.extend(page)
+            if cursor is None or not page:
+                return out
 
     def get_fact(self, tenant: str, fact_id: str) -> dict[str, Any] | None:
         rows = self._fact_rows(tenant, id=fact_id, status=None, limit=1)
         return rows[0] if rows else None
 
-    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    def add_turn(self, tenant: str, session_id: str, role: str, text: str, meta: dict[str, Any] | None = None, key_hash: str | None = None) -> dict[str, Any]:
         import json
 
         turn = {"id": new_id("turn"), "session_id": session_id, "role": role, "text": text, "t": now_ms(), "meta": json.dumps(meta or {}, default=str)}
         self._rw(
             tenant,
-            "MERGE (s:ChatSession {id: $sid}) ON CREATE SET s.created_at = $t "
+            "MERGE (s:ChatSession {id: $sid}) ON CREATE SET s.created_at = $t, s.key_hash = $key_hash "
             "CREATE (t:Turn {id: $id, session_id: $sid, role: $role, text: $text, t: $t, meta: $meta}) "
             "MERGE (s)-[:HAS_TURN]->(t) RETURN t.id",
-            {"sid": session_id, **turn},
+            {"sid": session_id, "key_hash": key_hash, **turn},
         )
         turn["meta"] = meta or {}
         return turn
 
-    def get_turns(self, tenant: str, session_id: str) -> list[dict[str, Any]]:
+    def get_turns(self, tenant: str, session_id: str, key_hash: str | None = None) -> list[dict[str, Any]]:
+        """With ``key_hash`` only a session stamped with that key at creation is visible (TENANT_KEYS_REQUIRED)."""
         import json
 
+        if key_hash is not None:
+            owner = self._ro(tenant, "MATCH (s:ChatSession {id: $sid}) RETURN s.key_hash", {"sid": session_id})
+            if not owner.result_set or owner.result_set[0][0] != key_hash:
+                return []
         res = self._ro(tenant, "MATCH (t:Turn {session_id: $sid}) RETURN t ORDER BY t.t", {"sid": session_id})
         out = []
         for (node,) in res.result_set:
@@ -1155,22 +1392,48 @@ class RealHive:
             if fn in self._listeners.get(tenant, []):
                 self._listeners[tenant].remove(fn)
 
-    def _pump(self, tenant: str) -> None:
-        while not self._stopping.is_set():
+    def _dispatch(self, tenant: str, event: dict[str, Any]) -> None:
+        with self._lock:
+            listeners = list(self._listeners.get(tenant, []))
+        for fn in listeners:
             try:
-                for event in self._events.subscribe(self.db, tenant, idle_timeout=2.0):
-                    with self._lock:
-                        listeners = list(self._listeners.get(tenant, []))
-                    for fn in listeners:
-                        try:
-                            fn(event)
-                        except Exception as exc:  # noqa: BLE001
-                            log.warning("event listener failed: %s", exc)
-                    if self._stopping.is_set():
-                        return
+                fn(event)
             except Exception as exc:  # noqa: BLE001
+                log.warning("event listener failed: %s", exc)
+
+    def _pump(self, tenant: str) -> None:
+        """One long-lived SUBSCRIBE per tenant. ``get_message(timeout=1.0)`` is polled so the stop flag is checked
+        between messages; the subscription is only re-opened after a connection error (never on idle), so an
+        event published at any moment is delivered."""
+        import orjson
+
+        channel = self._events.channel(tenant)
+        while not self._stopping.is_set():
+            pubsub = None
+            try:
+                pubsub = self.db.connection.pubsub(ignore_subscribe_messages=True)
+                pubsub.subscribe(channel)
+                while not self._stopping.is_set():
+                    message = pubsub.get_message(timeout=1.0)
+                    if message is None or message.get("type") != "message":
+                        continue
+                    try:
+                        event = orjson.loads(message["data"])
+                    except (orjson.JSONDecodeError, TypeError) as exc:
+                        log.warning("undecodable event on %s: %s", channel, exc)
+                        continue
+                    self._dispatch(tenant, event)
+            except Exception as exc:  # noqa: BLE001 - connection trouble: resubscribe after a short pause
+                if self._stopping.is_set():
+                    return
                 log.warning("event subscription for %s dropped (%s); reconnecting", tenant, exc)
-                time.sleep(1.0)
+                self._stopping.wait(1.0)
+            finally:
+                if pubsub is not None:
+                    try:
+                        pubsub.close()
+                    except Exception:  # noqa: BLE001
+                        pass
 
     def close(self) -> None:
         self._stopping.set()
@@ -1183,11 +1446,27 @@ class RealHive:
     def touch_agent(self, tenant: str, agent_id: str) -> None:
         self._rw(tenant, "MATCH (a:Agent {id: $id}) SET a.last_seen = $now RETURN a.id", {"id": agent_id, "now": now_ms()})
 
-    def submit_task(self, tenant: str, kind: str, payload: dict[str, Any], requires: list[str], about_ids: Iterable[str] = (), priority: int = 5) -> str:
-        return self._board.submit_task(self.db, tenant, kind, payload, list(requires), list(about_ids), priority)
+    def submit_task(self, tenant: str, kind: str, payload: dict[str, Any], requires: list[str], about_ids: Iterable[str] = (), priority: int = 5, owner_agent: str | None = None) -> str:
+        submit = self._board.submit_task
+        if owner_agent and _accepts(submit, "owner_agent"):
+            return submit(self.db, tenant, kind, payload, list(requires), list(about_ids), priority, owner_agent=owner_agent)
+        task_id = submit(self.db, tenant, kind, payload, list(requires), list(about_ids), priority)
+        if owner_agent:
+            # Addressed submission: the board's submit_task has no owner parameter (yet); stamp it so only that agent claims.
+            self._rw(tenant, "MATCH (t:Task {id: $id}) SET t.owner_agent = $agent RETURN t.id", {"id": task_id, "agent": owner_agent})
+        return task_id
 
-    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int) -> int | None:
-        return self._board.claim(self.db, tenant, task_id, agent_id, expected_version)
+    def claim(self, tenant: str, task_id: str, agent_id: str, expected_version: int, lease_ms: int = DEFAULT_LEASE_MS) -> int | None:
+        """``board.claim(db, tenant, task_id, agent_id, expected_version, lease_ms=120000)``."""
+        return self._board.claim(self.db, tenant, task_id, agent_id, expected_version, lease_ms=lease_ms)
+
+    def heartbeat(self, tenant: str, task_id: str, agent_id: str, lease_ms: int = DEFAULT_LEASE_MS) -> bool:
+        """``board.heartbeat(db, tenant, task_id, agent_id, lease_ms=120000) -> bool``."""
+        return bool(self._board.heartbeat(self.db, tenant, task_id, agent_id, lease_ms=lease_ms))
+
+    def reap_expired(self, tenant: str, now: int | None = None) -> list[str]:
+        """``board.reap_expired(db, tenant, now=None) -> list[str]`` of task ids returned to ``submitted``."""
+        return list(self._board.reap_expired(self.db, tenant, now=now) or [])
 
     def next_open_task(self, tenant: str, agent_id: str) -> dict[str, Any] | None:
         return self._board.next_open_task(self.db, tenant, agent_id)
@@ -1285,7 +1564,7 @@ class RealHive:
 
     def open_commitments(self, tenant: str, person_id: str | None = None) -> dict[str, Any]:
         # Closing statuses may be stated by someone other than the owner, so filter closures over all rows first.
-        result = self._analytics.open_commitments(self.db, tenant, None)
+        result = self._analytics.open_commitments(self.db, tenant, None, limit=ANALYTICS_LIMIT)
         rows = drop_closed_commitments([self._norm_fact(r) for r in result])
         if person_id:
             rows = [r for r in rows if (r.get("owner") or {}).get("id") == person_id]

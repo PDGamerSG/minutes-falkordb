@@ -40,6 +40,8 @@ from .router import RouterDecision, find_entities, route
 
 log = logging.getLogger(__name__)
 
+FREEFORM_ROWS = 200  # rows returned to the caller for free-form Cypher (embedding-stripped)
+
 
 def _iso(ms: Any) -> str:
     try:
@@ -72,6 +74,45 @@ def _source_from_fact(fact: dict[str, Any]) -> dict[str, Any]:
         item["meeting"] = meeting.get("title") or container.get("title")
         item["t_start"] = src.get("t_start")
     return item
+
+
+def _strip_embeddings(value: Any) -> Any:
+    """Recursively drop ``embedding`` keys (free-form rows may carry whole nodes)."""
+    if isinstance(value, dict):
+        return {k: _strip_embeddings(v) for k, v in value.items() if k != "embedding"}
+    if isinstance(value, list):
+        return [_strip_embeddings(v) for v in value]
+    return value
+
+
+def render_rows_table(rows: list[Any], max_rows: int = 50) -> str:
+    """A Markdown table of free-form Cypher rows (no model call); nested values are compacted."""
+    if not rows:
+        return "The query ran and returned no rows."
+    dict_rows = [r for r in rows if isinstance(r, dict)]
+    if len(dict_rows) != len(rows):
+        dict_rows = [r if isinstance(r, dict) else {"value": r} for r in rows]
+    columns: list[str] = []
+    for row in dict_rows:
+        for key in row:
+            if key not in columns:
+                columns.append(str(key))
+    columns = columns[:12]
+
+    def cell(value: Any) -> str:
+        if isinstance(value, dict):
+            inner = {k: v for k, v in value.items() if k in ("id", "name", "subject", "predicate", "object", "status", "kind", "title", "text")} or value
+            value = ", ".join(f"{k}={v}" for k, v in list(inner.items())[:6])
+        elif isinstance(value, list):
+            value = ", ".join(str(v) for v in value[:6]) + (" ..." if len(value) > 6 else "")
+        text = str(value if value is not None else "").replace("|", "\\|").replace("\n", " ")
+        return text[:120] + ("..." if len(text) > 120 else "")
+
+    lines = ["| " + " | ".join(columns) + " |", "|" + "---|" * len(columns)]
+    for row in dict_rows[:max_rows]:
+        lines.append("| " + " | ".join(cell(row.get(c)) for c in columns) + " |")
+    note = f"{len(rows)} row(s)" + (f", first {max_rows} shown" if len(rows) > max_rows else "")
+    return note + ".\n\n" + "\n".join(lines)
 
 
 def _subgraph_from_facts(facts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -131,9 +172,11 @@ class AnswerAgent(BaseAgent):
         )
 
     # -- chat path --------------------------------------------------------------------------------
-    def answer(self, message: str, session_id: str | None = None) -> dict[str, Any]:
+    def answer(self, message: str, session_id: str | None = None, key_hash: str | None = None) -> dict[str, Any]:
+        """``key_hash`` (sha256 of the caller's API key) scopes session history when tenant keys are required."""
         started = time.perf_counter()
         session_id = session_id or new_id("sess")
+        self._key_hash = key_hash
         self._qvec_cache: tuple[str, list[float]] | None = None
         self._index = EvidenceIndex(self.hive, self.tenant)
         entities, people = self.hive.list_entities(self.tenant), self.hive.list_persons(self.tenant)
@@ -178,11 +221,12 @@ class AnswerAgent(BaseAgent):
             "subgraph": subgraph,
             "sources": sources,
             "episodes": [episode_source_item(ep, evidence["episode_scores"].get(ep["id"])) for ep in evidence["episodes"]],
+            "rows": list(extra.get("rows") or []) if extra.get("freeform") else [],
             "model": getattr(self.llm, "model", "fake"),
             "latency_ms": latency,
         }
-        self.hive.add_turn(self.tenant, session_id, "user", message, {})
-        self.hive.add_turn(self.tenant, session_id, "assistant", answer, {"response": response})
+        self.hive.add_turn(self.tenant, session_id, "user", message, {}, key_hash=key_hash)
+        self.hive.add_turn(self.tenant, session_id, "assistant", answer, {"response": response}, key_hash=key_hash)
         return response
 
     def _resolve_followup(self, message: str, session_id: str, entities: list[dict[str, Any]], people: list[dict[str, Any]]) -> str:
@@ -191,7 +235,7 @@ class AnswerAgent(BaseAgent):
         if found or persons or not re.search(r"\b(it|its|that|those|they|them)\b|^\s*and\b", message, re.I):
             return message
         available = {e["name"] for e in entities}
-        for turn in reversed(self.hive.get_turns(self.tenant, session_id)):
+        for turn in reversed(self.hive.get_turns(self.tenant, session_id, key_hash=getattr(self, "_key_hash", None))):
             if turn.get("role") != "assistant":
                 continue
             response = (turn.get("meta") or {}).get("response") or {}
@@ -300,9 +344,9 @@ class AnswerAgent(BaseAgent):
                 result = self.hive.run_ro_cypher(tenant, decision.cypher or "", {}, timeout_ms=3000)
             except Exception as exc:  # noqa: BLE001 - surface the engine's error to the user
                 return [], [decision.cypher or ""], {"nodes": [], "edges": []}, {"error": str(exc)[:500]}
-            rows = result.get("rows", [])
+            rows = [_strip_embeddings(r) for r in result.get("rows", [])[:FREEFORM_ROWS]]
             facts = [r for r in rows if isinstance(r, dict) and r.get("id") and r.get("subject")]
-            return facts, [result.get("cypher", "")], _subgraph_from_facts(facts), {"rows": rows[:20]}
+            return facts, [result.get("cypher", "")], _subgraph_from_facts(facts), {"rows": rows, "freeform": True}
 
         if decision.route == "template":
             if decision.intent == "ownership":
@@ -447,6 +491,9 @@ class AnswerAgent(BaseAgent):
         evidence = evidence or {"index": None, "dossiers": [], "episodes": []}
         if extra.get("error"):
             return f"I could not run that query: {extra['error']}"
+        if decision.intent == "freeform":
+            # Free-form Cypher: the rows are the answer; no model call (finding 1.3).
+            return render_rows_table(extra.get("rows") or [])
         if decision.intent == "ownership":
             return render_answer(message, decision, facts, extra)
         if extra.get("open_commitments") and not facts:

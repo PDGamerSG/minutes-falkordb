@@ -1,8 +1,9 @@
-"""Meetings: list, import (async job), job polling, episodes, audio."""
+"""Meetings: list, import (async job, size-limited), job polling, episodes, audio."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import Any
 
@@ -10,12 +11,40 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
 from ingest.recorder_format import parse_export
 
+from ..auth import require_tenant_key
 from ..config import REPO_ROOT
 from ..errors import ApiError
-from ..ingest_service import import_meeting
+from ..ingest_service import ensure_embedding_space, import_meeting
 from ..state import AppContext, get_ctx
 
-router = APIRouter(prefix="/tenants/{tenant}", tags=["meetings"])
+router = APIRouter(prefix="/tenants/{tenant}", tags=["meetings"], dependencies=[Depends(require_tenant_key)])
+
+JSON_TYPES = ("application/json", "text/json", "application/*+json")
+
+
+async def read_limited_body(request: Request, max_bytes: int) -> bytes:
+    """The raw body, refused with 413 when ``Content-Length`` or the bytes actually read exceed ``max_bytes``."""
+    declared = request.headers.get("content-length")
+    if declared:
+        try:
+            if int(declared) > max_bytes:
+                raise ApiError(413, "payload_too_large", f"body is {int(declared)} bytes; the limit is {max_bytes} bytes (MAX_IMPORT_BYTES)")
+        except ValueError:
+            raise ApiError(400, "bad_request", "invalid Content-Length") from None
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > max_bytes:
+            raise ApiError(413, "payload_too_large", f"body exceeds the {max_bytes} byte limit (MAX_IMPORT_BYTES)")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def require_json_content_type(request: Request) -> None:
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if content_type and not (content_type in JSON_TYPES or content_type.endswith("+json")):
+        raise ApiError(415, "unsupported_media_type", f"content-type {content_type!r} is not accepted; send application/json")
 
 
 def meeting_row(ctx: AppContext, tenant: str, meeting: dict[str, Any]) -> dict[str, Any]:
@@ -43,20 +72,26 @@ def list_meetings(tenant: str, ctx: AppContext = Depends(get_ctx)) -> list[dict[
     return [meeting_row(ctx, tenant, m) for m in ctx.hive.list_meetings(tenant)]
 
 
-@router.post("/meetings/import", status_code=202)
-async def import_meeting_route(tenant: str, request: Request, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
-    ctx.ensure_tenant(tenant)
+def _parse_export_bytes(raw: bytes) -> Any:
     try:
-        body = await request.json()
+        body = json.loads(raw)
     except ValueError as exc:
         raise ApiError(400, "invalid_json", f"body must be the recorder export JSON: {exc}") from exc
-    export = parse_export(body)
+    return parse_export(body)
+
+
+@router.post("/meetings/import", status_code=202)
+async def import_meeting_route(tenant: str, request: Request, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
+    require_json_content_type(request)
+    await asyncio.to_thread(ensure_embedding_space, ctx, tenant)
+    raw = await read_limited_body(request, ctx.settings.max_import_bytes)
+    export = await asyncio.to_thread(_parse_export_bytes, raw)  # parsing a multi-MB export stays off the event loop
     job_id = ctx.jobs.create(tenant, "meeting", export.meeting.id)
 
     def work(progress: Any) -> dict[str, Any]:
         return import_meeting(export, tenant, ctx, progress=progress)
 
-    asyncio.create_task(ctx.jobs.run_async(job_id, work))
+    ctx.spawn(ctx.jobs.run_async(job_id, work))
     return {"meeting_id": export.meeting.id, "job_id": job_id}
 
 
@@ -140,6 +175,7 @@ def _audio_path(source_uri: str | None, data_root: Path) -> Path | None:
 
 @router.get("/meetings/{meeting_id}/audio")
 def meeting_audio(tenant: str, meeting_id: str, ctx: AppContext = Depends(get_ctx)) -> FileResponse:
+    """Audio file when present. ``<audio>`` cannot set headers: with tenant keys required this route also accepts ``?api_key=``."""
     ctx.ensure_tenant(tenant)
     meeting = ctx.hive.get_meeting(tenant, meeting_id)
     if meeting is None:

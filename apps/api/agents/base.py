@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -16,6 +19,8 @@ from typing import Any
 from .tools import ToolSet, build_tools
 
 log = logging.getLogger(__name__)
+
+DEFAULT_TASK_DEADLINE_S = 300.0
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
@@ -104,18 +109,47 @@ class BaseAgent:
         return build_tools(self, task, self.tool_names)
 
     # -- run ----------------------------------------------------------------------------------
+    @property
+    def task_deadline_s(self) -> float:
+        """Wall-clock budget per task (``AGENT_TASK_DEADLINE_S``); 180 s per call times 6 steps is not a budget."""
+        return float(getattr(self.settings, "agent_task_deadline_s", DEFAULT_TASK_DEADLINE_S) or DEFAULT_TASK_DEADLINE_S)
+
     def run(self, task: dict[str, Any]) -> AgentResult:
-        """Deterministic subclasses override this; the default drives the LLM tool loop."""
+        """Deterministic subclasses override this; the default drives the LLM tool loop under a deadline."""
         toolset = self.tools_for(task)
         context = self.context_for(task)
         message = (context + "\n\n" if context else "") + self.task_message(task)
-        loop = self.llm.tool_loop(
+        deadline = time.monotonic() + self.task_deadline_s
+        started = time.perf_counter()
+
+        def execute(name: str, args: dict[str, Any]) -> dict[str, Any]:
+            if time.monotonic() > deadline:
+                return {"error": "task deadline exceeded; stop and call finish", "deadline_exceeded": True}
+            return toolset.execute(name, args)
+
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"{self.agent_id}-loop")
+        future = pool.submit(
+            self.llm.tool_loop,
             self.system_prompt(task),
             [{"role": "user", "content": message}],
             toolset.specs,
-            toolset.execute,
+            execute,
             max_steps=self.max_steps,
         )
+        try:
+            loop = future.result(timeout=self.task_deadline_s)
+        except FutureTimeout:
+            log.warning("%s exceeded the %.0f s task deadline on %s", self.agent_id, self.task_deadline_s, task.get("id"))
+            return AgentResult(
+                failed=True,
+                reason=f"task deadline of {self.task_deadline_s:.0f}s exceeded",
+                artifact=toolset.artifact,
+                handed_off=toolset.handed_off,
+                model=getattr(self.llm, "model", ""),
+                latency_ms=int((time.perf_counter() - started) * 1000),
+            )
+        finally:
+            pool.shutdown(wait=False)
         result = AgentResult(
             final=loop.final,
             steps=loop.steps,

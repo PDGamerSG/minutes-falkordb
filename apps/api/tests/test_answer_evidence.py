@@ -38,7 +38,7 @@ def test_prompt_carries_full_history_oldest_first_with_sources(seeded):
     assert "Never call an email or an email thread a meeting" in system
 
     block = user.split("FACT 1:")[1].split("FACT 2:")[0]
-    versions = re.findall(r"v(\d)\. \[(fact_[^\]]+)\] UPI Flow due = (\d{4}-\d{2}-\d{2})", block)
+    versions = re.findall(r"v(\d)\. \[(fact_[^\]]+)\] UPI [Ff]low due = (\d{4}-\d{2}-\d{2})", block)
     assert [v[2] for v in versions] == ["2026-09-24", "2026-09-25", "2026-09-28"]
     lines = {v[2]: next(line for line in block.splitlines() if v[1] in line and line.strip().startswith(f"v{v[0]}.")) for v in versions}
     assert 'spoken in the meeting "Orbit kickoff"' in lines["2026-09-24"] and "superseded" in lines["2026-09-24"]

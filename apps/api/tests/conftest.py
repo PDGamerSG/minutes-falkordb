@@ -117,6 +117,15 @@ GOLD_003 = {
 IMPORT_ORDER = ["orbit_001.json", "orbit_002.json", "orbit_thread_001.json", "orbit_003.json"]
 
 
+def cf(value: Any) -> str:
+    """Casefold for assertions: entity display casing follows the source text and may change with the pipeline."""
+    return str(value or "").casefold()
+
+
+def cfs(values: Any) -> set[str]:
+    return {cf(v) for v in values}
+
+
 @pytest.fixture(scope="session")
 def data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("data")

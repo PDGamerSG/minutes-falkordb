@@ -50,7 +50,9 @@ def test_contradictions_stale_and_belief():
 def test_vector_fallback_and_freeform():
     assert route("tell me something interesting", ENTITIES, PERSONS).route == "vector"
     ok = route("cypher: MATCH (n) RETURN count(n)", ENTITIES, PERSONS)
-    assert ok.route == "freeform_ro" and ok.cypher == "MATCH (n) RETURN count(n)" and not ok.notes
+    assert ok.route == "freeform_ro" and ok.cypher == "MATCH (n) RETURN count(n) LIMIT 200" and ok.notes == "LIMIT 200 added"
+    capped = route("cypher: MATCH (n) RETURN n LIMIT 5", ENTITIES, PERSONS)
+    assert capped.cypher == "MATCH (n) RETURN n LIMIT 5" and not capped.notes
     bad = route("MATCH (n) DETACH DELETE n", ENTITIES, PERSONS)
     assert bad.route == "freeform_ro" and bad.notes.startswith("rejected")
 

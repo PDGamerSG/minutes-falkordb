@@ -1,4 +1,8 @@
-"""In-process import jobs: ``POST .../import`` returns a job id; the pipeline runs in a worker thread."""
+"""In-process import jobs: ``POST .../import`` returns a job id; the pipeline runs in a worker thread.
+
+The store is bounded (``max_jobs``, default 500): once full, the oldest finished job is evicted;
+running jobs are never evicted.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +10,7 @@ import asyncio
 import logging
 import threading
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any
 
@@ -14,14 +19,23 @@ from ingest.fakes import new_id
 log = logging.getLogger(__name__)
 
 JobFn = Callable[[Callable[[str, float], None]], dict[str, Any]]
+_FINISHED = ("done", "failed")
 
 
 class JobStore:
     """Thread-safe registry of import jobs and their progress."""
 
-    def __init__(self) -> None:
-        self._jobs: dict[str, dict[str, Any]] = {}
+    def __init__(self, max_jobs: int = 500) -> None:
+        self._jobs: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._lock = threading.Lock()
+        self.max_jobs = max_jobs
+
+    def _evict_locked(self) -> None:
+        while len(self._jobs) > self.max_jobs:
+            victim = next((jid for jid, j in self._jobs.items() if j["status"] in _FINISHED), None)
+            if victim is None:
+                return
+            del self._jobs[victim]
 
     def create(self, tenant: str, kind: str, container_id: str) -> str:
         job_id = new_id("job")
@@ -39,7 +53,12 @@ class JobStore:
                 "created_at": int(time.time() * 1000),
                 "updated_at": int(time.time() * 1000),
             }
+            self._evict_locked()
         return job_id
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._jobs)
 
     def get(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:

@@ -1,20 +1,25 @@
-"""Memory: facts, why, belief-at-T, timeline, snapshots, analytics."""
+"""Memory: facts (paged), why, belief-at-T, timeline, snapshots, analytics."""
 
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 
+from ..auth import require_admin, require_tenant_key
 from ..errors import ApiError
 from ..state import AppContext, get_ctx
 
-router = APIRouter(prefix="/tenants/{tenant}", tags=["memory"])
+router = APIRouter(prefix="/tenants/{tenant}", tags=["memory"], dependencies=[Depends(require_tenant_key)])
 
 STATUSES = {"active", "superseded", "retracted", "all"}
 PROVENANCE_KEYS = ("speaker", "meeting", "thread", "source", "episode_id", "supersedes", "entities")
 KINDS = {"fact", "decision", "commitment"}
+FACTS_DEFAULT_LIMIT = 200
+FACTS_MAX_LIMIT = 1000
+NEXT_CURSOR_HEADER = "X-Next-Cursor"
+TRUNCATED_HEADER = "X-Truncated"
 
 
 @router.get("/people")
@@ -58,17 +63,29 @@ def fact_view(fact: dict[str, Any]) -> dict[str, Any]:
 @router.get("/facts")
 def list_facts(
     tenant: str,
+    response: Response,
     status: str = Query("active"),
     entity: str | None = Query(None),
     kind: str | None = Query(None),
+    limit: int = Query(FACTS_DEFAULT_LIMIT, ge=1, le=FACTS_MAX_LIMIT),
+    cursor: str | None = Query(None, description=f"opaque; the {NEXT_CURSOR_HEADER} header of the previous page"),
     ctx: AppContext = Depends(get_ctx),
 ) -> list[dict[str, Any]]:
+    """One page of facts ordered by (valid_from, id). The body stays an array; ``X-Next-Cursor`` carries the
+    next page's cursor and ``X-Truncated`` is ``true`` when more facts match."""
     ctx.ensure_tenant(tenant)
     if status not in STATUSES:
         raise ApiError(400, "bad_status", f"status must be one of {sorted(STATUSES)}")
     if kind is not None and kind not in KINDS:
         raise ApiError(400, "bad_kind", f"kind must be one of {sorted(KINDS)}")
-    return [fact_view(f) for f in ctx.hive.list_facts(tenant, status=status, entity=entity, kind=kind)]
+    try:
+        rows, next_cursor = ctx.hive.page_facts(tenant, status=status, entity=entity, kind=kind, limit=limit, cursor=cursor)
+    except ValueError as exc:
+        raise ApiError(400, "bad_cursor", str(exc)) from exc
+    response.headers[TRUNCATED_HEADER] = "true" if next_cursor else "false"
+    if next_cursor:
+        response.headers[NEXT_CURSOR_HEADER] = next_cursor
+    return [fact_view(f) for f in rows]
 
 
 @router.get("/facts/{fact_id}")
@@ -108,6 +125,7 @@ def belief(tenant: str, t: int = Query(..., description="epoch ms"), entity: str
     rows = result["rows"]
     if rows and any(not (f.get("meeting") or f.get("thread") or f.get("source")) for f in rows):
         # 31_belief_at_time returns the fact and its speaker only; add where it was said (meeting or thread) for display.
+        # list_facts pages through every fact internally (no silent cap).
         full = {f.get("id"): f for f in ctx.hive.list_facts(tenant, status="all")}
         rows = [{**f, **{k: full[f["id"]].get(k) for k in PROVENANCE_KEYS if not f.get(k) and full.get(f.get("id"), {}).get(k)}} for f in rows]
     return {"t": int(t), "entity": entity, "facts": [fact_view(f) for f in rows], "cypher": result.get("cypher", "")}
@@ -138,9 +156,14 @@ class SnapshotBody(BaseModel):
     label: str = Field(min_length=1, max_length=120)
 
 
-@router.post("/snapshots", status_code=201)
+@router.post("/snapshots", status_code=201, dependencies=[Depends(require_admin)])
 def create_snapshot(tenant: str, body: SnapshotBody, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
+    """Admin: GRAPH.COPY the tenant graph. Capped at ``MAX_SNAPSHOTS_PER_TENANT`` (default 10) -> 409 beyond."""
     ctx.ensure_tenant(tenant)
+    cap = int(ctx.settings.max_snapshots_per_tenant)
+    existing = ctx.hive.list_snapshots(tenant)
+    if len(existing) >= cap:
+        raise ApiError(409, "snapshot_quota", f"tenant {tenant!r} already has {len(existing)} snapshots (cap {cap}); delete one before taking another")
     snap = ctx.hive.snapshot(tenant, body.label)
     return {"name": snap.get("name"), "taken_at": snap.get("taken_at"), "label": snap.get("label", body.label), "id": snap.get("id")}
 
