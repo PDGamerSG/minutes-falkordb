@@ -6,7 +6,7 @@ Target: **Track 3 — Company Brain**, Graph Hacks: Context for AI Agents (Oct 1
 
 **Status (Oct 9): local prototype, pre-event work.** The [event rules](https://www.wemakedevs.org/hackathons/falkordb/rules) require main coding/design to begin after the event starts. Confirm permitted reuse with organizers before submitting; this repository and audit must not be presented as work begun on Oct 15.
 
-**Live demo:** https://minutes-falkordb.vercel.app
+**Live demo:** https://minutes.pallabdas.me
 
 Read the [visual design notes](docs/frontend-design.md), [decision-impact contract](docs/decision-impact.md), [audit and Track 3 assessment](docs/track3-readiness.md) and the [three-minute demo](docs/demo-script.md). Local graph behavior is verified; real-model extraction quality and production access control remain gaps.
 
@@ -204,7 +204,7 @@ FalkorDB findings from this work, drafted as issues in [`docs/falkordb-issues.md
 
 ## Deployment
 
-Live demo: **https://minutes-falkordb.vercel.app** (API: https://52-65-45-159.sslip.io/health).
+Live demo: **https://minutes.pallabdas.me** (also https://minutes-falkordb.vercel.app) (API: https://52-65-45-159.sslip.io/health).
 
 - Web: Vercel, built from `apps/web` on every push to `main`.
 - API and FalkorDB 6.0.1: one AWS Lightsail instance (Sydney, 1 GB) running [`infra/aws/docker-compose.yml`](infra/aws/docker-compose.yml). FalkorDB stays on the private Compose network with an append-only file on a named volume; Caddy terminates HTTPS; daily instance snapshots are enabled.
