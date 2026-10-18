@@ -36,6 +36,13 @@ STARTUP_RETRY_S = float(os.environ.get("STARTUP_RETRY_S", "15"))
 LOCALHOST_CORS = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
+def cors_origin_regex(settings: Settings) -> str | None:
+    patterns = [] if settings.is_production else [LOCALHOST_CORS]
+    if settings.cors_origin_regex:
+        patterns.append(settings.cors_origin_regex)
+    return "|".join(f"(?:{p})" for p in patterns) or None
+
+
 class UnavailableHive:
     """Placeholder hive while the database cannot be reached: every probe reports the failure."""
 
@@ -201,8 +208,8 @@ def create_app(ctx: AppContext | None = None, *, start_workers: bool | None = No
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list or ["http://localhost:3001"],
-        # Any localhost origin is fine while developing; production trusts CORS_ORIGINS only (finding 2.8).
-        allow_origin_regex=None if settings.is_production else LOCALHOST_CORS,
+        # Any localhost origin is fine while developing; production trusts CORS_ORIGINS and CORS_ORIGIN_REGEX only (finding 2.8).
+        allow_origin_regex=cors_origin_regex(settings),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -63,6 +63,25 @@ def test_cors_localhost_regex_only_outside_production(data_dir):
                 assert response.headers.get("access-control-allow-origin") == "https://minutes.example"
 
 
+def test_cors_origin_regex_admits_matching_origins_in_production(data_dir):
+    ctx = make_ctx(
+        data_dir,
+        env="production",
+        cors_origins="https://minutes.example",
+        cors_origin_regex=r"https://minutes(-[a-z0-9-]+)?\.vercel\.app",
+    )
+    with TestClient(create_app(ctx, start_workers=False)) as client:
+        for origin, allowed in (
+            ("https://minutes-abc123-team.vercel.app", True),
+            ("https://minutes-git-main-team.vercel.app", True),
+            ("https://minutes.example", True),
+            ("https://other.vercel.app", False),
+            ("http://localhost:5555", False),
+        ):
+            response = client.get("/health", headers={"Origin": origin})
+            assert (response.headers.get("access-control-allow-origin") == origin) is allowed, origin
+
+
 class DeadLLM:
     backend = "ollama"
     model = "gemma"

@@ -51,6 +51,11 @@ def reset_probe_cache() -> None:
         _probe_cache.clear()
 
 
+@router.get("/")
+def root() -> dict[str, str]:
+    return {"service": "Minutes API", "health": "/health", "docs": "/docs"}
+
+
 @router.get("/health")
 def health(response: Response, ctx: AppContext = Depends(get_ctx)) -> dict[str, Any]:
     ok = False

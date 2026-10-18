@@ -1,9 +1,10 @@
 #!/bin/bash
 # One-time host setup on Ubuntu 24.04: swap, Docker, then the Compose stack.
-# Usage: sudo bash infra/aws/setup.sh <public-hostname> <comma-separated web origins>
+# Usage: sudo bash infra/aws/setup.sh <public-hostname> <comma-separated web origins> [origin regex]
 set -euo pipefail
 HOST="$1"
 ORIGINS="$2"
+ORIGIN_REGEX="${3:-}"
 cd "$(dirname "$0")/../.."
 
 if ! swapon --show | grep -q /swapfile; then
@@ -29,9 +30,10 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "TENANT_RO_PASSWORD=$(openssl rand -hex 24)"
   } > "$ENV_FILE"
 fi
-sed -i '/^API_HOST=/d;/^CORS_ORIGINS=/d' "$ENV_FILE"
+sed -i '/^API_HOST=/d;/^CORS_ORIGINS=/d;/^CORS_ORIGIN_REGEX=/d' "$ENV_FILE"
 echo "API_HOST=$HOST" >> "$ENV_FILE"
 echo "CORS_ORIGINS=$ORIGINS" >> "$ENV_FILE"
+echo "CORS_ORIGIN_REGEX=$ORIGIN_REGEX" >> "$ENV_FILE"
 
 docker compose -f infra/aws/docker-compose.yml --env-file "$ENV_FILE" up -d --build
 docker compose -f infra/aws/docker-compose.yml --env-file "$ENV_FILE" ps

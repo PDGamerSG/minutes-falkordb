@@ -50,6 +50,7 @@ class Settings(BaseSettings):
 
     # API
     cors_origins: str = "http://localhost:3001"
+    cors_origin_regex: str | None = None  # extra trusted origins, e.g. every Vercel deployment URL of one project
     data_dir: str = "data"
     bench_results_dir: str = "docs/bench"
     seed_tenants: str = "orbit,nimbus,quill"

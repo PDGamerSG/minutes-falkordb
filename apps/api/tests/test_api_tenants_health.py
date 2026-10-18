@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 
+def test_root_points_to_health_and_docs(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"service": "Minutes API", "health": "/health", "docs": "/docs"}
+
+
 def test_health(client):
     body = client.get("/health").json()
     assert body["ok"] is True
