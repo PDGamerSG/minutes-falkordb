@@ -7,8 +7,10 @@ import { ArrowUpRight, ChartColumn, Clock, Database, Layers, Menu, MessageSquare
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { useMockState } from "@/lib/mock-state";
+import type { Tenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/Page";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StateDot } from "@/components/StateBadge";
@@ -103,21 +105,14 @@ function ApiStatus() {
         <div className="min-w-0">
           <div className="truncate font-medium">{label}</div>
           <div className="truncate font-mono text-[10px] text-muted-foreground">
-            {health?.ok ? `${health.llm.backend}/${health.llm.model} · ${health.embeddings.dim}d` : api.base.replace(/^https?:\/\//, "")}
+            {health?.ok ? `${health.falkordb.graphs.length} team graphs` : api.base.replace(/^https?:\/\//, "")}
           </div>
-          {health?.llm.backend === "fake" && <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">Scripted answers · demo mode</div>}
-          {health?.embeddings.backend === "fake" && <div className="text-[11px] text-amber-700 dark:text-amber-400">Test embeddings</div>}
         </div>
       </TooltipTrigger>
       <TooltipContent side="right">
         <div className="space-y-0.5 text-left font-mono text-[10px]">
           <div>GET {api.base}/health</div>
-          {health?.ok && (
-            <>
-              <div>graphs: {health.falkordb.graphs.join(", ")}</div>
-              <div>embeddings: {health.embeddings.model}</div>
-            </>
-          )}
+          {health?.ok && <div>graphs: {health.falkordb.graphs.join(", ")}</div>}
         </div>
       </TooltipContent>
     </Tooltip>
@@ -128,8 +123,7 @@ export function Brand({ onNavigate }: { onNavigate?: () => void }) {
   return <Link href="/" className="brand" onClick={onNavigate} aria-label="Minutes home"><span className="brand-mark" aria-hidden><i /><i /><i /></span><span>minutes<span className="brand-period">.</span></span></Link>;
 }
 
-function NavBody({ team, pathname, onNavigate }: { team: string | null; pathname: string; onNavigate?: () => void }) {
-  const { data: tenants } = useResource(() => api.tenants.list(), [], { enabled: !!team });
+function NavBody({ team, tenants, pathname, onNavigate }: { team: string | null; tenants?: Tenant[]; pathname: string; onNavigate?: () => void }) {
   const tenant = tenants?.find((t) => t.slug === team);
   return <div className="workspace-navigation flex h-full flex-col">
     <div className="sidebar-brand"><Link href="/" onClick={onNavigate} aria-label="Minutes home" className="workspace-brand"><span className="workspace-mark" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span><span>minutes<span>.</span></span></Link></div>
@@ -145,10 +139,24 @@ function NavBody({ team, pathname, onNavigate }: { team: string | null; pathname
   </div>;
 }
 
+function WorkspaceNotFound({ team }: { team: string }) {
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Workspace not found." description={`There is no workspace called "${team}". Pick one of your team workspaces to continue.`} />
+      <Link href="/workspaces" className={buttonVariants()}>
+        <Database /> Open workspaces
+      </Link>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const team = useMemo(() => teamFromPath(pathname), [pathname]);
   const [open, setOpen] = useState(false);
+  const { data: tenants } = useResource(() => api.tenants.list(), [], { enabled: !!team });
+  // Only a loaded list can prove a slug wrong; while it loads (or if it fails) the page renders as usual.
+  const unknownTeam = !!team && !!tenants && !tenants.some((t) => t.slug === team);
   const current = team ? TEAM_PAGES.find((p) => p.slug ? pathname.startsWith(`/t/${encodeURIComponent(team)}/${p.slug}`) : pathname === `/t/${encodeURIComponent(team)}`)?.label : GLOBAL_PAGES.find(p => p.href === pathname)?.label ?? "Workspace";
   if (pathname === "/") return (
     <LandingAssistantProvider key={pathname}>
@@ -161,11 +169,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   return <div className="minutes-workspace-shell flex min-h-dvh">
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <aside className="workspace-sidebar sticky top-0 hidden h-dvh shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block"><NavBody team={team} pathname={pathname} /></aside>
+    <aside className="workspace-sidebar sticky top-0 hidden h-dvh shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block"><NavBody team={unknownTeam ? null : team} tenants={tenants} pathname={pathname} /></aside>
     <div className="flex min-w-0 flex-1 flex-col">
       <header className="workspace-header"><div className="flex items-center gap-3"><Button size="icon-sm" variant="ghost" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu /></Button><Link className="workspace-breadcrumb" href={team ? `/t/${encodeURIComponent(team)}` : "/workspaces"}>{team ?? "Minutes"}</Link><span className="breadcrumb-divider">/</span><span>{current}</span></div><CommandMenu team={team} /><MockBadge /></header>
-      <Sheet open={open} onOpenChange={setOpen}><SheetContent side="left" className="workspace-mobile-nav w-64 p-0 sm:max-w-64" showCloseButton={true}><SheetTitle className="sr-only">Navigation</SheetTitle><NavBody team={team} pathname={pathname} onNavigate={() => setOpen(false)} /></SheetContent></Sheet>
-      <main id="main-content" key={team ?? "global"} className="workspace-main min-w-0 flex-1" tabIndex={-1}>{children}</main>
+      <Sheet open={open} onOpenChange={setOpen}><SheetContent side="left" className="workspace-mobile-nav w-64 p-0 sm:max-w-64" showCloseButton={true}><SheetTitle className="sr-only">Navigation</SheetTitle><NavBody team={unknownTeam ? null : team} tenants={tenants} pathname={pathname} onNavigate={() => setOpen(false)} /></SheetContent></Sheet>
+      <main id="main-content" key={team ?? "global"} className="workspace-main min-w-0 flex-1" tabIndex={-1}>{unknownTeam && team ? <WorkspaceNotFound team={team} /> : children}</main>
     </div>
   </div>;
 }

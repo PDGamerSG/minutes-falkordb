@@ -15,6 +15,8 @@ import { OverlayProvider } from "@/components/Overlays";
 export const metadata: Metadata = {
   title: { default: "Minutes", template: "%s · Minutes" },
   description: "Minutes connects your meetings, emails, and decisions. Know what changed, why it changed, and what comes next.",
+  // The design keeps light surfaces under a dark system preference; stop Dark Reader from repainting them.
+  other: { "darkreader-lock": "" },
 };
 
 export const viewport: Viewport = {

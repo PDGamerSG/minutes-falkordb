@@ -381,7 +381,7 @@ export function BoardPage({ team }: { team: string }) {
                   </span>
                   <StateBadge state={a.state} size="xs" pulse={a.state === "working"} />
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{a.model}</div>
+                {a.model && !/^(fake|none)$/i.test(a.model) && <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{a.model}</div>}
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {a.capabilities.map((c) => (
                     <Badge key={c} variant="secondary" className="h-4 px-1.5 text-[10px]">

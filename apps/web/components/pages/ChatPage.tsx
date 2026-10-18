@@ -127,7 +127,7 @@ function AssistantMessage({ tenant, m }: { tenant: string; m: Msg }) {
         {m.error && <ErrorNote error={m.error} />}
         {!m.pending && !m.error && <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>}
         {r && (
-          <div className="answer-footer"><span className="answer-provenance"><span />{r.sources.length} linked source{r.sources.length !== 1 ? "s" : ""}</span><span>{/fake|scripted/i.test(r.model) ? "Scripted demo answer" : "Evidence available"}</span><Button size="xs" variant="ghost" className="ml-auto" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? <ChevronDown /> : <ChevronRight />} Why this answer</Button></div>
+          <div className="answer-footer"><span className="answer-provenance"><span />{r.sources.length} linked source{r.sources.length !== 1 ? "s" : ""}</span><span>Evidence available</span><Button size="xs" variant="ghost" className="ml-auto" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? <ChevronDown /> : <ChevronRight />} Why this answer</Button></div>
         )}
       </div>
       {r && open && <WhySection tenant={tenant} r={r} />}
