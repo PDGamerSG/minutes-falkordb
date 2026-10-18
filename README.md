@@ -105,7 +105,7 @@ Every screen is a traversal over FalkorDB, and the API returns the Cypher it ran
 |---|---|---|
 | Which open work does a changed decision affect? | `(WorkItem)-[:DEPENDS_ON]->(baseline:Fact)`, then `SUPERSEDES*0..24` back from the active fact with the same key ([`81_work_impacts`](cypher/81_work_impacts.cypher)) | [`/tenants/orbit/impact`](https://52-65-45-159.sslip.io/tenants/orbit/impact): 5 tracked, 3 need review |
 | Where did this decision come from? | `(Fact)-[:DERIVED_FROM]->(Episode)`, the speaker through `SPOKEN_BY` or `SENT_BY`, the `Meeting` or `EmailThread` that holds the episode, and the `SUPERSEDES` chain both ways ([`32_why_path`](cypher/32_why_path.cypher)) | [`/tenants/orbit/why/fact_ep_mtg_orbit_003_010_499210a8`](https://52-65-45-159.sslip.io/tenants/orbit/why/fact_ep_mtg_orbit_003_010_499210a8) |
-| What did the team believe on 15 September? | `valid_from <= T` and (`valid_to` is null or `> T`) on every `Fact` ([`31_belief_at_time`](cypher/31_belief_at_time.cypher)) | [`/tenants/orbit/belief?t=1789473600000`](https://52-65-45-159.sslip.io/tenants/orbit/belief?t=1789473600000): navigation is "bottom tab bar"; [now](https://52-65-45-159.sslip.io/tenants/orbit/belief) it is "side drawer" |
+| What did the team believe on 15 September? | `valid_from <= T` and (`valid_to` is null or `> T`) on every `Fact` ([`31_belief_at_time`](cypher/31_belief_at_time.cypher)) | [`/tenants/orbit/belief?t=1789473600000`](https://52-65-45-159.sslip.io/tenants/orbit/belief?t=1789473600000): navigation is "bottom tab bar"; [now](https://52-65-45-159.sslip.io/tenants/orbit/belief?t=1792330418109) it is "side drawer" |
 
 The impact query in full. Only explicit edges count: no co-mention or vector similarity marks work as affected.
 
