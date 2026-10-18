@@ -38,6 +38,16 @@ Use `LLM_BACKEND=fake EMBED_BACKEND=fake` for the deterministic synthetic-data d
 
 Seed from inside the deployed environment or from a secured connection to that database. `data/seed.py --extract gold` replays gold labels; `--extract real` invokes a model. Use `--reset` only when deliberately discarding a demo tenant's data. Leave `GITHUB_TOKEN` and `GITHUB_DEMO_REPO` unset for simulated follow-ups (`minutes://simulated/issue/<id>` URIs).
 
+## AWS single host (live demo)
+
+`infra/aws/` runs the whole backend on one small Ubuntu 24.04 host: FalkorDB 6.0.1 (no published ports, append-only persistence on a named volume), the API (scripted LLM and test embeddings, reseeded idempotently on every start) and Caddy for automatic HTTPS. `setup.sh` adds 2 GB of swap, installs Docker with capped container logs, generates the tenant master secrets once into `infra/aws/.env` (git-ignored) and starts the stack:
+
+```bash
+sudo bash infra/aws/setup.sh <hostname> https://<web-origin>
+```
+
+The live demo uses a 1 GB AWS Lightsail instance in ap-southeast-2 with a static IP, the `<ip>.sslip.io` hostname for the certificate and daily automatic snapshots. Update it with `git pull` followed by the same `docker compose ... up -d --build` command.
+
 ## Web
 
 For Vercel, use `apps/web` as the project root and set `NEXT_PUBLIC_API_URL` to the HTTPS API URL before building. Set the API's `CORS_ORIGINS` to the web origin. `NEXT_PUBLIC_MOCK` must remain unset for a real API demonstration. The app does not substitute fixtures when the API fails.

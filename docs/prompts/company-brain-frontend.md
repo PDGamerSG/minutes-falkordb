@@ -1,6 +1,6 @@
 # Frontend agent prompt
 
-🎯 Target: Codex coding agent in a separate agent thread.
+🎯 Target: frontend implementation in a separate thread.
 💡 Optimized for an original, working 3D Company Brain interface, with isolated file ownership and verifiable behavior.
 
 ```text

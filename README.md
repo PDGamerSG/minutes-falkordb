@@ -6,6 +6,8 @@ Target: **Track 3 — Company Brain**, Graph Hacks: Context for AI Agents (Oct 1
 
 **Status (Oct 9): local prototype, pre-event work.** The [event rules](https://www.wemakedevs.org/hackathons/falkordb/rules) require main coding/design to begin after the event starts. Confirm permitted reuse with organizers before submitting; this repository and audit must not be presented as work begun on Oct 15.
 
+**Live demo:** https://minutes-falkordb.vercel.app
+
 Read the [visual design notes](docs/frontend-design.md), [decision-impact contract](docs/decision-impact.md), [audit and Track 3 assessment](docs/track3-readiness.md) and the [three-minute demo](docs/demo-script.md). Local graph behavior is verified; real-model extraction quality and production access control remain gaps.
 
 ## Team Vulcan
@@ -202,7 +204,13 @@ FalkorDB findings from this work, drafted as issues in [`docs/falkordb-issues.md
 
 ## Deployment
 
-Local operation is verified. Hosted deployment is not verified. See [deployment notes](infra/README.md), including the access-control work required before using private company data.
+Live demo: **https://minutes-falkordb.vercel.app** (API: https://52-65-45-159.sslip.io/health).
+
+- Web: Vercel, built from `apps/web` on every push to `main`.
+- API and FalkorDB 6.0.1: one AWS Lightsail instance (Sydney, 1 GB) running [`infra/aws/docker-compose.yml`](infra/aws/docker-compose.yml). FalkorDB stays on the private Compose network with an append-only file on a named volume; Caddy terminates HTTPS; daily instance snapshots are enabled.
+- Mode: synthetic data only, gold-label replay, scripted agents (`LLM_BACKEND=fake`) and test embeddings (`EMBED_BACKEND=fake`); the shell labels both. Demo and tenant routes are open (no `ADMIN_TOKEN`), so anyone can run the demo actions.
+
+Set up the same host from scratch with `sudo bash infra/aws/setup.sh <hostname> <web-origin>`. See [deployment notes](infra/README.md), including the access-control work required before using private company data.
 
 ## AI assistance disclosure
 
