@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   title: { default: "Minutes", template: "%s · Minutes" },
   description: "Minutes connects your meetings, emails, and decisions. Know what changed, why it changed, and what comes next.",
   // The design keeps light surfaces under a dark system preference; stop Dark Reader from repainting them.
-  other: { "darkreader-lock": "" },
+  // Next.js omits meta tags with an empty value; Dark Reader only checks that the tag exists.
+  other: { "darkreader-lock": "true" },
 };
 
 export const viewport: Viewport = {
