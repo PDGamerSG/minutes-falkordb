@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ingest.fakes import new_id
+from ingest.llm_protocol import LLMFormatError
 
 from .base import AgentResult, BaseAgent, load_prompt
 from .evidence import (
@@ -504,11 +505,7 @@ class AnswerAgent(BaseAgent):
         if getattr(self.llm, "backend", "") == "fake":
             return render_answer(message, decision, facts, extra, evidence.get("dossiers"))
         user = build_user_prompt(message, decision, facts, extra, evidence)
-        try:
-            text = self.llm.complete(load_prompt("answer"), user, temperature=0.2, max_tokens=700)
-        except Exception as exc:  # noqa: BLE001 - fail loudly in the payload, keep provenance
-            log.error("answer composition failed: %s", exc)
-            return f"The model failed to compose an answer ({type(exc).__name__}); evidence: " + render_answer(message, decision, facts, extra, evidence.get("dossiers"))
+        text = self.llm.complete(load_prompt("answer"), user, temperature=0.2, max_tokens=700)
         # Do not let a fabricated reference masquerade as a traceable company fact.
         allowed = {f["id"] for f in facts if f.get("id")}
         allowed.update(dossier_fact_ids(evidence.get("dossiers") or []))
@@ -516,9 +513,10 @@ class AnswerAgent(BaseAgent):
         allowed.update(ep["id"] for ep in evidence.get("episodes") or [])
         cited = set(re.findall(r"\[((?:fact|ep)_[^\]\s]+)\]", text))
         if cited - allowed or (allowed and not cited):
-            log.warning("answer has missing or unknown evidence citations; returning grounded fallback")
-            return render_answer(message, decision, facts, extra, evidence.get("dossiers"))
-        return text.strip() or render_answer(message, decision, facts, extra, evidence.get("dossiers"))
+            raise LLMFormatError("The model returned missing or unknown evidence citations; please retry")
+        if not text.strip():
+            raise LLMFormatError("The model returned an empty answer; please retry")
+        return text.strip()
 
 
 def _legacy_fact_line(fact: dict[str, Any]) -> str:
@@ -601,7 +599,7 @@ def _chain_sentence(dossier: dict[str, Any]) -> str:
 
 
 def render_answer(message: str, decision: RouterDecision, facts: list[dict[str, Any]], extra: dict[str, Any], dossiers: list[dict[str, Any]] | None = None) -> str:
-    """Deterministic, citation-bearing answer used by the fake backend and as the model fallback."""
+    """Citation-bearing graph rendering for the explicit demo backend and direct ownership queries."""
     if decision.intent == "ownership":
         if not decision.entities:
             return "Name the project or commitment whose owner you want to look up."

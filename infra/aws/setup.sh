@@ -5,6 +5,10 @@ set -euo pipefail
 HOST="$1"
 ORIGINS="$2"
 ORIGIN_REGEX="${3:-}"
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "Set ANTHROPIC_API_KEY in the shell before running setup.sh" >&2
+  exit 2
+fi
 cd "$(dirname "$0")/../.."
 
 if ! swapon --show | grep -q /swapfile; then
@@ -28,8 +32,15 @@ if [ ! -f "$ENV_FILE" ]; then
   {
     echo "TENANT_RW_PASSWORD=$(openssl rand -hex 24)"
     echo "TENANT_RO_PASSWORD=$(openssl rand -hex 24)"
+    echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY"
+    echo "LLM_MODEL=claude-haiku-4-5-20251001"
+    echo "LLM_MODEL_SMALL=claude-haiku-4-5-20251001"
+    echo "WORKERS_ENABLED=true"
+    echo "STRICT_HEALTH=true"
   } > "$ENV_FILE"
 fi
+sed -i '/^ANTHROPIC_API_KEY=/d' "$ENV_FILE"
+echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> "$ENV_FILE"
 sed -i '/^API_HOST=/d;/^CORS_ORIGINS=/d;/^CORS_ORIGIN_REGEX=/d' "$ENV_FILE"
 echo "API_HOST=$HOST" >> "$ENV_FILE"
 echo "CORS_ORIGINS=$ORIGINS" >> "$ENV_FILE"

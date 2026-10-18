@@ -21,6 +21,7 @@ from ingest.recorder_format import RecorderFormatError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .hive_adapter import HiveConflict, HiveNotFound
+from .llm import LLMError, LLMRateLimited
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +110,16 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(LLMFormatError)
     async def _llm_format(_: Request, exc: LLMFormatError) -> JSONResponse:
         return error_response(502, "llm_format_error", str(exc)[:2000])
+
+    @app.exception_handler(LLMRateLimited)
+    async def _llm_rate_limit(_: Request, exc: LLMRateLimited) -> JSONResponse:
+        return error_response(503, "llm_rate_limited", "the model is rate limited; retry shortly", retry_after=exc.retry_after)
+
+    @app.exception_handler(LLMError)
+    async def _llm_error(request: Request, exc: LLMError) -> JSONResponse:
+        rid = request_id_of(request)
+        log.warning("model unavailable (request %s): %s", rid, exc)
+        return error_response(503, "llm_unavailable", "the model is unavailable; please retry", request_id=rid)
 
     @app.exception_handler(Exception)
     async def _unexpected(request: Request, exc: Exception) -> JSONResponse:

@@ -83,7 +83,7 @@ The web client defaults to API port 8080. On macOS with Colima, use your active 
 
 `--extract gold` is the seed default and is **label replay, not live extraction**. With `LLM_BACKEND=fake`, agents follow scripted policies and answers use graph evidence templates. `EMBED_BACKEND=fake` is a deterministic test vectorizer. `GET /health` reports both backends. Frontend-only fixtures require `NEXT_PUBLIC_MOCK=1`; connection failures do not switch to them.
 
-For live models, configure one supported provider in `.env`: Ollama (`LLM_BACKEND=ollama`), Gemini (`gemini` plus `GEMINI_API_KEY`) or OpenRouter (`openrouter` plus `OPENROUTER_API_KEY`). Verify your selected model ID and availability. Use `EMBED_BACKEND=onnx` with the configured EmbeddingGemma model, or `gemini` with a compatible `EMBED_MODEL` and key. API startup fails when a requested embedding backend cannot load. Keep the same embedding backend/model when seeding and querying; changing it requires rebuilding embeddings in a disposable or migrated graph.
+For a real deployment, configure Anthropic Haiku (`LLM_BACKEND=anthropic`, `LLM_MODEL=claude-haiku-4-5-20251001`, `ANTHROPIC_API_KEY`) and the local ONNX EmbeddingGemma backend (`EMBED_BACKEND=onnx`). API startup fails when a requested model cannot load or when a tenant's recorded vector space differs; changing embedding models requires the explicit in-place reindex maintenance command.
 
 Live extraction must be selected explicitly with `data/seed.py --extract real`. The existing [extraction evaluation](docs/eval/extraction.md) reports precision **0.42**, recall **0.59**, F1 **0.49**; the audit did not rerun a real model. Keep live experiments separate from the demonstration data.
 

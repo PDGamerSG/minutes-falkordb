@@ -33,13 +33,22 @@ services:
     environment:
       - FALKORDB_URL=falkor://falkordb:6379
       - ENV=production
-      - LLM_BACKEND=fake
-      - EMBED_BACKEND=fake
+      - LLM_BACKEND=anthropic
+      - LLM_MODEL=${LLM_MODEL:-claude-haiku-4-5-20251001}
+      - LLM_MODEL_SMALL=${LLM_MODEL_SMALL:-claude-haiku-4-5-20251001}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-1024}
+      - LLM_TIMEOUT_S=${LLM_TIMEOUT_S:-60}
+      - EMBED_BACKEND=onnx
+      - EMBED_MODEL=${EMBED_MODEL:-onnx-community/embeddinggemma-300m-ONNX}
+      - HF_HOME=/app/hf-cache
+      - HF_HUB_OFFLINE=1
       - CORS_ORIGINS=${CORS_ORIGINS}
       - CORS_ORIGIN_REGEX=${CORS_ORIGIN_REGEX:-}
       - TENANT_RW_PASSWORD=${TENANT_RW_PASSWORD}
       - TENANT_RO_PASSWORD=${TENANT_RO_PASSWORD}
-      - WORKERS_ENABLED=true
+      - WORKERS_ENABLED=${WORKERS_ENABLED:-true}
+      - STRICT_HEALTH=${STRICT_HEALTH:-true}
 
   caddy:
     image: caddy:2

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     gemini_api_key_2: str | None = None  # optional second key, rotated to on 429/5xx
     gemini_tpm_budget: int = 14000  # process-wide input-token budget per minute (chars/4), queue up to 20 s
     openrouter_api_key: str | None = None
+    anthropic_api_key: str | None = None
     ollama_base_url: str = "http://localhost:11434/v1"
     llm_max_tokens: int = 1024
     llm_timeout_s: float = 180.0
@@ -75,6 +76,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _defaults_by_env(self) -> Settings:
+        self.llm_backend = self.llm_backend.strip().lower()
+        if self.llm_backend == "anthropic":
+            if "llm_model" not in self.model_fields_set:
+                self.llm_model = "claude-haiku-4-5-20251001"
+            if "llm_model_small" not in self.model_fields_set:
+                self.llm_model_small = self.llm_model
+            if not all(m.startswith("claude-haiku-") for m in (self.llm_model, self.llm_model_small)):
+                raise ValueError("Anthropic deployments require Haiku for LLM_MODEL and LLM_MODEL_SMALL")
         if self.auto_create_tenants is None:
             self.auto_create_tenants = not self.is_production
         return self
@@ -106,6 +115,7 @@ class Settings(BaseSettings):
         return {
             "gemini": ",".join(k for k in (self.gemini_api_key, self.gemini_api_key_2) if k) or None,
             "openrouter": self.openrouter_api_key,
+            "anthropic": self.anthropic_api_key,
         }.get(self.llm_backend)
 
     @property

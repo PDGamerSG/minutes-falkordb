@@ -250,14 +250,15 @@ def build_tools(agent: Any, task: dict[str, Any], names: list[str]) -> ToolSet:
         }
 
     def create_issue(args: CreateIssueArgs) -> dict[str, Any]:
+        if getattr(agent.llm, "backend", "") != "fake" and not (settings.github_token and settings.github_demo_repo):
+            raise RuntimeError("GitHub issue creation is not configured; no issue was created")
         artifact: dict[str, Any] = {"id": new_id("art"), "kind": "github_issue", "title": args.title, "body": args.body, "simulated": True}
         if settings.github_token and settings.github_demo_repo:
             try:
                 created = create_github_issue(args.title, args.body, args.labels, token=settings.github_token, repo=settings.github_demo_repo)
                 artifact.update({"uri": created["uri"], "number": created["number"], "simulated": False})
-            except Exception as exc:  # noqa: BLE001 - keep the demo moving, record the failure
-                log.warning("GitHub issue creation failed: %s", exc)
-                artifact["github_error"] = str(exc)[:300]
+            except Exception as exc:
+                raise RuntimeError("GitHub issue creation failed; no simulated issue was created") from exc
         if artifact.get("uri") is None:
             # Simulated tickets never point at a real GitHub namespace (finding 2.9).
             artifact["uri"] = f"minutes://simulated/issue/{new_id('sim')[-8:]}"
@@ -335,7 +336,7 @@ def build_tools(agent: Any, task: dict[str, Any], names: list[str]) -> ToolSet:
     add("active_facts", "List currently active facts, optionally for one entity and/or kind.", ActiveFactsArgs, active_facts)
     add("open_commitments", "Open commitments (who promised what by when), optionally for one person.", OpenCommitmentsArgs, open_commitments)
     add("why", "Provenance of a fact: who said it, in which meeting or email, when, and what it replaced.", WhyArgs, why)
-    add("create_issue", "Create a tracking issue (GitHub when configured, otherwise simulated) and record it as the task artifact.", CreateIssueArgs, create_issue)
+    add("create_issue", "Create a GitHub tracking issue and record it as the task artifact. Requires a configured GitHub integration.", CreateIssueArgs, create_issue)
     add("update_commitment", "Set a new due date on a commitment and announce commitment.updated.", UpdateCommitmentArgs, update_commitment)
     add("submit_task", "Submit a new task to the board for agents with the given capabilities.", SubmitTaskArgs, submit_task)
     add("hand_off", "Hand the current task to another agent with a summary and the ids of the nodes they should read. Ends your turn.", HandOffArgs, hand_off)

@@ -2,7 +2,7 @@
 
 ```python
 class LLM:
-    """One interface, three backends chosen by env LLM_BACKEND = gemini | openrouter | ollama."""
+    """One interface, backends chosen by env LLM_BACKEND = anthropic | gemini | openrouter | ollama."""
     def __init__(self, backend: str, model: str, api_key: str | None = None, base_url: str | None = None): ...
     def complete(self, system: str, user: str, temperature: float = 0.1, max_tokens: int = 2048) -> str
     def complete_json(self, system: str, user: str, schema: type[BaseModel], temperature: float = 0.1) -> BaseModel
@@ -26,9 +26,11 @@ class Embedder:
 
 Environment
 ```
-LLM_BACKEND=ollama            # gemini | openrouter | ollama
-LLM_MODEL=gemma4:e4b          # gemini: gemma-4-26b-a4b-it ; openrouter: google/gemma-4-26b-a4b-it ; ollama: gemma4:e4b | gemma4:12b
-LLM_MODEL_SMALL=gemma4:e4b
+LLM_BACKEND=anthropic         # anthropic | gemini | openrouter | ollama
+LLM_MODEL=claude-haiku-4-5-20251001
+LLM_MODEL_SMALL=claude-haiku-4-5-20251001
+ANTHROPIC_API_KEY=
+                          # Anthropic deployments reject non-Haiku model IDs
 GEMINI_API_KEY=
 OPENROUTER_API_KEY=
 OLLAMA_BASE_URL=http://localhost:11434/v1
@@ -38,6 +40,7 @@ HF_HOME=D:\hf-cache
 ```
 
 Backends
+- anthropic: Messages API (`/v1/messages`) with native tool use and JSON-instruction validation. Production configuration accepts Claude Haiku IDs only.
 - gemini: `google-genai` SDK, `client.models.generate_content(model=..., contents=..., config=GenerateContentConfig(system_instruction=..., tools=[...], response_mime_type="application/json"))`. Verify that Gemma 4 model ids accept `tools` and `response_mime_type`; if not, the JSON protocol path is used automatically.
 - openrouter and ollama: `openai` SDK with `base_url`; tools in OpenAI format. Ollama serves `/v1/chat/completions` with tools for Gemma 4.
 - fake (tests): `FakeLLM(responses=[...])` returns scripted outputs; `FakeEmbedder` returns deterministic hashed vectors of dim 768.

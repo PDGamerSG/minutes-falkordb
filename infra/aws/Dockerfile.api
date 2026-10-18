@@ -1,5 +1,7 @@
 # Minutes API for the AWS Compose stack (FalkorDB runs in its own container).
-FROM python:3.12-slim
+# Keep the embedding model inside the image: production must work after a cold restart
+# without downloading a different model or silently switching to hashed test vectors.
+FROM python:3.12-slim AS build
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
 
@@ -7,23 +9,43 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
-    PYTHONUNBUFFERED=1
+    HF_HOME=/app/hf-cache
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
+COPY packages/hiveboard/pyproject.toml packages/hiveboard/README.md packages/hiveboard/
+COPY packages/ingest/pyproject.toml packages/ingest/
+COPY apps/api/pyproject.toml apps/api/
+RUN mkdir -p packages/hiveboard/hiveboard packages/hiveboard/bench packages/ingest/ingest cypher \
+ && touch packages/hiveboard/hiveboard/__init__.py packages/hiveboard/bench/__init__.py packages/ingest/ingest/__init__.py \
+ && uv sync --frozen --no-dev --package minutes-api
+
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY cypher ./cypher
-RUN uv sync --frozen --no-dev --package minutes-api
 COPY data ./data
 COPY docs/bench ./docs/bench
-COPY infra/aws/api-start.sh /app/api-start.sh
+COPY infra/aws/reindex-embeddings.py /app/reindex-embeddings.py
+RUN uv sync --frozen --no-dev --package minutes-api
 
-RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin minutes \
- && chmod +x /app/api-start.sh && chown -R minutes:minutes /app
-USER minutes
+ARG EMBED_MODEL=onnx-community/embeddinggemma-300m-ONNX
+RUN /app/.venv/bin/python -c "import sys; from pathlib import Path; from ingest.embed import resolve_model_files; print(resolve_model_files(sys.argv[1], Path('/app/hf-cache/hub')))" "${EMBED_MODEL}"
+RUN cp -aL /app/hf-cache /app/hf-cache-flat && rm -rf /app/hf-cache && mv /app/hf-cache-flat /app/hf-cache
+RUN /app/.venv/bin/python -c "import sys; from ingest.embed import Embedder; e = Embedder('onnx', sys.argv[1], '/app/hf-cache', None, strict=True); v = e.embed_one('baked model smoke test', 'document'); assert len(v) == 768, len(v); print('embedding model baked:', e.identity, len(v))" "${EMBED_MODEL}"
 
-ENV PATH=/app/.venv/bin:$PATH \
+FROM python:3.12-slim
+RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin minutes
+ENV PYTHONUNBUFFERED=1 \
+    PATH=/app/.venv/bin:$PATH \
+    HF_HOME=/app/hf-cache \
+    HF_HUB_OFFLINE=1 \
+    EMBED_MODEL=onnx-community/embeddinggemma-300m-ONNX \
     PORT=8000
+WORKDIR /app
+COPY --from=build --chown=minutes:minutes /app /app
+COPY --chown=minutes:minutes infra/aws/api-start.sh /app/api-start.sh
+RUN chmod +x /app/api-start.sh
+USER minutes
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
 CMD ["/app/api-start.sh"]

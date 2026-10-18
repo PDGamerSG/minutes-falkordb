@@ -1,10 +1,10 @@
-"""Gemma 4 client with gemini | openrouter | ollama backends (docs/contracts/llm.md).
+"""Model client with Anthropic Haiku, Gemini, OpenRouter and Ollama backends (docs/contracts/llm.md).
 
 * ``complete``       plain text
 * ``complete_json``  JSON mode where the backend has one, fences stripped, Pydantic-validated,
                      one retry with the validation error appended, then ``LLMFormatError``
-* ``tool_loop``      native function calling on ollama (native /api/chat) and openrouter
-                     (OpenAI tools); the JSON protocol everywhere else. Tool args are validated
+* ``tool_loop``      native function calling on Anthropic (Messages API), ollama (native /api/chat)
+                     and openrouter (OpenAI tools); the JSON protocol everywhere else. Tool args are validated
                      against ``ToolSpec.args_model`` before ``execute``; one retry, then fail loudly.
 
 Gemma 4 thinks by default; ``think=False`` is sent to Ollama (``think`` field) and OpenRouter
@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, TypeVar
 
 import httpx
@@ -32,7 +35,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 ExecuteFn = Callable[[str, dict[str, Any]], dict[str, Any]]
 
-NATIVE_TOOL_BACKENDS = frozenset({"ollama", "openrouter"})
+NATIVE_TOOL_BACKENDS = frozenset({"anthropic", "ollama", "openrouter"})
 DEFAULT_TPM_BUDGET = 14_000  # input tokens per minute (chars / 4) shared by every Gemini call in this process
 TOKEN_BUCKET_MAX_WAIT_S = 20.0
 
@@ -129,13 +132,13 @@ class ToolSpec(BaseModel):
     description: str
     args_model: type[BaseModel]
 
-    def openai_schema(self) -> dict[str, Any]:
+    def openai_schema(self, *, clean: bool = True) -> dict[str, Any]:
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": _clean_schema(self.args_model.model_json_schema()),
+                "parameters": _clean_schema(self.args_model.model_json_schema()) if clean else self.args_model.model_json_schema(),
             },
         }
 
@@ -197,6 +200,146 @@ def _clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- backends
+class AnthropicBackend:
+    """Anthropic Messages API backend with native tool use and Haiku-only deployments."""
+
+    name = "anthropic"
+    supports_native_tools = True
+    supports_json_mode = False
+
+    def __init__(self, model: str, api_key: str | None, base_url: str | None, *, timeout_s: float, think: bool) -> None:
+        if not api_key:
+            raise LLMError("LLM_BACKEND=anthropic requires ANTHROPIC_API_KEY")
+        if not model.startswith("claude-haiku-"):
+            raise LLMError("Only Claude Haiku models are enabled for Anthropic")
+        self.model = model
+        self.think = think
+        self.base_url = (base_url or "https://api.anthropic.com").rstrip("/")
+        self._client = httpx.Client(timeout=httpx.Timeout(timeout_s, connect=10.0))
+        self._headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+    def probe(self) -> bool:
+        """Check credentials and model access without generating tokens."""
+        try:
+            response = self._client.get(f"{self.base_url}/v1/models/{self.model}", headers=self._headers, timeout=5.0)
+            self._check_status(response)
+            data = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise LLMError("Anthropic model probe failed") from exc
+        if not isinstance(data, dict) or not str(data.get("id", "")).startswith("claude-haiku-"):
+            raise LLMError("Anthropic did not confirm access to a Haiku model")
+        return True
+
+    @staticmethod
+    def _check_status(response: httpx.Response) -> None:
+        # Do not log provider bodies: errors can echo credentials or source documents.
+        if response.status_code == 429:
+            hint = response.headers.get("retry-after", "30")
+            try:
+                delay = float(hint)
+            except ValueError:
+                try:
+                    delay = (parsedate_to_datetime(hint) - datetime.now(UTC)).total_seconds()
+                except (TypeError, ValueError, OverflowError):
+                    delay = 30.0
+            raise LLMRateLimited("Anthropic rate limit exceeded", retry_after=delay if math.isfinite(delay) else 30.0)
+        if not response.is_success:
+            raise LLMError(f"Anthropic request failed (HTTP {response.status_code})")
+
+    def chat(
+        self,
+        system: str,
+        messages: list[dict[str, Any]],
+        *,
+        temperature: float,
+        max_tokens: int,
+        json_mode: bool,
+        tools: list[dict[str, Any]] | None,
+    ) -> ChatResponse:
+        if json_mode:
+            system = (
+                f"{system}\n\nReturn exactly one valid JSON object and no markdown, commentary, or code fences."
+            )
+        body: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "system": system,
+            "messages": _to_anthropic_messages(messages),
+        }
+        if tools:
+            body["tools"] = [
+                {
+                    "name": item["function"]["name"],
+                    "description": item["function"].get("description", ""),
+                    "input_schema": item["function"].get("parameters") or {"type": "object"},
+                }
+                for item in tools
+            ]
+        try:
+            response = self._client.post(f"{self.base_url}/v1/messages", headers=self._headers, json=body)
+            self._check_status(response)
+        except httpx.HTTPError as exc:
+            raise LLMError("Anthropic connection failed or timed out") from exc
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise LLMError("Anthropic returned invalid JSON") from exc
+        if not isinstance(data, dict) or not isinstance(data.get("content"), list):
+            raise LLMError("Anthropic returned an invalid message")
+        if data.get("stop_reason") not in {"end_turn", "tool_use", "stop_sequence"}:
+            raise LLMError("Anthropic did not complete the response (truncated, refused or paused)")
+        blocks = data.get("content") or []
+        text = "".join(str(block.get("text") or "") for block in blocks if block.get("type") == "text")
+        calls = [
+            ToolCall(name=str(block.get("name") or ""), args=block.get("input") or {}, id=str(block.get("id") or ""))
+            for block in blocks
+            if block.get("type") == "tool_use"
+        ]
+        if not text.strip() and not calls:
+            raise LLMError("Anthropic returned an empty response")
+        if any(not c.id or not c.name or not isinstance(c.args, dict) for c in calls):
+            raise LLMError("Anthropic returned an invalid tool call")
+        return ChatResponse(content=text, tool_calls=calls, raw=data)
+
+
+def _to_anthropic_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Translate the shared internal tool-loop history to Anthropic's content-block format."""
+    out: list[dict[str, Any]] = []
+    for msg in messages:
+        role = msg.get("role")
+        if role == "assistant" and msg.get("tool_calls"):
+            blocks: list[dict[str, Any]] = []
+            if msg.get("content"):
+                blocks.append({"type": "text", "text": str(msg["content"])})
+            for call in msg["tool_calls"]:
+                args = call.get("args") or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except json.JSONDecodeError as exc:
+                        raise LLMError("Invalid JSON in tool history") from exc
+                blocks.append({"type": "tool_use", "id": call.get("id") or "call_0", "name": call.get("name", ""), "input": args})
+            out.append({"role": "assistant", "content": blocks})
+        elif role == "tool":
+            result = {"type": "tool_result", "tool_use_id": msg.get("tool_call_id") or "call_0", "content": str(msg.get("content") or "")}
+            if out and out[-1].get("role") == "user" and isinstance(out[-1].get("content"), list) and all(b.get("type") == "tool_result" for b in out[-1]["content"]):
+                out[-1]["content"].append(result)
+            else:
+                out.append({"role": "user", "content": [result]})
+        else:
+            content = msg.get("content") or ""
+            if isinstance(content, list):
+                out.append({"role": role or "user", "content": content})
+            else:
+                out.append({"role": role or "user", "content": str(content)})
+    return out
+
+
 class OllamaBackend:
     """Ollama native ``/api/chat`` (so ``think`` can be switched off and ``format`` can be set)."""
 
@@ -527,8 +670,10 @@ class LLM:
             )
         elif backend == "gemini":
             self._backend = GeminiBackend(model, api_key, timeout_s=timeout_s, think=think, tpm_budget=tpm_budget)
+        elif backend == "anthropic":
+            self._backend = AnthropicBackend(model, api_key, base_url, timeout_s=timeout_s, think=think)
         else:
-            raise ValueError(f"unknown LLM_BACKEND {backend!r} (expected gemini | openrouter | ollama | fake)")
+            raise ValueError(f"unknown LLM_BACKEND {backend!r} (expected anthropic | gemini | openrouter | ollama | fake)")
         self.native_tools = self._backend.supports_native_tools if native_tools is None else native_tools
 
     def probe(self) -> bool:
@@ -590,7 +735,7 @@ class LLM:
     ) -> ToolLoopResult:
         started = time.perf_counter()
         if self.native_tools:
-            result = run_native_tool_loop(self._backend.chat, system, messages, tools, execute, max_steps, self.max_tokens)
+            result = run_native_tool_loop(self._backend.chat, system, messages, tools, execute, max_steps, self.max_tokens, clean_schemas=self.backend != "anthropic")
         else:
             result = run_json_protocol_loop(
                 lambda sys_prompt, msgs: self._backend.chat(
@@ -625,10 +770,12 @@ def run_native_tool_loop(
     execute: ExecuteFn,
     max_steps: int,
     max_tokens: int,
+    *,
+    clean_schemas: bool = True,
 ) -> ToolLoopResult:
     """OpenAI/Ollama-style function calling with per-call Pydantic validation (one retry)."""
     specs = {t.name: t for t in tools}
-    schemas = [t.openai_schema() for t in tools]
+    schemas = [t.openai_schema(clean=clean_schemas) for t in tools]
     history = list(messages)
     steps: list[dict[str, Any]] = []
     retried = False

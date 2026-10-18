@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ingest.fakes import new_id
+from ingest.llm_protocol import LLMFormatError
 
 from .base import AgentResult, BaseAgent, load_prompt
 from .tools import build_tools
@@ -144,12 +145,10 @@ class StandupAgent(BaseAgent):
 
     def _summarise(self, goal: str, gathered: dict[str, Any]) -> str:
         if getattr(self.llm, "backend", "") != "fake":
-            try:
-                text = self.llm.complete(load_prompt("standup"), f"Goal: {goal}\nToday: {datetime.now(tz=UTC).date().isoformat()} (anything due before today is overdue, not due this week)\n\nTool results (JSON):\n{json.dumps(gathered, default=str)[:12000]}\n\nWrite the standup summary now.", temperature=0.2, max_tokens=800)
-                if text.strip():
-                    return text.strip()
-            except Exception as exc:  # noqa: BLE001 - fall through to the deterministic summary
-                log.warning("standup summary via model failed: %s", exc)
+            text = self.llm.complete(load_prompt("standup"), f"Goal: {goal}\nToday: {datetime.now(tz=UTC).date().isoformat()} (anything due before today is overdue, not due this week)\n\nTool results (JSON):\n{json.dumps(gathered, default=str)[:12000]}\n\nWrite the standup summary now.", temperature=0.2, max_tokens=800)
+            if text.strip():
+                return text.strip()
+            raise LLMFormatError("The model returned an empty standup summary; please retry")
         return render_standup(goal, gathered)
 
 
@@ -161,7 +160,7 @@ def _fmt_date(ms: Any) -> str:
 
 
 def render_standup(goal: str, gathered: dict[str, Any]) -> str:
-    """Deterministic standup summary used by the fake backend (and as the model fallback)."""
+    """Deterministic standup summary used only by the explicit fake backend."""
     lines = [f"Standup summary ({goal})", ""]
     commitments = next((v.get("commitments") for k, v in gathered.items() if k.endswith("open_commitments") and isinstance(v, dict)), None) or []
     lines.append(f"Open commitments ({len(commitments)}):")

@@ -6,6 +6,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import pytest
+from ingest.llm_protocol import LLMFormatError
+
 from apps.api.agents.answer_agent import AnswerAgent
 from apps.api.agents.evidence import EvidenceIndex, build_dossiers, pretty_object, rrf
 from apps.api.agents.tools import build_tools
@@ -116,16 +119,13 @@ def test_why_tool_history_is_oldest_first(seeded):
     assert result["source_kind"] == "email" and result["meeting"] is None and "wrote" in result
 
 
-def test_unknown_model_citation_is_replaced_with_grounded_fallback(seeded):
+def test_unknown_model_citation_is_rejected_without_a_scripted_answer(seeded):
     class InventedCitation(SpyLLM):
         def complete(self, *args, **kwargs):
             return "A made-up owner approved this [fact_not_in_this_tenant]."
 
-    response = _agent(seeded, InventedCitation()).answer("When is the UPI flow due?")
-    assert "made-up" not in response["answer"]
-    assert "2026-09-28" in response["answer"]
-    cited = set(re.findall(r"\[(fact_[^\]]+)\]", response["answer"]))
-    assert cited <= {s["fact_id"] for s in response["sources"]}
+    with pytest.raises(LLMFormatError, match="citations"):
+        _agent(seeded, InventedCitation()).answer("When is the UPI flow due?")
 
 
 def test_explanation_uses_real_provenance_edges(client):
@@ -135,15 +135,13 @@ def test_explanation_uses_real_provenance_edges(client):
     assert {"HAS_EPISODE", "DERIVED_FROM", "SUPERSEDES"} <= types
 
 
-def test_uncited_model_claim_is_replaced_with_grounded_evidence(seeded):
+def test_uncited_model_claim_is_rejected(seeded):
     class UncitedAnswer(SpyLLM):
         def complete(self, *args, **kwargs):
             return "The project was cancelled by the CEO."
 
-    response = _agent(seeded, UncitedAnswer()).answer("When is the UPI flow due?")
-    assert "cancelled" not in response["answer"]
-    assert "2026-09-28" in response["answer"]
-    assert "[fact_" in response["answer"]
+    with pytest.raises(LLMFormatError, match="citations"):
+        _agent(seeded, UncitedAnswer()).answer("When is the UPI flow due?")
 
 
 def test_historical_question_does_not_send_future_evidence_to_model(seeded):
