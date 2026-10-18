@@ -8,6 +8,20 @@ Target: **Track 3 — Company Brain**, Graph Hacks: Context for AI Agents (Oct 1
 
 **Live demo:** https://minutes.pallabdas.me
 
+## Demo
+
+- Live app: https://minutes.pallabdas.me. Open **Workspaces**, then **Orbit**.
+- Walkthrough video (24 seconds): https://minutes.pallabdas.me/media/minutes-walkthrough.mp4
+- Pitch video: [`docs/pitch/minutes-pitch-video.mp4`](docs/pitch/minutes-pitch-video.mp4)
+
+A two-minute path through the live app. Every step reads or writes FalkorDB:
+
+1. **Overview.** Orbit's navigation decision moved from "bottom tab bar" (kickoff meeting) to "side drawer" (design review). Minutes follows `WorkItem -[:DEPENDS_ON]-> Fact` and the `SUPERSEDES` chain, then flags 3 of the 5 tracked work items for review.
+2. **Ask Minutes.** Ask "Why did we choose the side drawer?". The answer cites the meeting moments and the email thread behind the decision. **Why this answer** shows the Cypher that ran and the subgraph it touched.
+3. **Timeline.** Drag the slider back to mid-September. The left column lists what the team believed then (by `valid_from` and `valid_to`), the right column what is true now.
+4. **Agent board.** Press **Simulate: "move it to Friday"**. The API supersedes a dated commitment, and the Scheduler and Follow-up agents claim tasks with a compare-and-set query and hand off through `HANDED_OFF` edges. **Induce double claim** races 25 agents on one task, and exactly one wins.
+5. **Sources.** Every fact opens the original utterance or email, with the speaker and timestamp.
+
 Read the [visual design notes](docs/frontend-design.md), [decision-impact contract](docs/decision-impact.md), [audit and Track 3 assessment](docs/track3-readiness.md) and the [three-minute demo](docs/demo-script.md). Local graph behavior is verified; real-model extraction quality and production access control remain gaps.
 
 ## Team Vulcan
@@ -67,7 +81,7 @@ The work manifest references the exact reviewed gold facts. Import it after gold
 
 The web client defaults to API port 8080. On macOS with Colima, use your active Docker context (`docker --context colima compose ...` if needed). `--reset` deletes the selected tenant data; use it only for a disposable demo.
 
-`--extract gold` is the seed default and is **label replay, not live extraction**. With `LLM_BACKEND=fake`, agents follow scripted policies and answers use graph evidence templates. `EMBED_BACKEND=fake` is a deterministic test vectorizer. The shell labels both modes. Frontend-only fixtures require `NEXT_PUBLIC_MOCK=1`; connection failures do not switch to them.
+`--extract gold` is the seed default and is **label replay, not live extraction**. With `LLM_BACKEND=fake`, agents follow scripted policies and answers use graph evidence templates. `EMBED_BACKEND=fake` is a deterministic test vectorizer. `GET /health` reports both backends. Frontend-only fixtures require `NEXT_PUBLIC_MOCK=1`; connection failures do not switch to them.
 
 For live models, configure one supported provider in `.env`: Ollama (`LLM_BACKEND=ollama`), Gemini (`gemini` plus `GEMINI_API_KEY`) or OpenRouter (`openrouter` plus `OPENROUTER_API_KEY`). Verify your selected model ID and availability. Use `EMBED_BACKEND=onnx` with the configured EmbeddingGemma model, or `gemini` with a compatible `EMBED_MODEL` and key. API startup fails when a requested embedding backend cannot load. Keep the same embedding backend/model when seeding and querying; changing it requires rebuilding embeddings in a disposable or migrated graph.
 
@@ -82,6 +96,34 @@ pnpm typecheck
 pnpm lint
 pnpm build
 ```
+
+## How the graph does the work
+
+Every screen is a traversal over FalkorDB, and the API returns the Cypher it ran next to the result. Open these live endpoints in a browser:
+
+| Question | Traversal | Live result |
+|---|---|---|
+| Which open work does a changed decision affect? | `(WorkItem)-[:DEPENDS_ON]->(baseline:Fact)`, then `SUPERSEDES*0..24` back from the active fact with the same key ([`81_work_impacts`](cypher/81_work_impacts.cypher)) | [`/tenants/orbit/impact`](https://52-65-45-159.sslip.io/tenants/orbit/impact): 5 tracked, 3 need review |
+| Where did this decision come from? | `(Fact)-[:DERIVED_FROM]->(Episode)`, the speaker through `SPOKEN_BY` or `SENT_BY`, the `Meeting` or `EmailThread` that holds the episode, and the `SUPERSEDES` chain both ways ([`32_why_path`](cypher/32_why_path.cypher)) | [`/tenants/orbit/why/fact_ep_mtg_orbit_003_010_499210a8`](https://52-65-45-159.sslip.io/tenants/orbit/why/fact_ep_mtg_orbit_003_010_499210a8) |
+| What did the team believe on 15 September? | `valid_from <= T` and (`valid_to` is null or `> T`) on every `Fact` ([`31_belief_at_time`](cypher/31_belief_at_time.cypher)) | [`/tenants/orbit/belief?t=1789473600000`](https://52-65-45-159.sslip.io/tenants/orbit/belief?t=1789473600000): navigation is "bottom tab bar"; [now](https://52-65-45-159.sslip.io/tenants/orbit/belief) it is "side drawer" |
+
+The impact query in full. Only explicit edges count: no co-mention or vector similarity marks work as affected.
+
+```cypher
+MATCH (w:WorkItem)-[:DEPENDS_ON]->(baseline:Fact)
+OPTIONAL MATCH (w)-[:OWNED_BY]->(owner:Person)
+WITH w, baseline, owner
+MATCH (w)-[:DOCUMENTED_IN]->(doc:Document)
+WITH w, baseline, owner, doc
+OPTIONAL MATCH (current:Fact {status: 'active'})
+WHERE current.key = baseline.key
+WITH w, baseline, owner, doc, current
+OPTIONAL MATCH path=(current)-[:SUPERSEDES*0..24]->(baseline)
+RETURN w {.id, .title, .status, .rationale} AS item, baseline {.id, .object, .status} AS baseline,
+       owner {.id, .name} AS owner, collect(DISTINCT {fact: current {.id, .object}, via: [n IN nodes(path) | n.id]}) AS candidates
+```
+
+Agents coordinate through the same graph. A task is a node, a claim is a compare-and-set on its `version` ([`20_claim_task`](cypher/20_claim_task.cypher)), and a handoff is a `HANDED_OFF` edge that carries the subgraph ids the next agent needs ([`21_handoff_task`](cypher/21_handoff_task.cypher)). The trace of a reschedule task on the live board reads: submitted, claimed by `scheduler_agent`, handed off to `followup_agent`, claimed, follow-up issue artifact, completed.
 
 ## Graph data model
 
@@ -208,7 +250,7 @@ Live demo: **https://minutes.pallabdas.me** (also https://minutes-falkordb.verce
 
 - Web: Vercel, built from `apps/web` on every push to `main`.
 - API and FalkorDB 6.0.1: one AWS Lightsail instance (Sydney, 1 GB) running [`infra/aws/docker-compose.yml`](infra/aws/docker-compose.yml). FalkorDB stays on the private Compose network with an append-only file on a named volume; Caddy terminates HTTPS; daily instance snapshots are enabled.
-- Mode: synthetic data only, gold-label replay, scripted agents (`LLM_BACKEND=fake`) and test embeddings (`EMBED_BACKEND=fake`); the shell labels both. Demo and tenant routes are open (no `ADMIN_TOKEN`), so anyone can run the demo actions.
+- Mode: synthetic data only, gold-label replay, scripted agents (`LLM_BACKEND=fake`) and test embeddings (`EMBED_BACKEND=fake`), as `GET /health` reports. Demo and tenant routes are open (no `ADMIN_TOKEN`), so anyone can run the demo actions.
 
 Set up the same host from scratch with `sudo bash infra/aws/setup.sh <hostname> <web-origin>`. See [deployment notes](infra/README.md), including the access-control work required before using private company data.
 
