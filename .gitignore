@@ -25,3 +25,6 @@ docs/03-linkedin-post.md
 docs/04-falkordb-alignment.md
 docs/05-decision-and-stack.md
 docs/team-brief.html
+
+# AWS host secrets (generated on the host)
+infra/aws/.env

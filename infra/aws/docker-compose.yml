@@ -1,0 +1,61 @@
+# Minutes on a single host: FalkorDB (private network, persistent), the API, and Caddy for HTTPS.
+# Run from the repository root:  docker compose -f infra/aws/docker-compose.yml --env-file infra/aws/.env up -d --build
+services:
+  falkordb:
+    image: falkordb/falkordb:6.0.1
+    restart: unless-stopped
+    environment:
+      - BROWSER=0
+      - FALKORDB_ARGS=TIMEOUT_DEFAULT 3000 TIMEOUT_MAX 10000 MAX_QUEUED_QUERIES 500
+      - REDIS_ARGS=--appendonly yes --save 300 1
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/aws/Dockerfile.api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      - FALKORDB_URL=falkor://falkordb:6379
+      - ENV=production
+      - LLM_BACKEND=fake
+      - EMBED_BACKEND=fake
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - TENANT_RW_PASSWORD=${TENANT_RW_PASSWORD}
+      - TENANT_RO_PASSWORD=${TENANT_RO_PASSWORD}
+      - WORKERS_ENABLED=true
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - API_HOST=${API_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  falkordb_data:
+  caddy_data:
+  caddy_config:
